@@ -87,3 +87,38 @@ export default function LoginClient() {
         </div>
 
         <div>
+          <label className="mb-1 block text-xs text-black/70">역할(Role)</label>
+          <select className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30" {...register('role')}>
+            <option value="ADMIN">ADMIN</option>
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="VIEWER">VIEWER</option>
+          </select>
+          <p className="mt-1 text-xs text-black/50">현재 선택: {role}</p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+        >
+          {isSubmitting ? '로그인 중...' : '로그인'}
+        </button>
+      </form>
+
+      <div className="mt-4 rounded-xl border border-black/10 bg-white p-3">
+        <p className="text-xs font-medium text-black/70">퀵 로그인(MVP)</p>
+        <div className="mt-2 flex gap-2">
+          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('ADMIN')}>
+            ADMIN
+          </button>
+          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('OPERATOR')}>
+            OPERATOR
+          </button>
+          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('VIEWER')}>
+            VIEWER
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
