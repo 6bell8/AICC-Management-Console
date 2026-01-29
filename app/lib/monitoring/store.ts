@@ -65,11 +65,25 @@ async function readStore(): Promise<MonitoringStore> {
   }
 }
 
-/**
- * ✅ “조회할 때마다 조금씩 변하게” 만드는 tick
- * - RUNNING run은 processed/success/failed 증가
- * - 일정 확률로 SUCCESS/FAILED로 종료
- */
+
+function pushEvent(run: CampaignRun, e: Omit<RunEvent, 'ts'> & { ts?: string }) {
+  const event: RunEvent = {
+    ts: e.ts ?? nowIso(),
+    level: e.level,
+    type: e.type,
+    message: e.message,
+    meta: e.meta,
+  };
+
+  run.events.push(event);
+
+  // (선택) 이벤트가 너무 커지지 않게 제한
+  const MAX_EVENTS = 200;
+  if (run.events.length > MAX_EVENTS) {
+    run.events.splice(0, run.events.length - MAX_EVENTS);
+  }
+}
+
 function tickRuns(runs: CampaignRun[]) {
   const now = Date.now();
 
@@ -162,16 +176,23 @@ async function writeStore(store: MonitoringStore) {
 
   try {
     await fs.rename(tmpPath, DATA_PATH);
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const err = e as NodeJS.ErrnoException;
+
     // Windows에서 rename이 간헐적으로 EPERM/EACCES 나는 케이스 폴백
-    if (e?.code === 'EPERM' || e?.code === 'EACCES') {
+    if (err?.code === 'EPERM' || err?.code === 'EACCES') {
       await fs.copyFile(tmpPath, DATA_PATH);
       await fs.rm(tmpPath, { force: true }).catch(() => {});
       return;
     }
+
     await fs.rm(tmpPath, { force: true }).catch(() => {});
     throw e;
   }
+}
+
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /**
