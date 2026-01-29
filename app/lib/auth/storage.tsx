@@ -26,4 +26,9 @@ export const authStorage = {
     localStorage.removeItem(KEY_TOKEN);
     localStorage.removeItem(KEY_ROLE);
   },
+
+  getRole(): Role | null {
+    const s = this.getSession();
+    return s?.role ?? null;
+  },
 };
