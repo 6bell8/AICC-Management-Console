@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /*--font-sans: var(--font-geist-sans);*/
+  /*--font-mono: var(--font-geist-mono);*/
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+@layer components {
+  .row-hover-gray {
+    @apply transition-colors duration-150 ease-out hover:bg-gray-100 dark:hover:bg-gray-800;
+  }
+
+  /* (선택) Link에만 올렸을 때 row가 바뀌도록 JS로 active를 줄 때 */
+  .row-active-gray {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+}
+
+@keyframes toastInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(16px); }
+}
+
+/* data-state 기반으로 애니메이션 적용 */
+[data-toast][data-state="open"] {
+  animation: toastInRight 180ms ease-out both;
+}
+
+[data-toast][data-state="closed"] {
+  animation: toastOutRight 160ms ease-in both;
+}
+
+
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.row-hover {
+  transition: background-color 150ms ease-out;
+}
+
+.row-hover:has(> a:hover),
+.row-hover:has(> a:focus-visible) {
+  background-color: hsl(var(--muted) / 0.6);
+}
