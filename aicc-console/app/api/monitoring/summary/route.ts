@@ -2,8 +2,6 @@
 import { NextResponse } from 'next/server';
 import { loadStore } from '@/app/lib/monitoring/store';
 
-const { runs } = await loadStore(); // ✅ GET은 read-only
-
 function toMinuteKey(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -18,6 +16,7 @@ export async function GET(req: Request) {
   const minutes = Math.min(Math.max(Number(url.searchParams.get('minutes') ?? 30), 5), 180);
 
   const store = await loadStore();
+  const runs = store.runs ?? [];
 
   // ✅ minutes 필터 대신 "최근 N개" 기준
   const recent = [...runs].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()).slice(0, 200);

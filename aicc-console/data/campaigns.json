@@ -43,11 +43,11 @@
     "id": "camp_009",
     "name": "새 캠페인 (camp_009)",
     "description": "",
-    "status": "PAUSED",
+    "status": "RUNNING",
     "startAt": null,
     "endAt": null,
     "createdAt": "2026-01-09T08:34:08.471Z",
-    "updatedAt": "2026-01-14T05:25:01.674Z"
+    "updatedAt": "2026-01-30T00:41:54.415Z"
   },
   {
     "id": "camp_008",

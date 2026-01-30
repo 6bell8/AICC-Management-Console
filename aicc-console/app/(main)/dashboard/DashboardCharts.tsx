@@ -17,6 +17,26 @@ export default function DashboardCharts({ trend, statusDist }: Props) {
   const SKY_LINE = '#38BDF8'; // sky-400 느낌
   const SKY_FILL = 'rgba(56, 189, 248, 0.18)';
 
+  // ✅ 도넛 차트에서 상태에 따라 색상 지정
+  const DEFAULT_COLOR = '#CBD5E1'; // 기본 slate-300
+  const colorByLabel: Record<string, string> = {
+    실행중: '#34D399',
+    성공: '#60A5FA',
+    실패: '#F87171',
+    취소: '#94A3B8',
+    초안: '#34D399',
+    운영중: '#60A5FA',
+    중지: '#F87171',
+    보관: '#94A3B8',
+    RUNNING: '#34D399',
+    SUCCESS: '#60A5FA',
+    FAILED: '#F87171',
+    CANCELLED: '#94A3B8',
+    DRAFT: '#60A5FA',
+    PAUSED: '#F87171',
+    ARCHIVED: '#94A3B8',
+  };
+
   const lineData = useMemo(() => {
     return {
       labels: trend.map((t) => t.label),
@@ -43,20 +63,7 @@ export default function DashboardCharts({ trend, statusDist }: Props) {
 
   const donutData = useMemo(() => {
     const labels = statusDist.map((s) => s.label);
-
-    // ✅ 상태별 색(너무 튀지 않게)
-    const colorByLabel: Record<string, string> = {
-      실행중: '#34D399', // emerald-400
-      성공: '#60A5FA', // blue-400
-      실패: '#F87171', // red-400
-      취소: '#94A3B8', // slate-400
-      RUNNING: '#34D399',
-      SUCCESS: '#60A5FA',
-      FAILED: '#F87171',
-      CANCELLED: '#94A3B8',
-    };
-
-    const colors = labels.map((l) => colorByLabel[l] ?? '#CBD5E1'); // 기본 slate-300
+    const colors = labels.map((l) => colorByLabel[l] ?? DEFAULT_COLOR); // 지정되지 않은 label은 기본색
 
     return {
       labels,
@@ -65,7 +72,7 @@ export default function DashboardCharts({ trend, statusDist }: Props) {
           label: '상태 분포',
           data: statusDist.map((s) => s.value),
 
-          // ✅ 색상
+          // ✅ 색상: 상황별
           backgroundColor: colors,
           borderColor: '#ffffff',
           borderWidth: 2,

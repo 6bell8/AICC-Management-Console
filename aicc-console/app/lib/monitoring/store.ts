@@ -65,7 +65,6 @@ async function readStore(): Promise<MonitoringStore> {
   }
 }
 
-
 function pushEvent(run: CampaignRun, e: Omit<RunEvent, 'ts'> & { ts?: string }) {
   const event: RunEvent = {
     ts: e.ts ?? nowIso(),
