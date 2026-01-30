@@ -252,7 +252,7 @@ git push origin main
 - `.env.local`은 기본 제외(필요하면 `.env.example` 제공 또는 별도 전달)
 
 
-// (2)
+// (3)
 ```bash
 # 기본(권장): 현재 HEAD 기준
 git archive -o aicc-console_0120.zip HEAD
