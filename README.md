@@ -8,7 +8,7 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 ## Tech Stack
 - Next.js (App Router)
 - React + TypeScript
-- Tailwind CSS + shadcn/ui
+- Tailwind CSS 
 - @tanstack/react-query
 - zod + react-hook-form
 - Web Worker (동적노드 러너)
