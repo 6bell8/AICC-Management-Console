@@ -1,5 +1,15 @@
 [
   {
+    "id": "camp_341236",
+    "name": "새 캠페인(camp_341236)",
+    "description": "",
+    "status": "DRAFT",
+    "startAt": null,
+    "endAt": null,
+    "createdAt": "2026-02-03T04:08:28.381Z",
+    "updatedAt": "2026-02-03T04:08:28.381Z"
+  },
+  {
     "id": "camp_561406",
     "name": "테스트 두번째 테스트 board post(2)",
     "description": "테스트 두번째 테스트 board post(2) 테스트 두번째 테스트 board post(2)테스트 두번째 테스트 board post(2)테스트ㅁㄴㅇㅁㄴㅇ 두번째 테스트 board post(2) ss",

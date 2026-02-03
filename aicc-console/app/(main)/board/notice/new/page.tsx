@@ -1,17 +1,18 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/app/components/ui/use-toast';
 
-import { createNotice } from '@/app/lib/api/notice';
+import { createNotice, getNotices } from '@/app/lib/api/notice';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 
 export default function NoticeNewPage() {
+  const MAX_PINNED = 5;
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -36,7 +37,25 @@ export default function NoticeNewPage() {
     },
   });
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
+  function isPinned(v: any) {
+    return v === true || v === 1 || v === '1' || v === 'true' || v === 'Y';
+  }
+
+  const pinnedCountQ = useQuery({
+    queryKey: ['notice', 'pinnedCount', 'page1'],
+    queryFn: async () => {
+      const res = await getNotices({ page: 1, pageSize: 50 }); // ✅ 넉넉히
+      const items = res?.items ?? [];
+      const count = items.filter((n: any) => isPinned(n?.pinned)).length;
+      return { count };
+    },
+    staleTime: 10_000,
+  });
+
+  const pinnedCount = pinnedCountQ.data?.count ?? 0;
+  const overPinnedLimit = pinned && pinnedCount >= MAX_PINNED;
+
+  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !m.isPending && !pinnedCountQ.isPending && !overPinnedLimit;
 
   return (
     <div className="p-6 space-y-4 max-w-3xl">
@@ -55,14 +74,41 @@ export default function NoticeNewPage() {
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm text-slate-600">내용(plain text)</div>
+        <div className="text-sm text-slate-600">내용</div>
         <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="공지 내용을 입력하세요" className="min-h-[180px]" />
       </div>
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-          상단 고정(배너 우선)
+          <input
+            type="checkbox"
+            checked={pinned}
+            onChange={(e) => {
+              const next = e.target.checked;
+
+              if (next && pinnedCount >= MAX_PINNED) {
+                toast({
+                  title: `상단 고정은 최대 ${MAX_PINNED}개까지 가능합니다.`,
+                  description: `현재 ${pinnedCount}개가 고정되어 있습니다. 기존 고정을 해제한 뒤 다시 시도해 주세요.`,
+                  variant: 'destructive',
+                });
+                return;
+              }
+
+              setPinned(next);
+            }}
+          />
+
+          {/* ✅ 라벨 텍스트 */}
+          <span className="flex items-center gap-1">
+            <span aria-hidden>📌</span>
+            <span>상단 고정</span>
+
+            {/* ✅ 현재 개수 표시 (원하면 빼도 됨) */}
+            <span className="text-xs text-slate-500">
+              ({pinnedCount}/{MAX_PINNED})
+            </span>
+          </span>
         </label>
 
         <div className="ml-auto flex gap-2">

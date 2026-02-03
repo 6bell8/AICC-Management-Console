@@ -8,13 +8,26 @@ export type NoticeListResponse = {
   totalPages: number;
 };
 
-export async function getNotices(params?: { page?: number; pageSize?: number }): Promise<NoticeListResponse> {
+export async function getNotices(
+  params?: { page?: number; pageSize?: number },
+  opts?: { baseUrl?: string; cookie?: string }, // ✅ cookie 추가
+): Promise<NoticeListResponse> {
   const page = params?.page ?? 1;
   const pageSize = params?.pageSize ?? 10;
   const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
 
-  const res = await fetch(`/api/notice?${qs.toString()}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('notice list fetch 실패');
+  const path = `/api/notice?${qs.toString()}`;
+  const url = opts?.baseUrl ? new URL(path, opts.baseUrl).toString() : path;
+
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: opts?.cookie ? { cookie: opts.cookie } : undefined, // ✅ 쿠키 전달
+  });
+
+  if (!res.ok) {
+    throw new Error(`notice list fetch 실패 (${res.status})`);
+  }
+
   return res.json();
 }
 
@@ -62,4 +75,14 @@ export async function getNoticeBanner(limit = 5): Promise<{ items: Notice[] }> {
   const res = await fetch(`/api/notice/banner?${qs.toString()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('notice banner fetch 실패');
   return res.json();
+}
+
+// app/lib/api/notice.ts (또는 해당 파일)
+export async function getPinnedCount() {
+  const r = await fetch('/api/notice/pinned-count', {
+    method: 'GET',
+    cache: 'no-store',
+  });
+  if (!r.ok) throw new Error('pinned count fetch failed');
+  return (await r.json()) as { count: number };
 }
