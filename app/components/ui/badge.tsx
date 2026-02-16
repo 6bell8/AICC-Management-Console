@@ -8,7 +8,9 @@ export type BadgeVariant =
   | 'outline'
   // status
   | 'published'
-  | 'draft';
+  | 'draft'
+  // notice
+  | 'info';
 
 type Props = React.HTMLAttributes<HTMLSpanElement> & {
   variant?: BadgeVariant;
@@ -38,6 +40,7 @@ export function Badge({ className, variant = 'default', size = 'xs', shape = 'pi
     // ✅ 지금 A안 느낌: 아주 연한 배경 + 얇은 ring
     published: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
     draft: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+    info: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200',
   };
 
   return <span className={cn(base, sizes[size], shapes[shape], variants[variant], className)} {...props} />;
