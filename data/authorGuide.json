@@ -1,13 +1,5 @@
 [
   {
-    "id": "453b1c2f-df49-42b7-966c-1df9a8a5436b",
-    "title": "asd",
-    "content": "asd",
-    "status": "PUBLISHED",
-    "createdAt": "2026-02-16T13:18:08.360Z",
-    "updatedAt": "2026-02-16T13:23:55.997Z"
-  },
-  {
     "id": "ag-001",
     "title": "샘플 저작가이드 1",
     "content": "샘플 내용 1",
