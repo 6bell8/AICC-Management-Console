@@ -10,6 +10,9 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
+import { StatusToggle } from '@/app/components/ui/status-toggle';
+
+import type { PublishStatus } from '@/app/lib/types/common';
 
 export default function AuthorGuideNewPage() {
   const router = useRouter();
@@ -18,7 +21,7 @@ export default function AuthorGuideNewPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
+  const [status, setStatus] = useState<PublishStatus>('PUBLISHED');
 
   const m = useMutation({
     mutationFn: () => createAuthorGuide({ title, content, status }),
@@ -32,14 +35,28 @@ export default function AuthorGuideNewPage() {
 
       router.push('/board/author-guide');
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : '오류가 발생했습니다.';
+
       toast({
         title: '저장 실패',
-        description: err?.message ?? '오류가 발생했습니다.',
+        description: message,
         variant: 'destructive',
       });
     },
   });
+
+  function getErrorMessage(err: unknown) {
+    if (err instanceof Error) return err.message;
+
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      const msg = (err as { message?: unknown }).message;
+
+      if (typeof msg === 'string') return msg;
+      if (msg != null) return String(msg);
+    }
+    return 'error';
+  }
 
   const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
 
@@ -64,16 +81,11 @@ export default function AuthorGuideNewPage() {
         <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="가이드 내용을 입력하세요" className="min-h-[180px]" />
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="ml-auto flex gap-2">
-          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button">
-            공개
-          </Button>
-          <Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button">
-            임시저장
-          </Button>
+      <>
+        <div className="flex items-center justify-end gap-3 w-full">
+          <StatusToggle value={status} onChange={setStatus} />
         </div>
-      </div>
+      </>
 
       <div className="flex gap-2">
         <Button variant="oHGhost" disabled={!canSubmit} onClick={() => m.mutate()}>
@@ -84,7 +96,7 @@ export default function AuthorGuideNewPage() {
         </Button>
       </div>
 
-      {m.isError ? <div className="text-sm text-red-600">저장 실패: {(m.error as any)?.message ?? 'error'}</div> : null}
+      {m.isError ? <div className="text-sm text-red-600">저장 실패: {getErrorMessage(m.error)}</div> : null}
     </div>
   );
 }

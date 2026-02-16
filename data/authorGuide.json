@@ -1,0 +1,146 @@
+[
+  {
+    "id": "453b1c2f-df49-42b7-966c-1df9a8a5436b",
+    "title": "asd",
+    "content": "asd",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-16T13:18:08.360Z",
+    "updatedAt": "2026-02-16T13:23:55.997Z"
+  },
+  {
+    "id": "ag-001",
+    "title": "샘플 저작가이드 1",
+    "content": "샘플 내용 1",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-16T09:00:00.000Z",
+    "updatedAt": "2026-02-16T09:00:00.000Z"
+  },
+  {
+    "id": "ag-002",
+    "title": "샘플 저작가이드 2",
+    "content": "샘플 내용 2",
+    "status": "DRAFT",
+    "createdAt": "2026-02-15T10:00:00.000Z",
+    "updatedAt": "2026-02-15T10:00:00.000Z"
+  },
+  {
+    "id": "ag-003",
+    "title": "샘플 저작가이드 3",
+    "content": "샘플 내용 3",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-14T09:00:00.000Z",
+    "updatedAt": "2026-02-14T11:10:00.000Z"
+  },
+  {
+    "id": "ag-004",
+    "title": "샘플 저작가이드 4",
+    "content": "샘플 내용 4",
+    "status": "DRAFT",
+    "createdAt": "2026-02-13T09:00:00.000Z",
+    "updatedAt": "2026-02-13T12:20:00.000Z"
+  },
+  {
+    "id": "ag-005",
+    "title": "샘플 저작가이드 5",
+    "content": "샘플 내용 5",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-12T09:00:00.000Z",
+    "updatedAt": "2026-02-12T15:00:00.000Z"
+  },
+  {
+    "id": "ag-006",
+    "title": "샘플 저작가이드 6",
+    "content": "샘플 내용 6",
+    "status": "DRAFT",
+    "createdAt": "2026-02-11T09:00:00.000Z",
+    "updatedAt": "2026-02-11T18:05:00.000Z"
+  },
+  {
+    "id": "ag-007",
+    "title": "샘플 저작가이드 7",
+    "content": "샘플 내용 7",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-10T09:00:00.000Z",
+    "updatedAt": "2026-02-10T10:40:00.000Z"
+  },
+  {
+    "id": "ag-008",
+    "title": "샘플 저작가이드 8123",
+    "content": "샘플 내용 8",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-09T09:00:00.000Z",
+    "updatedAt": "2026-02-16T13:11:00.047Z"
+  },
+  {
+    "id": "ag-009",
+    "title": "샘플 저작가이드 9",
+    "content": "샘플 내용 9",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-08T09:00:00.000Z",
+    "updatedAt": "2026-02-08T16:30:00.000Z"
+  },
+  {
+    "id": "ag-010",
+    "title": "샘플 저작가이드 10",
+    "content": "샘플 내용 10",
+    "status": "DRAFT",
+    "createdAt": "2026-02-07T09:00:00.000Z",
+    "updatedAt": "2026-02-07T19:45:00.000Z"
+  },
+  {
+    "id": "ag-011",
+    "title": "샘플 저작가이드 11",
+    "content": "샘플 내용 11",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-06T09:00:00.000Z",
+    "updatedAt": "2026-02-06T13:05:00.000Z"
+  },
+  {
+    "id": "ag-012",
+    "title": "샘플 저작가이드 12",
+    "content": "샘플 내용 12",
+    "status": "DRAFT",
+    "createdAt": "2026-02-05T09:00:00.000Z",
+    "updatedAt": "2026-02-05T11:55:00.000Z"
+  },
+  {
+    "id": "ag-013",
+    "title": "샘플 저작가이드 13",
+    "content": "샘플 내용 13",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-04T09:00:00.000Z",
+    "updatedAt": "2026-02-04T17:10:00.000Z"
+  },
+  {
+    "id": "ag-014",
+    "title": "샘플 저작가이드 14",
+    "content": "샘플 내용 14",
+    "status": "DRAFT",
+    "createdAt": "2026-02-03T09:00:00.000Z",
+    "updatedAt": "2026-02-03T15:35:00.000Z"
+  },
+  {
+    "id": "ag-015",
+    "title": "샘플 저작가이드 15",
+    "content": "샘플 내용 15",
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-02T09:00:00.000Z",
+    "updatedAt": "2026-02-02T12:25:00.000Z"
+  },
+  {
+    "id": "ag-016",
+    "title": "샘플 저작가이드 16",
+    "content": "샘플 내용 16",
+    "status": "DRAFT",
+    "createdAt": "2026-02-01T09:00:00.000Z",
+    "updatedAt": "2026-02-01T10:10:00.000Z"
+  },
+  {
+    "id": "ag-017",
+    "title": "샘플 저작가이드 17",
+    "content": "샘플 내용 17",
+    "status": "PUBLISHED",
+    "createdAt": "2026-01-31T09:00:00.000Z",
+    "updatedAt": "2026-01-31T18:50:00.000Z"
+  }
+]

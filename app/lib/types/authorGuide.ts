@@ -6,3 +6,4 @@ export type AuthorGuide = {
   updatedAt?: string | null;
   createdAt?: string | null;
 };
+

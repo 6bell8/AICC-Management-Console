@@ -11,6 +11,8 @@ import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 import { Skeleton } from '@/app/components/ui/skeleton';
+import { StatusToggle } from '@/app/components/ui/status-toggle';
+import type { PublishStatus } from '@/app/lib/types/common';
 
 export default function AuthorGuideDetailPage() {
   const router = useRouter();
@@ -29,7 +31,7 @@ export default function AuthorGuideDetailPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [status, setStatus] = useState<'PUBLISHED' | 'DRAFT'>('PUBLISHED');
+  const [status, setStatus] = useState<PublishStatus>('DRAFT');
 
   useEffect(() => {
     const g = q.data?.authorGuide;
@@ -143,13 +145,8 @@ export default function AuthorGuideDetailPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="ml-auto flex gap-2">
-          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button">
-            공개
-          </Button>
-          <Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button">
-            임시저장
-          </Button>
+        <div className="flex items-center justify-end gap-3 w-full">
+          <StatusToggle value={status} onChange={setStatus} />
         </div>
       </div>
 
