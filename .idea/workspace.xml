@@ -5,16 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="df0af283-9052-4b14-bf79-e4aaca265d41" name="변경" comment="">
-      <change afterPath="$PROJECT_DIR$/app/components/ui/status-toggle.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/lib/types/common.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/data/authorGuide.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aicc-console_0216.zip" beforeDir="false" afterPath="$PROJECT_DIR$/aicc-console_0216.zip" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(main)/board/author-guide/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(main)/board/author-guide/[id]/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(main)/board/author-guide/new/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(main)/board/author-guide/new/page.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/author-guide/[id]/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/author-guide/[id]/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/author-guide/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/author-guide/route.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/lib/types/authorGuide.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/lib/types/authorGuide.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,7 +89,7 @@
       <option name="presentableId" value="Default" />
       <updated>1771229987944</updated>
       <workItem from="1771229989702" duration="4709000" />
-      <workItem from="1771243978115" duration="4414000" />
+      <workItem from="1771243978115" duration="5055000" />
     </task>
     <servers />
   </component>
