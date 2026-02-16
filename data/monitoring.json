@@ -1,0 +1,280 @@
+{
+  "runs": [
+    {
+      "runId": "run_1700000101_ab12cd",
+      "campaignId": "camp_001",
+      "campaignName": "더미 캠페인(camp_001)",
+      "state": "SUCCESS",
+      "startedAt": "2026-01-16T01:30:10.000Z",
+      "endedAt": "2026-01-16T04:04:36.142Z",
+      "durationMs": 9266142,
+      "processed": 115,
+      "success": 111,
+      "failed": 4,
+      "errorCode": null,
+      "errorCount": 4,
+      "latencyAvgMs": 342,
+      "latencyP95Ms": 674,
+      "events": [
+        {
+          "ts": "2026-01-16T01:30:10.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-16T01:30:35.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+30)"
+        },
+        {
+          "ts": "2026-01-16T01:30:55.000Z",
+          "level": "WARN",
+          "type": "ERROR",
+          "message": "오류 발생(429)",
+          "meta": {
+            "httpStatus": 429,
+            "nodeId": "NODE_SEND",
+            "add": 2
+          }
+        },
+        {
+          "ts": "2026-01-16T01:31:10.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+20)"
+        },
+        {
+          "ts": "2026-01-16T04:04:36.126Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+21)"
+        },
+        {
+          "ts": "2026-01-16T04:04:36.142Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+16)"
+        },
+        {
+          "ts": "2026-01-16T04:04:36.142Z",
+          "level": "INFO",
+          "type": "END",
+          "message": "정상 종료"
+        }
+      ]
+    },
+    {
+      "runId": "run_1700000088_ef34aa",
+      "campaignId": "camp_002",
+      "campaignName": "더미 캠페인(camp_002)",
+      "state": "SUCCESS",
+      "startedAt": "2026-01-16T01:28:20.000Z",
+      "endedAt": "2026-01-16T01:29:55.000Z",
+      "durationMs": 95000,
+      "processed": 140,
+      "success": 140,
+      "failed": 0,
+      "errorCode": null,
+      "errorCount": 0,
+      "latencyAvgMs": 260,
+      "latencyP95Ms": 520,
+      "events": [
+        {
+          "ts": "2026-01-16T01:28:20.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-16T01:28:55.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+60)"
+        },
+        {
+          "ts": "2026-01-16T01:29:30.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+80)"
+        },
+        {
+          "ts": "2026-01-16T01:29:55.000Z",
+          "level": "INFO",
+          "type": "END",
+          "message": "정상 종료"
+        }
+      ]
+    },
+    {
+      "runId": "run_1700000123_run99aa",
+      "campaignId": "camp_001",
+      "campaignName": "더미 캠페인(camp_001)",
+      "state": "RUNNING",
+      "startedAt": "2026-01-19T00:10:00.000Z",
+      "endedAt": null,
+      "durationMs": null,
+      "processed": 12,
+      "success": 11,
+      "failed": 1,
+      "errorCode": null,
+      "errorCount": 1,
+      "latencyAvgMs": 280,
+      "latencyP95Ms": 610,
+      "events": [
+        {
+          "ts": "2026-01-19T00:10:00.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-19T00:10:20.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+12)"
+        },
+        {
+          "ts": "2026-01-19T00:10:25.000Z",
+          "level": "WARN",
+          "type": "ERROR",
+          "message": "오류 발생(429)",
+          "meta": {
+            "httpStatus": 429,
+            "nodeId": "NODE_SEND",
+            "add": 1
+          }
+        }
+      ]
+    },
+
+    {
+      "runId": "run_1700000066_bb77dd",
+      "campaignId": "camp_003",
+      "campaignName": "더미 캠페인(camp_003)",
+      "state": "FAILED",
+      "startedAt": "2026-01-16T01:26:10.000Z",
+      "endedAt": "2026-01-16T01:27:40.000Z",
+      "durationMs": 90000,
+      "processed": 92,
+      "success": 78,
+      "failed": 14,
+      "errorCode": "500",
+      "errorCount": 14,
+      "latencyAvgMs": 410,
+      "latencyP95Ms": 980,
+      "events": [
+        {
+          "ts": "2026-01-16T01:26:10.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-16T01:26:35.000Z",
+          "level": "WARN",
+          "type": "ERROR",
+          "message": "오류 발생(500)",
+          "meta": {
+            "httpStatus": 500,
+            "nodeId": "NODE_REQUEST",
+            "add": 5
+          }
+        },
+        {
+          "ts": "2026-01-16T01:27:05.000Z",
+          "level": "WARN",
+          "type": "ERROR",
+          "message": "오류 발생(500)",
+          "meta": {
+            "httpStatus": 500,
+            "nodeId": "NODE_REQUEST",
+            "add": 9
+          }
+        },
+        {
+          "ts": "2026-01-16T01:27:40.000Z",
+          "level": "ERROR",
+          "type": "END",
+          "message": "실행 실패로 종료"
+        }
+      ]
+    },
+    {
+      "runId": "run_1700000042_9a8b7c",
+      "campaignId": "camp_001",
+      "campaignName": "더미 캠페인(camp_001)",
+      "state": "CANCELLED",
+      "startedAt": "2026-01-16T01:24:10.000Z",
+      "endedAt": "2026-01-16T01:24:45.000Z",
+      "durationMs": 35000,
+      "processed": 40,
+      "success": 38,
+      "failed": 2,
+      "errorCode": "STOP",
+      "errorCount": 1,
+      "latencyAvgMs": 300,
+      "latencyP95Ms": 680,
+      "events": [
+        {
+          "ts": "2026-01-16T01:24:10.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-16T01:24:35.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+40)"
+        },
+        {
+          "ts": "2026-01-16T01:24:45.000Z",
+          "level": "WARN",
+          "type": "STOP",
+          "message": "캠페인 중지로 실행 취소",
+          "meta": {
+            "by": "user_action"
+          }
+        }
+      ]
+    },
+    {
+      "runId": "run_1700000020_1f2e3d",
+      "campaignId": "camp_002",
+      "campaignName": "더미 캠페인(camp_002)",
+      "state": "SUCCESS",
+      "startedAt": "2026-01-16T01:22:10.000Z",
+      "endedAt": "2026-01-16T01:23:00.000Z",
+      "durationMs": 50000,
+      "processed": 88,
+      "success": 88,
+      "failed": 0,
+      "errorCode": null,
+      "errorCount": 0,
+      "latencyAvgMs": 220,
+      "latencyP95Ms": 450,
+      "events": [
+        {
+          "ts": "2026-01-16T01:22:10.000Z",
+          "level": "INFO",
+          "type": "START",
+          "message": "실행 시작"
+        },
+        {
+          "ts": "2026-01-16T01:22:40.000Z",
+          "level": "INFO",
+          "type": "PROGRESS",
+          "message": "진행중… (+88)"
+        },
+        {
+          "ts": "2026-01-16T01:23:00.000Z",
+          "level": "INFO",
+          "type": "END",
+          "message": "정상 종료"
+        }
+      ]
+    }
+  ]
+}

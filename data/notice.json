@@ -1,0 +1,83 @@
+[
+  {
+    "id": "b7e51ea4-3f45-42a6-b559-5d1f2a91cc20",
+    "title": "테스트 5개 제한 asd",
+    "content": "테스트 5개 제한 asd",
+    "pinned": false,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-03T02:14:30.384Z",
+    "updatedAt": "2026-02-11T07:43:36.024Z"
+  },
+  {
+    "id": "f40016b2-fe65-4513-95b9-27ab4e31aa52",
+    "title": "5개 pinned 테스트 1",
+    "content": "5개 pinned 테스트 111",
+    "pinned": false,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-03T01:52:33.448Z",
+    "updatedAt": "2026-02-13T04:28:17.787Z"
+  },
+  {
+    "id": "5007fc01-661a-4013-b44d-ff9a5d47ac2a",
+    "title": "pinned 6개 초과 시 상태 관리를 해야될지",
+    "content": "pinned 6개 초과 시 상태 관리",
+    "pinned": true,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-03T00:57:04.527Z",
+    "updatedAt": "2026-02-03T01:00:16.484Z"
+  },
+  {
+    "id": "67451c72-41ba-42d1-9c48-17ef1e126816",
+    "title": "안녕하세요. 테스트 공지입니다 pinned 처리를 알아보기 위한",
+    "content": "안녕하세요. 테스트 공지입니다 pinned 처리를 알아보기 위한",
+    "pinned": false,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-03T00:56:28.498Z",
+    "updatedAt": "2026-02-03T00:59:03.090Z"
+  },
+  {
+    "id": "fc067ca9-0ea6-4262-bad5-be6565b08789",
+    "title": "안녕하세요. 테스트 공지입니다 pinned 처리를 알아보기 위한",
+    "content": "안녕하세요. 테스트 공지입니다 pinned 처리를 알아보기 위한",
+    "pinned": true,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-03T00:56:23.041Z",
+    "updatedAt": "2026-02-03T00:56:23.041Z"
+  },
+  {
+    "id": "390d8230-b5d9-45bb-b67c-10697759ab6e",
+    "title": "감사합니다. 테스트 공지 사항입니다. ",
+    "content": "감사합니다. 테스트 공지 사항입니다. ",
+    "pinned": false,
+    "status": "PUBLISHED",
+    "createdAt": "2026-02-02T02:28:36.760Z",
+    "updatedAt": "2026-02-03T00:59:13.333Z"
+  },
+  {
+    "id": "b25f9414-cc20-4d13-902f-2f8a4f2c4cc5",
+    "title": "테스트 공지사항입니다. ",
+    "content": "테스트 공지사항입니다. 테스트 공지사항입니다. 테스트 공지사항입니다. 테스트 공지사항입니다. 테스트 공지사항입니다. ",
+    "pinned": false,
+    "status": "PUBLISHED",
+    "createdAt": "2026-01-22T07:18:15.711Z",
+    "updatedAt": "2026-02-03T01:32:28.554Z"
+  },
+  {
+    "id": "0b103146-9fa6-40e8-8499-25a97f927fa0",
+    "title": "안녕하세요. 테스트 공지입니다. ",
+    "content": "테스트 공지입니다.  ㄴㄴㄴㄴ",
+    "pinned": true,
+    "status": "PUBLISHED",
+    "createdAt": "2026-01-22T05:44:21.127Z",
+    "updatedAt": "2026-02-02T02:28:19.166Z"
+  },
+  {
+    "id": "2eb40244-8265-49ec-854d-b16378ef6b08",
+    "title": "새 공지 사항 테스트 진행 중입니다.",
+    "content": "새 공지 사항 테스트 진행 중입니다.",
+    "pinned": false,
+    "status": "DRAFT",
+    "createdAt": "2026-01-22T05:24:05.417Z",
+    "updatedAt": "2026-01-22T08:23:06.301Z"
+  }
+]
