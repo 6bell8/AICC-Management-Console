@@ -1,7 +1,22 @@
 import * as React from 'react';
 import { cn } from './utils';
 
-type ButtonVariant = 'default' | 'outline' | 'secondary' | 'destructive' | 'oHGhost' | 'ghost' | 'hoverGhost' | 'dlOutline' | 'link' | 'draft';
+type ButtonVariant =
+  | 'default'
+  | 'outline'
+  | 'secondary'
+  | 'destructive'
+  | 'oHGhost'
+  | 'ghost'
+  | 'hoverGhost'
+  | 'dlOutline'
+  | 'link'
+  | 'draft'
+  | 'closeOutline'
+  | 'saveSoft'
+  | 'saveOutline'
+  | 'saveNeutral'
+  | 'saveOutlineGreen';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -21,6 +36,12 @@ const variantClass: Record<ButtonVariant, string> = {
   dlOutline:
     'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer',
   link: 'text-primary underline-offset-4 hover:underline cursor-pointer',
+  closeOutline:
+    'border border-stone-200/70 bg-white/60 text-slate-700 ' + 'hover:bg-stone-50/60 hover:border-stone-300/70 hover:text-slate-800 cursor-pointer',
+  saveSoft: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/70 ' + 'hover:bg-amber-100 cursor-pointer',
+  saveOutline: 'border border-amber-200/70 bg-amber-50/60 text-amber-900 ' + 'hover:bg-amber-100/70 hover:border-amber-300/70 cursor-pointer',
+  saveNeutral: 'border border-stone-200/70 bg-stone-50/60 text-slate-800 ' + 'hover:bg-stone-100/60 hover:border-stone-300/70 cursor-pointer',
+  saveOutlineGreen: 'border border-green-200/70 bg-green-50/60 text-green-900 ' + 'hover:bg-green-100/70 hover:border-green-300/70 cursor-pointer',
 };
 
 const sizeClass: Record<ButtonSize, string> = {

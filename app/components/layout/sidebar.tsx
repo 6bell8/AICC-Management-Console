@@ -33,8 +33,8 @@ const NAV: NavNode[] = [
     label: '영업관리',
     icon: <Briefcase className="h-4 w-4" />,
     items: [
-      { label: '계약현황관리', href: '/sales/contracts' },
-      { label: '계약현황통계', href: '/sales/contracts/stats' },
+      { label: '영업현황관리', href: '/sales/contracts' },
+      { label: '계약현황통계', href: '/sales/activity-stats' },
     ],
   },
   {

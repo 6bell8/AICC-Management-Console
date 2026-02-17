@@ -1,0 +1,94 @@
+[
+  {
+    "id": "deal_001",
+    "status": "LEAD",
+    "title": "AICC 고객포털 구축",
+    "customer": "KTm모바일",
+    "owner": "봉춘",
+    "closeDate": "2026-02-28",
+    "notes": "초기 요구사항 정리 중",
+    "discount": 50,
+    "commissionRate": 3,
+    "items": [
+      { "id": "li_001", "name": "기본 구축", "qty": 1, "unitPrice": 800 },
+      { "id": "li_002", "name": "추가 기능", "qty": 2, "unitPrice": 120 }
+    ]
+  },
+  {
+    "id": "deal_002",
+    "status": "PROPOSAL",
+    "title": "콜센터 상담분석 대시보드",
+    "customer": "통계청",
+    "owner": "봉춘",
+    "closeDate": "2026-03-10",
+    "notes": "제안서 문구/지표 정의 확정 필요",
+    "discount": 0,
+    "commissionRate": 2,
+    "items": [
+      { "id": "li_003", "name": "대시보드 개발", "qty": 1, "unitPrice": 1200 },
+      { "id": "li_004", "name": "지표 설계/정의", "qty": 1, "unitPrice": 250 }
+    ]
+  },
+  {
+    "id": "deal_003",
+    "status": "NEGOTIATION",
+    "title": "아웃바운드 캠페인 모듈",
+    "customer": "민간 SaaS",
+    "owner": "봉춘",
+    "closeDate": "2026-03-05",
+    "notes": "가격 조정(할인) 요청 가능성 높음",
+    "discount": 100,
+    "commissionRate": 4,
+    "items": [
+      { "id": "li_005", "name": "캠페인 관리", "qty": 1, "unitPrice": 900 },
+      { "id": "li_006", "name": "리포트/통계", "qty": 1, "unitPrice": 400 },
+      { "id": "li_007", "name": "권한/감사로그", "qty": 1, "unitPrice": 180 }
+    ]
+  },
+  {
+    "id": "deal_004",
+    "status": "CONTRACTED",
+    "title": "보이스봇 시나리오/연동",
+    "customer": "세종교육청",
+    "owner": "봉춘",
+    "closeDate": "2026-02-20",
+    "notes": "연동 범위 확정(콜백/이력 저장) 완료",
+    "discount": 0,
+    "commissionRate": 1.5,
+    "items": [
+      { "id": "li_008", "name": "시나리오 설계", "qty": 1, "unitPrice": 350 },
+      { "id": "li_009", "name": "API 연동", "qty": 1, "unitPrice": 450 }
+    ]
+  },
+  {
+    "id": "deal_005",
+    "status": "DONE",
+    "title": "FAQ 챗봇 고도화",
+    "customer": "이천시청",
+    "owner": "봉춘",
+    "closeDate": "2026-02-14",
+    "notes": "운영 이슈 대응 포함해서 마감",
+    "discount": 30,
+    "commissionRate": 2,
+    "items": [
+      { "id": "li_010", "name": "고도화 작업", "qty": 1, "unitPrice": 500 },
+      { "id": "li_011", "name": "운영 튜닝", "qty": 1, "unitPrice": 120 }
+    ]
+  },
+  {
+    "id": "deal_006",
+    "status": "LEAD",
+    "title": "영업관리(계약현황) 모듈 개선",
+    "customer": "내부(포폴)",
+    "owner": "봉춘",
+    "closeDate": "2026-03-18",
+    "notes": "칸반 + Dialog 편집 UX 개선, 이후 PostgreSQL 연동 예정",
+    "discount": 0,
+    "commissionRate": 0,
+    "items": [
+      { "id": "li_012", "name": "칸반 UI 개선", "qty": 1, "unitPrice": 300 },
+      { "id": "li_013", "name": "드래그앤드롭 적용", "qty": 1, "unitPrice": 250 }
+    ]
+  }
+]
+
