@@ -11,6 +11,7 @@
 !.yarn/versions
 
 .idea/
+*.zip
 
 # testing
 /coverage
@@ -45,4 +46,5 @@ UsersUserAppDataRoamingnpm/
 node_modules/
 UsersUserAppDataRoamingnpm/
 node_modules/
+*.zip
 *.zip
