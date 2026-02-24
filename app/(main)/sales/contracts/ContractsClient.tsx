@@ -1,19 +1,22 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ContractDeal, ContractLineItem, ContractStatus } from '../../../lib/types/contracts';
 import { CONTRACT_STATUS_META } from '../../../lib/types/contracts';
 
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Inbox } from 'lucide-react';
 import { useToast } from '@/app/components/ui/use-toast';
-import { Inbox } from 'lucide-react';
+import { Skeleton } from '@/app/components/ui/skeleton';
 
 import KanbanColumn from '../../../components/ui/KanbanColumn';
 import DealCard from '../../../components/ui/DealCard';
+
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getContractDeals } from '@/app/lib/api/contracts'; // ✅ 본인 프로젝트 경로에 맞게 수정
 
 const ui = {
   border: 'border-stone-200/60',
@@ -55,39 +58,156 @@ function calc(deal: ContractDeal) {
   return { subtotal, discount, supply, vat, total, commissionRate, commission };
 }
 
-export default function ContractsClient({ initialDeals }: { initialDeals: ContractDeal[] }) {
-  const [deals, setDeals] = useState<ContractDeal[]>(initialDeals);
-  const { toast } = useToast();
+/** ✅ Skeletons */
+function ContractsBoardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-[420px] max-w-[70vw]" />
+        </div>
 
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-10 w-[220px]" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, colIdx) => (
+          <KanbanColumnSkeleton key={colIdx} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KanbanColumnSkeleton() {
+  return (
+    <div className="rounded-2xl border border-stone-200/60 bg-stone-50/60 p-3">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-10 rounded-full" />
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <DealCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DealCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-stone-200/60 bg-white/70 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-28" />
+        </div>
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-20 justify-self-end" />
+      </div>
+    </div>
+  );
+}
+
+/** ✅ Error UI (캠페인 패턴과 유사) */
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{message}</div>
+      <Button variant="outline" onClick={onRetry}>
+        다시 시도
+      </Button>
+    </div>
+  );
+}
+
+/** ✅ Empty UI */
+function EmptyState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="rounded-xl border border-dashed border-stone-200/60 p-6 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <Inbox className="h-4 w-4" />
+        <span>표시할 계약이 없습니다.</span>
+      </div>
+      <div className="mt-3">
+        <Button variant="outline" onClick={onCreate}>
+          + 신규 계약
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ✅ React Query 버전
+ * - initialDeals는 SSR/프리패치 값이 있으면 initialData로 사용
+ * - q.data -> deals 로컬 상태로 동기화
+ */
+export default function ContractsClient({ initialDeals }: { initialDeals: ContractDeal[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  // 훅은 항상 최상단에서 호출
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
     }),
   );
 
+  const q = useQuery<ContractDeal[]>({
+    queryKey: ['contracts-deals'],
+    queryFn: () => getContractDeals(),
+    initialData: initialDeals, // ✅ 서버에서 받은 초기값
+    staleTime: 15_000,
+    retry: 1,
+  });
+
+  // ✅ 서버 데이터 -> 로컬 보드 상태
+  const [deals, setDeals] = useState<ContractDeal[]>(q.data ?? []);
+  useEffect(() => {
+    if (q.data) setDeals(q.data);
+  }, [q.data]);
+
+  // 로딩/에러 처리 (캠페인 스타일)
+  if (q.isLoading) return <ContractsBoardSkeleton />;
+  if (q.isError) {
+    return <ErrorState message={q.error instanceof Error ? q.error.message : 'Unknown Error'} onRetry={() => q.refetch()} />;
+  }
+  if (!q.data) return null;
+
   const onDragEnd = ({ active, over }: any) => {
     if (!over) return;
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    // ✅ col:LEAD 형태만 인정
     if (!overId.startsWith('col:')) return;
 
     const nextStatus = overId.replace('col:', '') as ContractStatus;
-
-    // ✅ 방어: meta에 없는 값이면 무시
     if (!CONTRACT_STATUS_META.some((s) => s.key === nextStatus)) return;
 
+    // ✅ 로컬 UI 반영
     setDeals((prev) => prev.map((d) => (d.id === activeId ? { ...d, status: nextStatus } : d)));
+
+    // TODO: 여기서 patch mutation 붙이면 서버 반영까지 가능
   };
 
   // 검색
-  const [q, setQ] = useState('');
+  const [qText, setQText] = useState('');
   const filteredDeals = useMemo(() => {
-    const keyword = q.trim().toLowerCase();
+    const keyword = qText.trim().toLowerCase();
     if (!keyword) return deals;
     return deals.filter((d) => (d.title + d.customer + d.owner).toLowerCase().includes(keyword));
-  }, [deals, q]);
+  }, [deals, qText]);
 
   // 모달 상태
   const [open, setOpen] = useState(false);
@@ -162,12 +282,11 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
       return next;
     });
 
-    toast({
-      title: '저장 완료',
-      description: '계약 정보가 저장되었습니다.',
-    });
-
+    toast({ title: '저장 완료', description: '계약 정보가 저장되었습니다.' });
     closeModal();
+
+    // TODO: 서버 저장 mutation 붙이면 여기서 invalidate/refetch 가능
+    // qc.invalidateQueries({ queryKey: ['contracts-deals'] });
   };
 
   const deleteDeal = () => {
@@ -177,6 +296,9 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
     setDeals((prev) => prev.filter((p) => p.id !== editing.id));
     closeModal();
   };
+
+  // ✅ 데이터는 있는데 필터 결과가 비면 empty state를 보여줄지 결정(여기서는 "전체 데이터 없을 때만" empty)
+  const hasAnyDeals = deals.length > 0;
 
   return (
     <div className="space-y-6">
@@ -189,8 +311,8 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
 
         <div className="flex items-center gap-2">
           <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={qText}
+            onChange={(e) => setQText(e.target.value)}
             placeholder="검색: 계약명/고객사/담당자"
             className={['w-[220px]', ui.input].join(' ')}
           />
@@ -202,34 +324,49 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
           >
             + 신규 계약
           </Button>
+
+          {/* ✅ 필요하면 수동 새로고침 */}
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => q.refetch()}
+            disabled={q.isFetching}
+            className="border-stone-200 bg-white/60"
+            title="새로고침"
+          >
+            {q.isFetching ? '갱신 중…' : '새로고침'}
+          </Button>
         </div>
       </div>
 
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        {/* Kanban */}
-        <div className="grid gap-3 lg:grid-cols-5">
-          {CONTRACT_STATUS_META.map((col) => {
-            const list = grouped.get(col.key) ?? [];
+      {!hasAnyDeals ? (
+        <EmptyState onCreate={openNew} />
+      ) : (
+        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+          <div className="grid gap-3 lg:grid-cols-5">
+            {CONTRACT_STATUS_META.map((col) => {
+              const list = grouped.get(col.key) ?? [];
 
-            return (
-              <KanbanColumn key={col.key} status={col.key} label={col.label} count={list.length} ui={{ surface: ui.surface }}>
-                {list.map((d) => (
-                  <DealCard key={d.id} deal={d} ui={ui} onClick={() => openEdit(d)} calc={calc} fmt={fmt} />
-                ))}
+              return (
+                <KanbanColumn key={col.key} status={col.key} label={col.label} count={list.length} ui={{ surface: ui.surface }}>
+                  {list.map((d) => (
+                    <DealCard key={d.id} deal={d} ui={ui} onClick={() => openEdit(d)} calc={calc} fmt={fmt} />
+                  ))}
 
-                {list.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-stone-200/60 p-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Inbox className="h-4 w-4" />
-                      <span>비어있음</span>
+                  {list.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-stone-200/60 p-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Inbox className="h-4 w-4" />
+                        <span>비어있음</span>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </KanbanColumn>
-            );
-          })}
-        </div>
-      </DndContext>
+                  )}
+                </KanbanColumn>
+              );
+            })}
+          </div>
+        </DndContext>
+      )}
 
       {/* Modal */}
       {open && editing && (
@@ -405,6 +542,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                                 <Button
                                   type="button"
                                   size="icon"
+                                  variant="ghost"
                                   aria-label="항목 삭제"
                                   onClick={() => {
                                     const items = editing.items.filter((x) => x.id !== it.id);
@@ -424,7 +562,6 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       </table>
                     </div>
 
-                    {/* Discount & commission */}
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="할인(정액)">
                         <input
@@ -444,7 +581,6 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       </Field>
                     </div>
 
-                    {/* Summary */}
                     <PricingSummary deal={editing} />
                   </div>
                 </div>

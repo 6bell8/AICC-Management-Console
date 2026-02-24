@@ -14,22 +14,30 @@ import { Badge } from '../../components/ui/badge';
 import { Skeleton } from '../../components/ui/skeleton';
 import { SimpleSelect } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
+import { cn } from '../../components/ui/utils';
+
+// ✅ status palette (SSOT)
+import { STATUS_PALETTE } from '../../components/ui/status-palette';
 
 type StatusFilter = CampaignStatus | 'ALL';
 
-function statusToneClass(s: CampaignStatus) {
+// ✅ 캠페인 상태 → Badge variant 매핑 (badge.tsx에 running/paused/draft/archived variant가 있어야 함)
+function statusBadgeVariant(s: CampaignStatus): 'running' | 'paused' | 'draft' | 'archived' {
   switch (s) {
     case 'RUNNING':
-      return 'text-emerald-700/80';
+      return 'running';
     case 'PAUSED':
-      return 'text-amber-700/80';
+      return 'paused';
     case 'DRAFT':
-      return 'text-slate-700/80';
+      return 'draft';
     case 'ARCHIVED':
-      return 'text-zinc-700/80';
-    default:
-      return '';
+      return 'archived';
   }
+}
+
+// ✅ 텍스트 톤도 palette에서 가져오기 (없으면 muted로 fallback)
+function statusTextClass(s: CampaignStatus) {
+  return STATUS_PALETTE[s]?.text ?? 'text-muted-foreground';
 }
 
 function statusLabel(s: StatusFilter) {
@@ -44,19 +52,6 @@ function statusLabel(s: StatusFilter) {
       return '일시중지';
     case 'ARCHIVED':
       return '보관';
-  }
-}
-
-function statusBadgeVariant(s: CampaignStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (s) {
-    case 'RUNNING':
-      return 'default';
-    case 'PAUSED':
-      return 'secondary';
-    case 'ARCHIVED':
-      return 'outline';
-    case 'DRAFT':
-      return 'secondary';
   }
 }
 
@@ -255,11 +250,11 @@ export default function CampaignListClient({
                   key={c.id}
                   type="button"
                   className="
-        w-full text-left rounded-md border p-4
-        transition-colors duration-150 ease-out
-        hover:bg-muted/50
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-      "
+                    w-full text-left rounded-md border p-4
+                    transition-colors duration-150 ease-out
+                    hover:bg-muted/50
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                  "
                   onClick={() => router.push(`/campaigns/${encodeURIComponent(c.id)}`)}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -269,7 +264,8 @@ export default function CampaignListClient({
 
                         <Badge
                           variant={statusBadgeVariant(c.status)}
-                          className={statusToneClass(c.status)} // ✅ 상태별 은은한 텍스트 톤
+                          // ✅ 텍스트톤은 palette에서 (Badge 자체에 이미 text가 들어가 있으면 이 줄을 빼도 됩니다)
+                          className={statusTextClass(c.status)}
                         >
                           {statusLabel(c.status)}
                         </Badge>
@@ -277,7 +273,7 @@ export default function CampaignListClient({
 
                       <div className="text-xs text-muted-foreground font-mono">{c.id}</div>
 
-                      {c.description ? <div className={`text-sm line-clamp-2 ${statusToneClass(c.status)}`}>{c.description}</div> : null}
+                      {c.description ? <div className={cn('text-sm line-clamp-2', statusTextClass(c.status))}>{c.description}</div> : null}
                     </div>
 
                     <div className="text-xs text-muted-foreground whitespace-nowrap">updated: {formatKST(c.updatedAt)}</div>

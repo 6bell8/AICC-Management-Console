@@ -7,41 +7,35 @@ import DashboardCharts from './DashboardCharts';
 import { Badge } from '../../components/ui/badge';
 import { getCampaigns } from '../../lib/api/campaigns';
 
+import { getStatusPalette, normalizeStatusKey } from '../../components/ui/status-palette';
+
 type Campaign = {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'PAUSED' | 'DONE' | string;
+  status: string; // ✅ 실제 응답이 섞여도 palette에서 normalize 처리
   updatedAt: string; // ISO 예상
 };
 
-function statusLabel(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return '초안';
+// ✅ Dashboard/캠페인 공통: StatusKey -> Badge variant
+function statusKeyToBadgeVariant(key: ReturnType<typeof normalizeStatusKey>): 'running' | 'paused' | 'draft' | 'archived' | 'info' {
+  switch (key) {
     case 'RUNNING':
-      return '운영중';
+      return 'running';
     case 'PAUSED':
-      return '중지';
+      return 'paused';
+    case 'DRAFT':
+      return 'draft';
     case 'ARCHIVED':
-      return '보관';
+      return 'archived';
     default:
-      return status;
+      return 'info'; // 모르는 상태면 info(중립)로
   }
 }
 
-function statusBadgeClass(status: string) {
-  switch (status) {
-    case 'DRAFT':
-      return 'bg-slate-100 text-slate-700 border border-slate-200';
-    case 'RUNNING':
-      return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-    case 'PAUSED':
-      return 'bg-amber-100 text-amber-800 border border-amber-200';
-    case 'ARCHIVED':
-      return 'bg-zinc-100 text-zinc-700 border border-zinc-200';
-    default:
-      return 'bg-slate-100 text-slate-700 border border-slate-200';
-  }
+// ✅ null/undefined 뿐 아니라 ""(빈 문자열)도 fallback 처리
+function safeLabel(x: unknown, fallback: string) {
+  const s = typeof x === 'string' ? x.trim() : '';
+  return s ? s : fallback;
 }
 
 function toDateKey(d: Date) {
@@ -75,7 +69,6 @@ export default function DashboardClient() {
         setError(null);
 
         const res = await getCampaigns();
-        // ✅ res가 {items: []} 이든 [] 이든 대응
         const list = ((res as any)?.items ?? res ?? []) as Campaign[];
 
         if (mounted) setItems(list);
@@ -93,10 +86,12 @@ export default function DashboardClient() {
 
   const kpi = useMemo(() => {
     const total = items.length;
-    const draft = items.filter((c) => c.status === 'DRAFT').length;
-    const running = items.filter((c) => c.status === 'RUNNING').length;
-    const paused = items.filter((c) => c.status === 'PAUSED').length;
-    const archived = items.filter((c) => c.status === 'ARCHIVED').length;
+
+    // ✅ 상태 normalize로 안전하게 카운트
+    const draft = items.filter((c) => normalizeStatusKey(c.status) === 'DRAFT').length;
+    const running = items.filter((c) => normalizeStatusKey(c.status) === 'RUNNING').length;
+    const paused = items.filter((c) => normalizeStatusKey(c.status) === 'PAUSED').length;
+    const archived = items.filter((c) => normalizeStatusKey(c.status) === 'ARCHIVED').length;
 
     const now = new Date();
     const updated7d = items.filter((c) => daysDiff(new Date(c.updatedAt), now) <= 7).length;
@@ -124,11 +119,12 @@ export default function DashboardClient() {
   }, [items]);
 
   const statusDist = useMemo(() => {
+    // ✅ label이 ""로 들어오는 케이스까지 방어
     return [
-      { label: '초안', value: kpi.draft },
-      { label: '운영중', value: kpi.running },
-      { label: '중지', value: kpi.paused },
-      { label: '보관', value: kpi.archived },
+      { label: safeLabel(getStatusPalette('DRAFT').label, '초안'), value: kpi.draft },
+      { label: safeLabel(getStatusPalette('RUNNING').label, '운영중'), value: kpi.running },
+      { label: safeLabel(getStatusPalette('PAUSED').label, '일시중지'), value: kpi.paused },
+      { label: safeLabel(getStatusPalette('ARCHIVED').label, '보관'), value: kpi.archived },
     ];
   }, [kpi]);
 
@@ -218,20 +214,28 @@ export default function DashboardClient() {
                 </tr>
               ) : null}
 
-              {recent.map((r) => (
-                <tr key={r.id} className="border-b last:border-b-0">
-                  <td className="py-2 pr-3">
-                    <Link href={`/campaigns/${encodeURIComponent(r.id)}`} className="font-medium text-slate-900 hover:underline">
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-3">
-                    <Badge className={statusBadgeClass(r.status)}>{statusLabel(r.status)}</Badge>
-                  </td>
-                  <td className="py-2 pr-3 text-slate-600">{new Date(r.updatedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3 text-slate-500">{r.id}</td>
-                </tr>
-              ))}
+              {recent.map((r) => {
+                const p = getStatusPalette(r.status);
+                const variant = statusKeyToBadgeVariant(p.key);
+
+                // ✅ 여기서도 label 빈 문자열 방어 + fallback은 원본 status
+                const label = safeLabel(p.label, r.status);
+
+                return (
+                  <tr key={r.id} className="border-b last:border-b-0">
+                    <td className="py-2 pr-3">
+                      <Link href={`/campaigns/${encodeURIComponent(r.id)}`} className="font-medium text-slate-900 hover:underline">
+                        {r.name}
+                      </Link>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <Badge variant={variant}>{label}</Badge>
+                    </td>
+                    <td className="py-2 pr-3 text-slate-600">{new Date(r.updatedAt).toLocaleString()}</td>
+                    <td className="py-2 pr-3 text-slate-500">{r.id}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

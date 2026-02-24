@@ -11,7 +11,7 @@ import { Skeleton } from '@/app/components/ui/skeleton';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="divide-y">
+    <div className="divide-y divide-slate-900/20">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -82,23 +82,24 @@ export default function DynNodeListClient() {
         </Link>
       </div>
 
-      <div className="h-4 text-xs text-slate-500">{q.isFetching ? '불러오는 중...' : ''}</div>
+      <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 
-      <div className="rounded-lg border bg-white">
+      {/* ✅ 카드 테두리/구분선: 검정 톤 */}
+      <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
         {q.isPending ? (
           <ListSkeleton rows={8} />
         ) : items.length === 0 ? (
-          <div className="p-4 text-sm text-slate-500">게시글이 없습니다.</div>
+          <div className="p-4 text-sm text-slate-900/60">게시글이 없습니다.</div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-slate-900/20">
             {items.map((p) => (
-              <Link key={p.id} href={`/board/dynnode/${encodeURIComponent(p.id)}`} className="block p-4 hover:bg-slate-50">
+              <Link key={p.id} href={`/board/dynnode/${encodeURIComponent(p.id)}`} className="block p-4 transition-colors hover:bg-slate-900/5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{p.title}</div>
-                    <div className="text-xs text-slate-500 truncate">{p.summary ?? p.id}</div>
+                    <div className="font-medium truncate text-slate-900">{p.title}</div>
+                    <div className="text-xs text-slate-900/60 truncate">{p.summary ?? p.id}</div>
                   </div>
-                  <div className="text-xs text-slate-500 shrink-0">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
+                  <div className="text-xs text-slate-900/60 shrink-0">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
                 </div>
               </Link>
             ))}
@@ -107,7 +108,7 @@ export default function DynNodeListClient() {
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-slate-500">
+        <div className="text-sm text-slate-900/60">
           {data?.total != null ? `총 ${data.total}개 · ` : ''}
           {data?.page ?? page}/{totalPages} 페이지
         </div>
@@ -129,7 +130,7 @@ export default function DynNodeListClient() {
         {pages.map((p, idx) => {
           if (p === '...')
             return (
-              <span key={`e-${idx}`} className="px-2 text-slate-500">
+              <span key={`e-${idx}`} className="px-2 text-slate-900/50">
                 …
               </span>
             );

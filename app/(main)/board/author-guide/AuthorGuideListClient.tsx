@@ -16,7 +16,7 @@ import type { AuthorGuideListResponse } from '@/app/lib/api/authorGuide';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="divide-y">
+    <div className="divide-y divide-slate-900/20">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -120,60 +120,53 @@ export default function AuthorGuideListClient() {
       {/* ✅ 검색 UI */}
       <div className="flex items-center gap-2">
         <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="제목/내용 검색" />
-        <Button variant="secondary" disabled={!qInput} onClick={() => setQInput('')}>
+        <Button variant="outline" disabled={!qInput} onClick={() => setQInput('')}>
           초기화
         </Button>
       </div>
 
-      <div className="h-4 text-xs text-slate-500">{q.isFetching ? '불러오는 중...' : ''}</div>
+      <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 
-      <div className="rounded-lg border bg-white">
+      {/* ✅ DynNode/Notice와 동일 톤 + 직선 구분선 */}
+      <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
         {q.isPending ? (
           <ListSkeleton rows={8} />
         ) : items.length === 0 ? (
-          <div className="p-4 text-sm text-slate-500">저작가이드가 없습니다.</div>
+          <div className="p-4 text-sm text-slate-900/60">저작가이드가 없습니다.</div>
         ) : (
-          <div className="divide-y">
-            {items.map((n) => {
-              const statusLabel = n.status === 'PUBLISHED' ? '공개' : '임시';
-              const statusClass =
-                n.status === 'PUBLISHED'
-                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                  : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+          <div className="divide-y divide-slate-900/20">
+            {items.map((n) => (
+              <Link key={n.id} href={`/board/author-guide/${encodeURIComponent(n.id)}`} className="block p-4 transition-colors hover:bg-slate-900/5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate text-slate-900">{n.title}</div>
 
-              return (
-                <Link key={n.id} href={`/board/author-guide/${encodeURIComponent(n.id)}`} className="block p-4 hover:bg-slate-50">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{n.title}</div>
+                    <div className="text-xs text-slate-900/60 flex items-center gap-2 min-w-0">
+                      <Badge variant={n.status === 'PUBLISHED' ? 'published' : 'draft'}>{n.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
 
-                      <div className="text-xs text-slate-500 flex items-center gap-2 min-w-0">
-                        <Badge variant={n.status === 'PUBLISHED' ? 'published' : 'draft'}>{n.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
-
-                        <span className="truncate">
-                          {(n.content ?? '').slice(0, 40)}
-                          {(n.content ?? '').length > 40 ? '…' : ''}
-                        </span>
-                      </div>
+                      <span className="truncate">
+                        {(n.content ?? '').slice(0, 40)}
+                        {(n.content ?? '').length > 40 ? '…' : ''}
+                      </span>
                     </div>
-
-                    <div className="text-xs text-slate-500 shrink-0">{n.updatedAt ? new Date(n.updatedAt).toLocaleString() : '-'}</div>
                   </div>
-                </Link>
-              );
-            })}
+
+                  <div className="text-xs text-slate-900/60 shrink-0">{n.updatedAt ? new Date(n.updatedAt).toLocaleString() : '-'}</div>
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-slate-500">
+        <div className="text-sm text-slate-900/60">
           총 {data?.total ?? 0}개 · {data?.page ?? page}/{totalPages} 페이지
         </div>
 
         <div className="flex gap-2">
           {[10, 20, 30].map((n) => (
-            <Button key={n} variant={n === pageSize ? 'secondary' : 'outline'} onClick={() => pushQuery({ page: 1, pageSize: n })}>
+            <Button key={n} variant={n === pageSize ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, pageSize: n })}>
               {n}개
             </Button>
           ))}
@@ -188,17 +181,17 @@ export default function AuthorGuideListClient() {
         {pages.map((p, idx) => {
           if (p === '...')
             return (
-              <span key={`e-${idx}`} className="px-2 text-slate-500">
+              <span key={`e-${idx}`} className="px-2 text-slate-900/50">
                 …
               </span>
             );
+
           const isActive = p === page;
           return (
             <Button
               key={p}
-              variant={isActive ? 'secondary' : 'outline'}
+              variant={isActive ? 'ghost' : 'outline'}
               aria-current={isActive ? 'page' : undefined}
-              disabled={isActive}
               onClick={() => pushQuery({ page: p })}
             >
               {p}

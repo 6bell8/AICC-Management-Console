@@ -17,6 +17,8 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { SimpleSelect } from '../../components/ui/select';
 import { useToast } from '../../components/ui/use-toast';
 
+import { getStatusPalette, normalizeStatusKey } from '../../components/ui/status-palette';
+
 type StatusFilter = CampaignStatus | 'ALL';
 type PageItem = number | '…';
 
@@ -27,47 +29,36 @@ type CampaignsListResponse = {
   page: number;
 };
 
-function statusLabel(s: StatusFilter) {
-  switch (s) {
-    case 'ALL':
-      return '전체';
-    case 'DRAFT':
-      return '초안';
-    case 'RUNNING':
-      return '운영중';
-    case 'PAUSED':
-      return '일시중지';
-    case 'ARCHIVED':
-      return '보관';
-  }
+function safeLabel(x: unknown, fallback: string) {
+  const s = typeof x === 'string' ? x.trim() : '';
+  return s ? s : fallback;
 }
 
-function statusBadgeVariant(s: CampaignStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  switch (s) {
+// ✅ palette key -> Badge variant (Dashboard/캠페인 공통 룰)
+function statusKeyToBadgeVariant(key: ReturnType<typeof normalizeStatusKey>): 'running' | 'paused' | 'draft' | 'archived' | 'info' {
+  switch (key) {
     case 'RUNNING':
-      return 'default';
+      return 'running';
     case 'PAUSED':
-      return 'secondary';
-    case 'ARCHIVED':
-      return 'outline';
+      return 'paused';
     case 'DRAFT':
-      return 'secondary';
-  }
-}
-
-function statusBadgeTextClass(s: CampaignStatus) {
-  switch (s) {
-    case 'RUNNING':
-      return 'text-emerald-700/80';
-    case 'PAUSED':
-      return 'text-amber-700/80';
-    case 'DRAFT':
-      return 'text-slate-700/80';
+      return 'draft';
     case 'ARCHIVED':
-      return 'text-zinc-700/80';
+      return 'archived';
     default:
-      return '';
+      return 'info';
   }
+}
+
+// ✅ 화면에 보여줄 상태 라벨(필터/뱃지 공통)
+function statusLabel(s: StatusFilter) {
+  if (s === 'ALL') return '전체';
+
+  const p = getStatusPalette(s);
+  // fallback은 “한국어 기본 라벨”
+  const fallback = s === 'DRAFT' ? '초안' : s === 'RUNNING' ? '운영중' : s === 'PAUSED' ? '일시중지' : s === 'ARCHIVED' ? '보관' : s;
+
+  return safeLabel(p.label, fallback);
 }
 
 function buildQueryString(params: { q: string; status: StatusFilter; page: number }) {
@@ -220,7 +211,6 @@ export default function CampaignsClient() {
 
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: campaignsKey });
-
       const prev = qc.getQueryData<CampaignsListResponse>(campaignsKey);
 
       qc.setQueryData<CampaignsListResponse>(campaignsKey, (old) => {
@@ -306,12 +296,13 @@ export default function CampaignsClient() {
           <div className="flex flex-col md:flex-row gap-2">
             <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="캠페인명 또는 ID 검색" />
 
+            {/* tone은 컴포넌트 구현에 따라 유지 */}
             <SimpleSelect value={status} tone={status} onChange={(e) => setStatus(e.target.value as any)} className="md:w-48">
               <option value="ALL">전체</option>
-              <option value="DRAFT">초안</option>
-              <option value="RUNNING">운영중</option>
-              <option value="PAUSED">일시중지</option>
-              <option value="ARCHIVED">보관</option>
+              <option value="DRAFT">{statusLabel('DRAFT')}</option>
+              <option value="RUNNING">{statusLabel('RUNNING')}</option>
+              <option value="PAUSED">{statusLabel('PAUSED')}</option>
+              <option value="ARCHIVED">{statusLabel('ARCHIVED')}</option>
             </SimpleSelect>
 
             <Button
@@ -354,13 +345,19 @@ export default function CampaignsClient() {
             <div className="text-sm text-muted-foreground">표시할 캠페인이 없습니다.</div>
           ) : (
             <>
-              <div className="divide-y rounded-md border">
+              <div className="divide-y divide-slate-900/20 overflow-hidden rounded-md border border-slate-900/25">
                 {items.map((c) => {
                   const nextStatus = getNextStatus(c.status);
                   const rowPending = statusMutation.isPending && statusMutation.variables?.id === c.id;
 
+                  // ✅ 여기부터 palette 기반으로 통일
+                  const pal = getStatusPalette(c.status);
+                  const variant = statusKeyToBadgeVariant(pal.key);
+                  const label = safeLabel(pal.label, c.status); // 빈 문자열 방어
+                  const textClass = pal.text ?? ''; // palette에 text가 있으면 그대로 사용
+
                   return (
-                    <div key={c.id} className="group flex items-center justify-between gap-3 rounded-md p-3 row-hover-gray">
+                    <div key={c.id} className="group flex items-center justify-between gap-3 p-3 transition-colors hover:bg-slate-900/5">
                       <Link
                         href={`/campaigns/${encodeURIComponent(c.id)}`}
                         className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -370,8 +367,8 @@ export default function CampaignsClient() {
                       </Link>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant={statusBadgeVariant(c.status)} className={statusBadgeTextClass(c.status)}>
-                          {statusLabel(c.status)}
+                        <Badge variant={variant} className={textClass}>
+                          {label}
                         </Badge>
 
                         <span className="text-xs text-muted-foreground">{new Date(c.updatedAt).toLocaleDateString()}</span>

@@ -21,7 +21,7 @@ function ToastCard({
     <div
       data-toast
       data-state={open ? 'open' : 'closed'}
-      className={cn('w-full max-w-sm rounded-xl border bg-background p-4 shadow-lg', variant === 'destructive' && 'border-destructive/40')}
+      className={cn('w-full max-w-sm rounded-xl border bg-white p-4 shadow-lg', variant === 'destructive' && 'border-destructive/40')}
       role="status"
       aria-live="polite"
     >

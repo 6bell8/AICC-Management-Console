@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from './utils';
+import { STATUS_PALETTE } from './status-palette';
 
 export type BadgeVariant =
   | 'default'
@@ -9,8 +10,11 @@ export type BadgeVariant =
   // status
   | 'published'
   | 'draft'
-  // notice
-  | 'info';
+  | 'info'
+  // campaign status ✅ 추가
+  | 'running'
+  | 'paused'
+  | 'archived';
 
 type Props = React.HTMLAttributes<HTMLSpanElement> & {
   variant?: BadgeVariant;
@@ -37,10 +41,14 @@ export function Badge({ className, variant = 'default', size = 'xs', shape = 'pi
     destructive: 'bg-destructive text-destructive-foreground',
     outline: 'border border-input text-foreground',
 
-    // ✅ 지금 A안 느낌: 아주 연한 배경 + 얇은 ring
     published: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
     draft: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
     info: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200',
+
+    // ✅ palette 기준 통일
+    running: STATUS_PALETTE.RUNNING.badge,
+    paused: STATUS_PALETTE.PAUSED.badge,
+    archived: STATUS_PALETTE.ARCHIVED.badge,
   };
 
   return <span className={cn(base, sizes[size], shapes[shape], variants[variant], className)} {...props} />;

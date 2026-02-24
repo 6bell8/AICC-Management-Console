@@ -1,5 +1,26 @@
 // app/layout.tsx
 import './globals.css';
+
+import localFont from 'next/font/local';
+import { Inter } from 'next/font/google';
+
+const pretendard = localFont({
+  src: [
+    { path: '../node_modules/pretendard/dist/web/static/woff2/Pretendard-Regular.woff2', weight: '400', style: 'normal' },
+    { path: '../node_modules/pretendard/dist/web/static/woff2/Pretendard-Medium.woff2', weight: '500', style: 'normal' },
+    { path: '../node_modules/pretendard/dist/web/static/woff2/Pretendard-SemiBold.woff2', weight: '600', style: 'normal' },
+    { path: '../node_modules/pretendard/dist/web/static/woff2/Pretendard-Bold.woff2', weight: '700', style: 'normal' },
+  ],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 import Providers from './providers';
 import { Toaster } from './components/ui/toaster';
 import type { Metadata } from 'next';
@@ -13,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ko" className={`${pretendard.variable} ${inter.variable}`}>
       <body suppressHydrationWarning>
         <Providers>
           <div className="relative min-h-screen overflow-hidden bg-white">
