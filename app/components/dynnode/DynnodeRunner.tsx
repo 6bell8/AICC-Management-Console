@@ -18,6 +18,8 @@ type Props = {
   onChangeCtxText: (v: string) => void;
 };
 
+const DEFAULT_CONTEXT_KEY = 'api:API01';
+
 function safeStringify(value: any) {
   try {
     const seen = new WeakSet<object>();
@@ -43,6 +45,7 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
   const workerRef = useRef<Worker | null>(null);
 
   const [timeoutMs, setTimeoutMs] = useState(2000);
+  const [contextKey, setContextKey] = useState(DEFAULT_CONTEXT_KEY);
   const [running, setRunning] = useState(false);
 
   const [logs, setLogs] = useState<RunnerLog[]>([]);
@@ -102,11 +105,18 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
   const onRun = useCallback(() => {
     if (running) return; // 실행 중이면 무시
     resetOutputs();
+
+    const normalizedContextKey = contextKey.trim();
+    if (!normalizedContextKey) {
+      setErrorText('JSON DATA의 userMap 키를 입력해 주세요.');
+      return;
+    }
+
     setRunning(true);
 
     const w = ensureWorker();
-    w.postMessage({ type: 'RUN', code, ctxText, timeoutMs });
-  }, [running, resetOutputs, ensureWorker, code, ctxText, timeoutMs]);
+    w.postMessage({ type: 'RUN', code, ctxText, contextKey: normalizedContextKey, timeoutMs });
+  }, [running, resetOutputs, ensureWorker, code, ctxText, contextKey, timeoutMs]);
 
   const onStop = useCallback(() => {
     // stopFlag만 세우고, 무한루프 같은 건 실제로 못 멈출 수 있으니 terminate+재생성
@@ -203,7 +213,23 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold">JSON DATA</div>
-            <div className="text-[11px] text-slate-500 font-mono">default: api:API01</div>
+            <div className="text-[11px] text-slate-500 font-mono">
+              userMap.get(&apos;{contextKey.trim() || DEFAULT_CONTEXT_KEY}&apos;)
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="dynnode-context-key" className="shrink-0 text-xs font-medium text-slate-600">
+              userMap 키
+            </label>
+            <input
+              id="dynnode-context-key"
+              className="h-9 min-w-0 flex-1 rounded-md border bg-white px-3 font-mono text-sm"
+              value={contextKey}
+              onChange={(e) => setContextKey(e.target.value)}
+              placeholder={DEFAULT_CONTEXT_KEY}
+              disabled={running}
+              spellCheck={false}
+            />
           </div>
           <textarea
             className="min-h-[260px] w-full rounded-md border bg-slate-50 p-3 font-mono text-[13px] leading-6
@@ -240,7 +266,9 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
       </div>
 
       <div className="text-xs text-slate-500">
-        코드 안에서 <span className="font-mono">console.log()</span> 하면 logs로 들어옵니다. (Worker에서 console을 가로챕니다)
+        JSON DATA는 지정한 키에 응답 객체 문자열로 저장됩니다. 코드에서{' '}
+        <span className="font-mono">JSON.parse(userMap.get(&apos;{contextKey.trim() || DEFAULT_CONTEXT_KEY}&apos;))</span>로
+        읽을 수 있으며, <span className="font-mono">console.log()</span> 출력은 logs로 들어옵니다.
       </div>
 
       {/* 참고용 안내(원하시면 제거 가능)

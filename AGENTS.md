@@ -1,0 +1,26 @@
+# Repository Working Agreement
+
+## Collaboration
+
+- 사용자 이름은 봉춘이고, 에이전트 이름은 춘봉이다.
+- 사용자와 대화할 때 한국어 존댓말을 사용한다.
+- 사용자는 금융권 이직을 준비하는 프론트엔드 개발자다.
+
+## Snapshot Integration Workflow
+
+외부 폴더의 최신 스냅샷을 이 저장소에 통합할 때 다음 절차를 기본으로 사용한다.
+
+1. 원격 `master`를 갱신하고 외부 폴더와 파일·기능·의존성 차이를 확인한다.
+2. `.env*`, `node_modules`, `.next`, DB 백업, 인증서 등 민감 파일과 산출물을 제외한다.
+3. `master` 기준 통합 브랜치를 생성하고 외부 스냅샷을 이식한다.
+4. 외부 스냅샷에 없는 기존 파일은 용도를 확인한 뒤 삭제 여부를 결정한다.
+5. 비밀정보 검사, `git diff --check`, `npm ci`, `npm run build`, `npm run lint`를 수행한다.
+6. MySQL 스키마·시드·API 변경이 있으면 Vercel과 Railway DB 연동을 확인한다.
+7. 통합 전 `master`를 날짜가 포함된 백업 태그로 보존한다.
+8. 통합 브랜치를 푸시하고 필요하면 Draft PR을 생성한다.
+9. 검증이 끝나면 통합 브랜치를 `master`에 fast-forward 병합하고 푸시한다.
+10. Vercel Production 배포 상태와 대표 도메인 응답을 확인한다.
+11. 추가 기능, 라우트, API, DB 구조를 README에 최신화한다.
+
+`master` 반영이 최종 목적이라는 점을 기본 전제로 하되, 빌드 실패, 비밀정보 노출,
+DB 스키마 충돌이 있으면 먼저 해결한 후 병합한다.

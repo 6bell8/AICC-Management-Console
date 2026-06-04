@@ -1,7 +1,7 @@
 // runner.worker.ts
 export {};
 
-type RunMsg = { type: 'RUN'; code: string; ctxText: string; timeoutMs: number };
+type RunMsg = { type: 'RUN'; code: string; ctxText: string; contextKey: string; timeoutMs: number };
 type StopMsg = { type: 'STOP' };
 type InMsg = RunMsg | StopMsg;
 type LogLevel = 'log' | 'info' | 'warn' | 'error';
@@ -51,13 +51,12 @@ function createUserMap() {
   };
 }
 
-function installGlobals(ctx: any) {
+function installGlobals(ctx: any, contextKey: string) {
   const um = createUserMap();
   (globalThis as any).userMap = um;
 
-  // ✅ 자동 주입: 실무 패턴 지원 (JSON 문자열로 저장)
-  // userMap.get('api:API01') -> '{"body": {...}}'
-  um.put('api:API01', JSON.stringify({ body: ctx }));
+  // 실행기에서 지정한 userMap 키에 API 응답 형태의 JSON 문자열을 주입합니다.
+  um.put(contextKey, JSON.stringify({ body: ctx }));
 
   // (선택) response.body 스타일도 병행 제공하고 싶으면
   // (globalThis as any).response = { body: ctx };
@@ -93,7 +92,7 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
       return;
     }
 
-    installGlobals(ctx);
+    installGlobals(ctx, msg.contextKey);
 
     try {
       // 사용자 코드 실행
