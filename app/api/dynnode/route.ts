@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createPost, listPosts } from '@/app/lib/dynnode/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { DEFAULT_DYNNODE_SAMPLE_CTX } from '@/app/lib/dynnode/defaults';
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     title: body.title,
     summary: typeof body.summary === 'string' ? body.summary : null,
     code: body.code,
-    sampleCtx: typeof body.sampleCtx === 'string' ? body.sampleCtx : '{\n  \n}\n',
+    sampleCtx: typeof body.sampleCtx === 'string' ? body.sampleCtx : DEFAULT_DYNNODE_SAMPLE_CTX,
     tags: Array.isArray(body.tags) ? body.tags.filter((x: any) => typeof x === 'string') : [],
     status: body.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
   });

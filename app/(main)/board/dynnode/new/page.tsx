@@ -8,6 +8,7 @@ import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton'; // ✅ 추가
 import { createDynNode } from '@/app/lib/api/dynnode';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
+import { DEFAULT_DYNNODE_SAMPLE_CTX } from '@/app/lib/dynnode/defaults';
 
 export default function DynNodeNewPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function DynNodeNewPage() {
       '\n' +
       'console.log(data);\n',
   );
-  const [sampleCtx, setSampleCtx] = useState('{\n  "name": "봉춘"\n}\n');
+  const [sampleCtx, setSampleCtx] = useState(DEFAULT_DYNNODE_SAMPLE_CTX);
 
   const m = useMutation({
     mutationFn: () =>

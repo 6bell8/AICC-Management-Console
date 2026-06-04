@@ -2,6 +2,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { getMysqlPool } from '../db/mysql';
 import type { DynNodePost, DynNodeStatus } from '../types/dynnode';
+import { DEFAULT_DYNNODE_SAMPLE_CTX, getDynnodeSampleCtx } from './defaults';
 
 type DynNodeRow = RowDataPacket & {
   id: string;
@@ -44,7 +45,7 @@ function mapPost(row: DynNodeRow): DynNodePost {
     title: row.title,
     summary: row.summary,
     code: row.code,
-    sampleCtx: row.sample_ctx ?? '{\n  \n}\n',
+    sampleCtx: getDynnodeSampleCtx(row.sample_ctx),
     tags: parseTags(row.tags),
     status: row.status,
     createdAt: toIso(row.created_at),
@@ -100,7 +101,7 @@ export async function createPost(input: {
       input.title,
       input.summary ?? null,
       input.code,
-      input.sampleCtx ?? '{\n  \n}\n',
+      input.sampleCtx ?? DEFAULT_DYNNODE_SAMPLE_CTX,
       JSON.stringify(input.tags ?? []),
       input.status ?? 'DRAFT',
       now.slice(0, 23).replace('T', ' '),

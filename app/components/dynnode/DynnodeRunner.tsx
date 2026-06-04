@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/button';
+import { DEFAULT_DYNNODE_SAMPLE_CTX } from '@/app/lib/dynnode/defaults';
 
 type RunnerLog = { ts: string; level: 'log' | 'info' | 'warn' | 'error'; text: string };
 
@@ -200,6 +201,14 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
         <div className="space-y-2">
           <div className="flex h-8 items-center justify-between gap-2">
             <div className="text-sm font-semibold">JSON DATA</div>
+            <button
+              type="button"
+              className="ml-auto shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => onChangeCtxText(DEFAULT_DYNNODE_SAMPLE_CTX)}
+              disabled={running}
+            >
+              기본 예시
+            </button>
             <label htmlFor="dynnode-context-key" className="ml-auto shrink-0 text-[11px] font-medium text-slate-500">
               userMap 키
             </label>

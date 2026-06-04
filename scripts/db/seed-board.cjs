@@ -5,6 +5,18 @@ const mysql = require('mysql2/promise');
 const { getMysqlConfig, loadLocalEnv } = require('./env.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
+const DEFAULT_DYNNODE_SAMPLE_CTX = `{
+  "id": "sample-001",
+  "name": "봉춘",
+  "active": true,
+  "count": 2,
+  "items": [
+    { "id": "item-001", "name": "상담 요청", "amount": 120000, "active": true },
+    { "id": "item-002", "name": "콜백 예약", "amount": 80000, "active": false }
+  ],
+  "data": { "value": "example" }
+}
+`;
 
 function readJson(fileName, fallback) {
   const filePath = path.join(ROOT_DIR, 'data', fileName);
@@ -127,7 +139,7 @@ async function seedDynnodePosts(connection) {
         String(raw.title || '').trim() || 'Untitled post',
         raw.summary == null ? null : String(raw.summary),
         String(raw.code || ''),
-        String(raw.sampleCtx || '{\n  \n}\n'),
+        String(raw.sampleCtx || DEFAULT_DYNNODE_SAMPLE_CTX),
         JSON.stringify(Array.isArray(raw.tags) ? raw.tags.filter((tag) => typeof tag === 'string') : []),
         raw.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
         toMysqlDateTime(raw.createdAt),
