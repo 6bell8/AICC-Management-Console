@@ -1,0 +1,11 @@
+# Paths preserved from the current master during external snapshot integration.
+# Do not overwrite, delete, or replace these paths unless the user explicitly
+# requests an update to the dynamic node guide.
+
+app/(main)/board/dynnode/
+app/api/dynnode/
+app/components/dynnode/
+app/lib/api/dynnode.ts
+app/lib/dynnode/
+app/lib/types/dynnode.ts
+data/dynnode.json
