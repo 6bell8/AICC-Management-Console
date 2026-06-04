@@ -1,192 +1,243 @@
-# aicc-console
+# AICC Management Console
 
-AICC 콘솔 형태의 포트폴리오 프로젝트입니다.  
-캠페인/모니터링/대시보드/게시판(동적노드·공지·저작가이드) + 영업관리(contracts 칸반) 흐름을 중심으로 구현합니다.
+금융권 AICC 운영 환경을 가정해 제작한 통합 관리 콘솔 포트폴리오입니다.
 
----
+캠페인과 모니터링 중심의 기존 콘솔을 MySQL 기반 운영 포털로 확장했습니다.
+인증·권한, 계정 승인, 결재, 알림, 인사, 영업, 사업용 회선, 게시판 데이터를 하나의 콘솔에서 관리합니다.
 
-## Tech Stack
-- Next.js (App Router)
-- React + TypeScript
-- Tailwind CSS + shadcn/ui
-- @tanstack/react-query
-- zod + react-hook-form
-- lucide-react
-- dnd-kit (칸반 Drag & Drop)
-- Web Worker (동적노드 러너)
-- (차트) Recharts 기반 대시보드 차트 컴포넌트
+## 주요 특징
 
----
+- **MySQL 기반 데이터 관리**: Railway MySQL 또는 로컬 MySQL 연결
+- **승인형 계정 시스템**: 회원가입 후 관리자 승인, 역할별 접근 제어
+- **운영 업무 통합**: 캠페인, 모니터링, 결재, 알림, 인사, 영업관리
+- **포트폴리오 게스트 모드**: 읽기 전용 `VIEWER` 계정 제공
+- **배포 환경 대응**: Vercel + Railway MySQL 구성 및 DB 상태 확인 API
+- **초기 데이터 자동화**: 스키마 생성과 도메인별 시드 스크립트 제공
 
-## Routes (App)
+## 기술 스택
 
-### Auth
-- `/login` : 로그인
-- `/signup` : 회원가입 신청(관리자 승인제)
-- `/guest` : 포트폴리오 관람용 게스트 진입
-- `/admin/users` : 계정 승인/권한 관리(HEAD, ADMIN 전용)
+| 영역 | 기술 |
+| --- | --- |
+| Framework | Next.js 16 App Router, React 19, TypeScript |
+| UI | Tailwind CSS 4, shadcn/ui, Radix UI, lucide-react |
+| Server State | TanStack Query |
+| Form / Validation | React Hook Form, Zod |
+| Database | MySQL 8, mysql2 |
+| Auth | HttpOnly Cookie, HMAC 세션 토큰, bcryptjs |
+| Visualization | Chart.js, Recharts |
+| Interaction | dnd-kit, Web Worker |
+| Deployment | Vercel, Railway MySQL |
 
-### Dashboard
-- `/dashboard` : 대시보드(KPI + 추이/상태 분포 차트 + 최근 변경 리스트)
+## 핵심 기능
 
-### Campaigns
-- `/campaigns` : 캠페인 목록(검색/필터/페이지네이션/상태 토글 액션)
-- `/campaigns/[id]` : 캠페인 상세
+### 인증과 권한
 
-### Monitoring
-- `/monitoring` : 모니터링(캠페인 리스트/상태/제어)
+- 이메일 기반 로그인 및 회원가입
+- 회원가입 계정의 승인·반려 처리
+- HttpOnly 쿠키 기반 1일 세션
+- 게스트 전용 읽기 모드
+- 관리자 계정 승인, 역할 변경, 삭제
 
-### Board
-- `/board` : 게시판 홈
-- `/board/dynnode` : 동적노드 목록(페이지네이션)
-- `/board/dynnode/new` : 동적노드 작성
-- `/board/dynnode/[id]` : 동적노드 상세/수정/삭제/실행
+| 역할 | 주요 권한 |
+| --- | --- |
+| `HEAD` | 전체 운영 권한, 계정 승인 및 역할 관리 |
+| `ADMIN` | 운영 관리 및 계정 승인 관리 |
+| `OPERATOR` | 일반 운영 업무 조회·수정 |
+| `VIEWER` | 포트폴리오 게스트용 읽기 전용 |
 
-- `/board/notice` : 공지사항 목록
-- `/board/notice/new` : 공지사항 작성
-- `/board/notice/[id]` : 공지사항 상세/수정/삭제
+### 운영관리
 
-- `/board/author-guide` : 저작가이드(CRUD, 공지/동적노드 패턴 재사용)
+- KPI 및 상태 분포 대시보드
+- 캠페인 목록, 상세, 상태 변경
+- 캠페인 실행 모니터링 및 중지
+- 결재함과 승인 단계 관리
+- 읽지 않은 알림 및 결재 대기 건수 표시
+- 사업용 회선 관리
 
-### Sales
-- `/sales/activity-stats` : 영업 지표(카드/차트/요약)
-- `/sales/contracts` : 영업현황관리(칸반 + 카드 클릭 시 Dialog/Modal 편집 + 가격책정/자동합계)
+### 인사·영업관리
 
----
+- 연차 정책, 잔여 연차, 연차 신청 관리
+- 영업 계약 칸반과 Drag & Drop
+- 계약 상세 및 품목별 금액 관리
+- 영업 활동 및 계약 현황 통계
 
-## API (Route Handlers)
-> `route.ts` 기반으로 엔드포인트를 구성합니다.
+### 게시판
 
-- `api/campaigns/route.ts`
-- `api/campaigns/[id]/route.ts`
+- 공지사항 CRUD 및 상단 배너
+- 동적노드 가이드 CRUD 및 Web Worker 실행
+- 저작가이드 CRUD
 
-- `api/dynnode/route.ts`
-- `api/dynnode/[id]/route.ts`
+## 화면 라우트
 
-- `api/notice/route.ts`
-- `api/notice/[id]/route.ts`
-- `api/notice/banner/route.ts`  ← 상단 배너용(고정 우선 + 최신 채움)
+| 영역 | 경로 | 설명 |
+| --- | --- | --- |
+| 인증 | `/login` | 로그인 |
+| 인증 | `/signup` | 승인형 회원가입 |
+| 인증 | `/guest` | 읽기 전용 게스트 진입 |
+| 대시보드 | `/dashboard` | KPI, 추이, 상태 분포 |
+| 계정관리 | `/admin/users` | 계정 승인 및 역할 관리 |
+| 결재 | `/approvals` | 결재 요청 및 승인 현황 |
+| 알림 | `/notifications` | 사용자 알림 목록 |
+| 캠페인 | `/campaigns` | 캠페인 목록 및 관리 |
+| 캠페인 | `/campaigns/[id]` | 캠페인 상세 |
+| 모니터링 | `/campaigns/monitoring` | 캠페인 실행 모니터링 |
+| 회선관리 | `/business-lines` | 사업용 회선 관리 |
+| 인사관리 | `/hr/leave` | 연차 신청 관리 |
+| 영업관리 | `/sales/contracts` | 계약 칸반 및 상세 관리 |
+| 영업관리 | `/sales/activity-stats` | 계약 현황 통계 |
+| 게시판 | `/board/notice` | 공지사항 |
+| 게시판 | `/board/dynnode` | 동적노드 가이드 |
+| 게시판 | `/board/author-guide` | 저작가이드 |
 
-- `api/monitoring/summary/route.ts`
-- `api/monitoring/run/[runId]/route.ts`
-- `api/monitoring/campaigns/[id]/stop/route.ts`  ← 캠페인 중지 액션 엔드포인트
+## 시작하기
 
-DB 상태 확인:
-- `api/health/db/route.ts`
+### 요구사항
 
-인증/계정 관리:
-- `api/auth/signup/route.ts`
-- `api/auth/login/route.ts`
-- `api/auth/guest/route.ts`
-- `api/auth/logout/route.ts`
-- `api/auth/me/route.ts`
-- `api/admin/users/route.ts`
+- Node.js 20 이상
+- npm
+- MySQL 8 또는 Railway MySQL
 
-데이터 저장소:
-- 런타임 데이터는 MySQL에 저장합니다.
-- `data/*.json`은 초기 시드 원본으로만 사용합니다.
+### 설치
 
----
-
-## Directory Map (현재 구조 기준)
-
-```txt
-aicc-console
-├─ app
-│  ├─ (auth)
-│  ├─ (main)
-│  │  ├─ board
-│  │  │  ├─ author-guide
-│  │  │  ├─ dynnode
-│  │  │  ├─ notice
-│  │  │  └─ layout.tsx
-│  │  ├─ campaigns
-│  │  │  ├─ [id]
-│  │  │  ├─ CampaignListClient.tsx
-│  │  │  ├─ CampaignsClient.tsx
-│  │  │  └─ page.tsx
-│  │  ├─ dashboard
-│  │  │  ├─ DashboardCharts.tsx
-│  │  │  ├─ DashboardClient.tsx
-│  │  │  └─ page.tsx
-│  │  ├─ monitoring
-│  │  └─ sales
-│  │     ├─ activity-stats
-│  │     ├─ contracts
-│  │     └─ layout.tsx
-│  ├─ api
-│  ├─ components
-│  ├─ lib
-│  ├─ globals.css
-│  ├─ layout.tsx
-│  ├─ page.tsx
-│  └─ providers.tsx
-│
-├─ components
-│  └─ (공용 UI/도메인 컴포넌트)
-│
-├─ data
-│  ├─ authorGuide.json
-│  ├─ campaigns.json
-│  ├─ contracts.json
-│  ├─ dynnode.json
-│  ├─ monitoring.json
-│  └─ notice.json
-│
-├─ lib
-│  └─ (api 호출/타입/유틸/스토어)
-└─ node_modules ...
+```bash
+git clone https://github.com/6bell8/AICC-Management-Console.git
+cd AICC-Management-Console
+npm ci
 ```
 
----
+### 환경변수
 
-## DB 배포 환경 설정
-
-이 프로젝트는 MySQL을 사용합니다. 로컬 개발은 로컬 MySQL, 배포는 Railway MySQL 또는 외부 MySQL 서버를 사용합니다.
-
-### 로컬 개발
-
-`aicc-console/.env.local`
+프로젝트 루트에 `.env.local`을 생성합니다. 기본 형식은 `.env.example`을 참고합니다.
 
 ```env
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password
-DB_NAME=your_database_name
+DB_NAME=aicc_console
+
 AUTH_SESSION_SECRET=replace_with_a_long_random_secret
 AUTH_HEAD_EMAIL=head@example.com
 AUTH_HEAD_PASSWORD=replace_with_head_password
 AUTH_HEAD_NAME=Head Admin
+AUTH_GUEST_EMAIL=portfolio-guest@aicc.local
+AUTH_GUEST_NAME=Portfolio Guest
 ```
 
-초기 스키마와 시드 데이터 반영:
+`AUTH_HEAD_EMAIL`과 `AUTH_HEAD_PASSWORD`를 설정하면 DB 초기화 시 최초 `HEAD` 관리자가 생성됩니다.
+
+### DB 초기화와 실행
 
 ```bash
 npm run db:setup
 npm run db:check
+npm run dev
 ```
 
-`AUTH_HEAD_EMAIL`과 `AUTH_HEAD_PASSWORD`가 설정되어 있으면 `npm run db:setup` 시 최초 HEAD 관리자 계정이 생성됩니다. HEAD 계정은 `/admin/users`에서 가입 신청 승인, 반려, 역할 변경, 계정 삭제를 통솔할 수 있습니다.
+브라우저에서 [http://localhost:3000](http://localhost:3000)에 접속합니다.
 
-### Vercel 배포
+> `db:setup`은 스키마 생성과 전체 시드 작업을 실행합니다. 기존 데이터가 있는 운영 DB에서는 실행 전 반드시 백업과 스크립트 내용을 확인하세요.
 
-Vercel Project Settings > Environment Variables에 아래 값을 등록합니다.
+## npm 명령어
 
-```txt
+| 명령어 | 설명 |
+| --- | --- |
+| `npm run dev` | 개발 서버 실행 |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run start` | 프로덕션 서버 실행 |
+| `npm run lint` | ESLint 검사 |
+| `npm run db:check` | MySQL 연결 확인 |
+| `npm run db:schema` | 테이블 스키마 생성 |
+| `npm run db:setup` | 스키마 생성 후 전체 시드 실행 |
+| `npm run db:seed:auth` | 관리자 및 게스트 계정 시드 |
+| `npm run db:seed:campaigns` | 캠페인 데이터 시드 |
+| `npm run db:seed:contracts` | 계약 데이터 시드 |
+| `npm run db:seed:business-lines` | 사업용 회선 데이터 시드 |
+| `npm run db:seed:board` | 게시판 데이터 시드 |
+| `npm run db:seed:monitoring` | 모니터링 데이터 시드 |
+
+## API 구성
+
+Next.js Route Handlers를 사용하며, 인증이 필요한 API는 세션 쿠키를 확인합니다.
+
+| 영역 | 엔드포인트 |
+| --- | --- |
+| 인증 | `/api/auth/login`, `/api/auth/signup`, `/api/auth/guest`, `/api/auth/logout`, `/api/auth/me` |
+| 계정관리 | `/api/admin/users`, `/api/admin/teams`, `/api/admin/hr-profiles` |
+| 결재·알림 | `/api/approvals`, `/api/notifications` |
+| 캠페인 | `/api/campaigns`, `/api/campaigns/[id]` |
+| 모니터링 | `/api/monitoring/summary`, `/api/monitoring/run`, `/api/monitoring/run/[runId]`, `/api/monitoring/campaigns/[id]/stop` |
+| 회선관리 | `/api/business-lines` |
+| 인사관리 | `/api/hr/leave` |
+| 영업관리 | `/api/contracts/deals` |
+| 게시판 | `/api/notice`, `/api/notice/[id]`, `/api/notice/banner`, `/api/dynnode`, `/api/dynnode/[id]`, `/api/author-guide`, `/api/author-guide/[id]` |
+| 상태확인 | `/api/health/db` |
+
+## 데이터베이스
+
+주요 테이블은 다음과 같습니다.
+
+- 캠페인·모니터링: `campaigns`, `monitoring_runs`, `monitoring_run_events`
+- 인증·조직: `users`, `teams`, `user_team_memberships`, `employee_profiles`
+- 인사·결재·알림: `leave_policies`, `leave_balances`, `leave_requests`, `leave_balance_events`, `approval_steps`, `notifications`
+- 영업·회선: `contract_deals`, `contract_line_items`, `business_lines`
+- 게시판: `notices`, `author_guides`, `dynnode_posts`
+
+전체 스키마는 [`docs/db/mysql-schema.sql`](docs/db/mysql-schema.sql), 배포 방법은 [`docs/db/deployment.md`](docs/db/deployment.md)를 참고하세요.
+
+`data/*.json` 파일은 DB 초기 시드 원본으로 사용하며, 런타임 데이터는 MySQL에 저장합니다.
+
+## 프로젝트 구조
+
+```text
+.
+├─ app
+│  ├─ (auth)                 # 로그인, 회원가입, 게스트
+│  ├─ (main)                 # 인증된 운영 화면
+│  │  ├─ admin
+│  │  ├─ approvals
+│  │  ├─ board
+│  │  ├─ business-lines
+│  │  ├─ campaigns
+│  │  ├─ dashboard
+│  │  ├─ hr
+│  │  ├─ notifications
+│  │  └─ sales
+│  ├─ api                    # Route Handlers
+│  ├─ components             # 공용 UI 및 도메인 컴포넌트
+│  └─ lib
+│     ├─ api                 # 클라이언트 API 함수
+│     ├─ auth                # 세션 및 권한
+│     ├─ db                  # MySQL 데이터 접근
+│     └─ types               # 도메인 타입
+├─ data                      # 초기 시드 JSON
+├─ docs/db                   # DB 스키마와 배포 문서
+├─ scripts/db                # 스키마 및 시드 자동화
+└─ proxy.ts                  # 인증 경로 보호
+```
+
+## Railway MySQL / Vercel 배포
+
+Vercel 환경변수에 `DB_*`와 `AUTH_*` 값을 등록합니다. Railway MySQL을 Vercel 또는 로컬에서 사용할 때는 Railway의 **Public TCP Proxy host/port**를 사용해야 합니다.
+
+```text
 DB_HOST
 DB_PORT
 DB_USER
 DB_PASSWORD
 DB_NAME
+AUTH_SESSION_SECRET
+AUTH_HEAD_EMAIL
+AUTH_HEAD_PASSWORD
+AUTH_HEAD_NAME
+AUTH_GUEST_EMAIL
+AUTH_GUEST_NAME
 ```
 
-Railway MySQL을 사용할 경우 Railway의 public host/port 값을 사용합니다. `mysql.railway.internal`은 Railway 내부 서비스 전용이라 Vercel이나 로컬 PC에서는 사용하지 않습니다.
+배포 후 DB 연결 상태를 확인합니다.
 
-배포 후 확인:
-
-```txt
-https://your-vercel-domain/api/health/db
+```text
+GET https://your-domain/api/health/db
 ```
 
 정상 응답:
@@ -195,22 +246,17 @@ https://your-vercel-domain/api/health/db
 { "ok": true }
 ```
 
-### 로컬 MySQL 데이터를 Railway로 옮기기
+## 보안 및 운영 주의사항
 
-로컬 DB 백업:
+- `.env`, `.env.local`, `backup.sql`, `.mysql-data/`는 커밋하지 않습니다.
+- 운영 환경에서는 충분히 긴 `AUTH_SESSION_SECRET`을 사용합니다.
+- `VIEWER` 역할은 쓰기 API가 차단되는 읽기 전용 역할입니다.
+- 운영 DB에 `db:setup` 또는 시드 명령을 실행하기 전 반드시 백업합니다.
+- Railway의 `mysql.railway.internal` 주소는 Railway 내부 서비스에서만 사용합니다.
 
-```bash
-mysqldump -u root -p DB_NAME > backup.sql
-```
+## 현재 검증 상태
 
-Railway MySQL로 복원:
-
-```bash
-mysql -h Railway_PUBLIC_HOST -P Railway_PUBLIC_PORT -u Railway_USER -p Railway_DATABASE < backup.sql
-```
-
-주의:
-
-- `.env.local`은 커밋하지 않습니다.
-- `backup.sql`은 민감 데이터가 들어갈 수 있으므로 커밋하지 않습니다.
-- GitHub 접속이 제한된 환경에서는 `.env.local`, `.next/`, `node_modules/`, `backup.sql`을 제외하고 압축 파일로 옮깁니다.
+- `npm ci`: 통과
+- `npm run build`: 통과
+- MySQL 연결: `npm run db:check` 및 `/api/health/db` 제공
+- ESLint: 기존 코드와 통합 기능의 규칙 위반 정리 진행 중
