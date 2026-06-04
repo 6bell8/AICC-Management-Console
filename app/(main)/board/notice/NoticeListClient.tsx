@@ -8,6 +8,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getNotices } from '@/app/lib/api/notice';
 import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
@@ -49,6 +50,7 @@ function getCompactPages(current: number, total: number): Array<number | '...'> 
 export default function NoticeListClient() {
   const sp = useSearchParams();
   const router = useRouter();
+  const { canWrite } = useCurrentUser();
 
   const page = toPosInt(sp.get('page'), 1);
   const pageSize = toPosInt(sp.get('pageSize'), 10);
@@ -76,10 +78,18 @@ export default function NoticeListClient() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">공지사항</h1>
-        <Link href="/board/notice/new">
-          <Button variant="outline">새 공지</Button>
-        </Link>
+        {canWrite ? (
+          <Link href="/board/notice/new">
+            <Button variant="outline">새 공지</Button>
+          </Link>
+        ) : (
+          <Button variant="outline" disabled>
+            새 공지
+          </Button>
+        )}
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 

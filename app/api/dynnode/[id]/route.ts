@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deletePost, getPost, patchPost } from '@/app/lib/dynnode/store';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,9 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await params;
   const body = await req.json().catch(() => ({}) as any);
 
@@ -29,6 +33,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await params;
 
   const removed = await deletePost(id);

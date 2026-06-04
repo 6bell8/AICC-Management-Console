@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DashboardCharts from '../../dashboard/DashboardCharts'; // 경로는 실제 위치에 맞게 조정
 import { Button } from '@/app/components/ui/button';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 type SummaryRes = {
   minutes: number;
@@ -33,6 +34,7 @@ type RunItem = {
 export default function MonitoringPage() {
   const qc = useQueryClient();
   const minutes = 30;
+  const { canWrite } = useCurrentUser();
 
   // 1) 요약(차트/KPI)
   const summaryQ = useQuery({
@@ -102,6 +104,8 @@ export default function MonitoringPage() {
         </Button>
       </div>
 
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       {/* KPI */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiCard title="총 실행" value={summary?.kpi.total} loading={summaryQ.isLoading} />
@@ -115,7 +119,7 @@ export default function MonitoringPage() {
       <DashboardCharts trend={trend} statusDist={statusDist} />
 
       {/* 최근 실행 테이블 */}
-      <section className="rounded-lg border bg-white p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">최근 실행</div>
           {runsQ.isFetching ? <span className="text-xs text-slate-500">업데이트 중…</span> : null}
@@ -124,7 +128,7 @@ export default function MonitoringPage() {
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
-              <tr className="border-b">
+              <tr className="border-b border-slate-200">
                 <th className="py-2 pr-3">캠페인</th>
                 <th className="py-2 pr-3">상태</th>
                 <th className="py-2 pr-3">처리</th>
@@ -135,7 +139,7 @@ export default function MonitoringPage() {
             </thead>
             <tbody>
               {runs.map((r) => (
-                <tr key={r.runId} className="border-b last:border-b-0">
+                <tr key={r.runId} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60">
                   <td className="py-2 pr-3">
                     <div className="font-medium">{r.campaignName}</div>
                     <div className="text-xs text-slate-500">{r.runId}</div>
@@ -147,7 +151,7 @@ export default function MonitoringPage() {
                   <td className="py-2 pr-3">
                     <Button
                       variant="outline"
-                      disabled={stopCampaignM.isPending || r.state !== 'RUNNING'}
+                      disabled={!canWrite || stopCampaignM.isPending || r.state !== 'RUNNING'}
                       onClick={() => stopCampaignM.mutate(r.campaignId)}
                     >
                       캠페인 중지
@@ -167,7 +171,7 @@ export default function MonitoringPage() {
 
 function KpiCard({ title, value, loading }: { title: string; value?: number; loading: boolean }) {
   return (
-    <div className="rounded-lg border bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="text-sm text-slate-600">{title}</div>
       <div className="mt-2 text-2xl font-semibold">{loading ? '—' : (value ?? 0)}</div>
     </div>

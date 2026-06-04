@@ -11,6 +11,7 @@ import { Skeleton } from '@/app/components/ui/skeleton';
 
 import { getDynNode, patchDynNode, deleteDynnode } from '@/app/lib/api/dynnode';
 import DynNodeRunner from '../../../../components/dynnode/DynnodeRunner';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 export default function DynNodeDetailPage() {
   const params = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ export default function DynNodeDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useCurrentUser();
 
   const q = useQuery({
     queryKey: ['dynnode', id],
@@ -100,6 +102,7 @@ export default function DynNodeDetailPage() {
   };
 
   const onDelete = () => {
+    if (!canWrite) return;
     const ok = window.confirm('정말 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.');
     if (!ok) return;
     delM.mutate();
@@ -155,6 +158,7 @@ export default function DynNodeDetailPage() {
   }
 
   const busy = saveM.isPending || delM.isPending;
+  const writeDisabled = !canWrite || busy;
 
   if (q.isLoading) return <DetailSkeleton />;
   if (!post) return <div className="p-6 text-sm text-slate-500">게시글을 찾을 수 없습니다.</div>;
@@ -169,7 +173,7 @@ export default function DynNodeDetailPage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="제목을 입력하세요"
               className="h-12 text-xl font-semibold"
-              disabled={busy}
+              disabled={writeDisabled}
             />
           ) : (
             <h1 className="text-2xl font-semibold truncate">{post.title}</h1>
@@ -183,7 +187,7 @@ export default function DynNodeDetailPage() {
             <Button
               variant="outline"
               onClick={onDelete}
-              disabled={busy}
+              disabled={writeDisabled}
               className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800"
             >
               삭제
@@ -198,19 +202,21 @@ export default function DynNodeDetailPage() {
               <Button variant="outline" onClick={onCancel} disabled={busy}>
                 취소
               </Button>
-              <Button variant="outline" onClick={() => saveM.mutate()} disabled={busy || !dirty}>
+              <Button variant="outline" onClick={() => saveM.mutate()} disabled={writeDisabled || !dirty}>
                 저장
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setIsEdit(true)} disabled={busy}>
+            <Button variant="outline" onClick={() => setIsEdit(true)} disabled={writeDisabled}>
               수정
             </Button>
           )}
         </div>
       </div>
 
-      <DynNodeRunner code={code} onChangeCode={setCode} ctxText={sampleCtx} onChangeCtxText={setSampleCtx} />
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
+      <DynNodeRunner code={code} onChangeCode={canWrite ? setCode : () => undefined} ctxText={sampleCtx} onChangeCtxText={canWrite ? setSampleCtx : () => undefined} />
     </div>
   );
 }

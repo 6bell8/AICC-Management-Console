@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authStorage, Role } from '@/app/lib/auth/storage'; // ✅ 경로 수정
+import { authStorage } from '@/app/lib/auth/storage';
 
 const LoginSchema = z.object({
   email: z.string().min(1, '이메일을 입력해 주세요.').email('이메일 형식이 올바르지 않습니다.'),
-  password: z.string().min(1, '비밀번호를 입력해 주세요.').min(4, '비밀번호는 최소 4자 이상 입력해 주세요.'),
-  role: z.enum(['ADMIN', 'OPERATOR', 'VIEWER']),
+  password: z.string().min(1, '비밀번호를 입력해 주세요.'),
 });
 
 type LoginForm = z.infer<typeof LoginSchema>;
@@ -19,49 +19,42 @@ export default function LoginClient() {
   const router = useRouter();
   const sp = useSearchParams();
   const next = useMemo(() => sp.get('next') || '/dashboard', [sp]);
-
-  useEffect(() => {
-    const session = authStorage.getSession();
-    if (session?.token) {
-      router.replace(next.startsWith('http') ? '/dashboard' : next);
-    }
-  }, [router, next]);
+  const [message, setMessage] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setValue,
-    watch,
   } = useForm<LoginForm>({
     resolver: zodResolver(LoginSchema),
-    defaultValues: { email: '', password: '', role: 'OPERATOR' },
+    defaultValues: { email: '', password: '' },
     mode: 'onSubmit',
   });
 
-  const role = watch('role');
-
   const onSubmit = async (data: LoginForm) => {
-    authStorage.setSession('mock_token', data.role as Role);
+    setMessage(null);
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const body = await res.json().catch(() => ({}));
 
-    if (next.startsWith('http')) {
-      router.replace('/campaigns');
+    if (!res.ok) {
+      setMessage(body.message || '로그인에 실패했습니다.');
       return;
     }
-    router.replace(next);
-  };
 
-  const quickLogin = (r: Role) => {
-    setValue('role', r);
-    authStorage.setSession('mock_token', r);
-    router.replace(next);
+    authStorage.setSession('server_cookie', body.user.role);
+    router.replace(next.startsWith('http') ? '/dashboard' : next);
+    router.refresh();
   };
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+    <div className="w-full max-w-sm rounded-2xl border border-black/10 bg-white/90 p-6 shadow-sm backdrop-blur">
       <div className="mb-5">
         <p className="text-lg font-semibold">AICC Management System</p>
-        <p className="mt-1 text-sm text-black/60">로그인 후 콘솔에 접근할 수 있습니다.</p>
+        <p className="mt-1 text-sm text-black/60">승인된 계정만 콘솔에 접근할 수 있습니다.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
@@ -80,21 +73,13 @@ export default function LoginClient() {
           <input
             type="password"
             className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30"
-            placeholder="••••"
+            placeholder="8자 이상"
             {...register('password')}
           />
           {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs text-black/70">역할(Role)</label>
-          <select className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30" {...register('role')}>
-            <option value="ADMIN">ADMIN</option>
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="VIEWER">VIEWER</option>
-          </select>
-          <p className="mt-1 text-xs text-black/50">현재 선택: {role}</p>
-        </div>
+        {message && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{message}</div>}
 
         <button
           type="submit"
@@ -105,19 +90,18 @@ export default function LoginClient() {
         </button>
       </form>
 
-      <div className="mt-4 rounded-xl border border-black/10 bg-white p-3">
-        <p className="text-xs font-medium text-black/70">퀵 로그인(MVP)</p>
-        <div className="mt-2 flex gap-2">
-          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('ADMIN')}>
-            ADMIN
-          </button>
-          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('OPERATOR')}>
-            OPERATOR
-          </button>
-          <button type="button" className="flex-1 rounded-lg border px-2 py-2 text-xs" onClick={() => quickLogin('VIEWER')}>
-            VIEWER
-          </button>
-        </div>
+      <div className="mt-4 text-center text-xs text-black/60">
+        계정이 없으신가요?{' '}
+        <Link href="/signup" className="font-medium text-black underline">
+          가입 신청
+        </Link>
+      </div>
+
+      <div className="mt-3 text-center text-xs text-black/60">
+        포트폴리오만 둘러보시나요?{' '}
+        <Link href="/guest" className="font-medium text-black underline">
+          게스트 모드
+        </Link>
       </div>
     </div>
   );

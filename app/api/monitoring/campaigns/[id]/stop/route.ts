@@ -1,8 +1,12 @@
 // app/api/monitoring/campaigns/[id]/stop/route.ts
 import { NextResponse } from 'next/server';
 import { loadStore, saveStore } from '@/app/lib/monitoring/store';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await params;
 
   const store = await loadStore();

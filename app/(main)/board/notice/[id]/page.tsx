@@ -11,12 +11,14 @@ import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 import { Skeleton } from '@/app/components/ui/skeleton';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 export default function NoticeDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canWrite } = useCurrentUser();
 
   const id = params?.id;
 
@@ -89,7 +91,8 @@ export default function NoticeDetailPage() {
   }
 
   const notice = q.data.notice;
-  const canSave = title.trim() && content.trim() && !mSave.isPending;
+  const canSave = canWrite && title.trim() && content.trim() && !mSave.isPending;
+  const writeDisabled = !canWrite || mSave.isPending || mDel.isPending;
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6 space-y-4">
@@ -107,27 +110,29 @@ export default function NoticeDetailPage() {
 
       <Separator />
 
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       <div className="space-y-2">
         <div className="text-sm text-slate-600">제목</div>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={writeDisabled} />
       </div>
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px]" />
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px]" disabled={writeDisabled} />
       </div>
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
+          <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} disabled={writeDisabled} />
           상단 고정(배너 우선)
         </label>
 
         <div className="ml-auto flex gap-2">
-          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button">
+          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={writeDisabled}>
             공개
           </Button>
-          <Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button">
+          <Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={writeDisabled}>
             임시저장
           </Button>
         </div>
@@ -139,7 +144,7 @@ export default function NoticeDetailPage() {
         </Button>
         <Button
           variant="dlOutline"
-          disabled={mDel.isPending}
+          disabled={!canWrite || mDel.isPending}
           onClick={() => {
             const ok = window.confirm('정말 삭제할까요?');
             if (ok) mDel.mutate();

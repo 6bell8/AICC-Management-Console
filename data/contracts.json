@@ -7,11 +7,11 @@
     "owner": "봉춘",
     "closeDate": "2026-02-28",
     "notes": "초기 요구사항 정리 중",
-    "discount": 50,
+    "discount": 500000,
     "commissionRate": 3,
     "items": [
-      { "id": "li_001", "name": "기본 구축", "qty": 1, "unitPrice": 800 },
-      { "id": "li_002", "name": "추가 기능", "qty": 2, "unitPrice": 120 }
+      { "id": "li_001", "name": "기본 구축", "qty": 1, "unitPrice": 8000000 },
+      { "id": "li_002", "name": "추가 기능", "qty": 2, "unitPrice": 1200000 }
     ]
   },
   {
@@ -25,8 +25,8 @@
     "discount": 0,
     "commissionRate": 2,
     "items": [
-      { "id": "li_003", "name": "대시보드 개발", "qty": 1, "unitPrice": 1200 },
-      { "id": "li_004", "name": "지표 설계/정의", "qty": 1, "unitPrice": 250 }
+      { "id": "li_003", "name": "대시보드 개발", "qty": 1, "unitPrice": 12000000 },
+      { "id": "li_004", "name": "지표 설계/정의", "qty": 1, "unitPrice": 2500000 }
     ]
   },
   {
@@ -37,12 +37,12 @@
     "owner": "봉춘",
     "closeDate": "2026-03-05",
     "notes": "가격 조정(할인) 요청 가능성 높음",
-    "discount": 100,
+    "discount": 1000000,
     "commissionRate": 4,
     "items": [
-      { "id": "li_005", "name": "캠페인 관리", "qty": 1, "unitPrice": 900 },
-      { "id": "li_006", "name": "리포트/통계", "qty": 1, "unitPrice": 400 },
-      { "id": "li_007", "name": "권한/감사로그", "qty": 1, "unitPrice": 180 }
+      { "id": "li_005", "name": "캠페인 관리", "qty": 1, "unitPrice": 9000000 },
+      { "id": "li_006", "name": "리포트/통계", "qty": 1, "unitPrice": 4000000 },
+      { "id": "li_007", "name": "권한/감사로그", "qty": 1, "unitPrice": 1800000 }
     ]
   },
   {
@@ -56,8 +56,8 @@
     "discount": 0,
     "commissionRate": 1.5,
     "items": [
-      { "id": "li_008", "name": "시나리오 설계", "qty": 1, "unitPrice": 350 },
-      { "id": "li_009", "name": "API 연동", "qty": 1, "unitPrice": 450 }
+      { "id": "li_008", "name": "시나리오 설계", "qty": 1, "unitPrice": 3500000 },
+      { "id": "li_009", "name": "API 연동", "qty": 1, "unitPrice": 4500000 }
     ]
   },
   {
@@ -68,11 +68,11 @@
     "owner": "봉춘",
     "closeDate": "2026-02-14",
     "notes": "운영 이슈 대응 포함해서 마감",
-    "discount": 30,
+    "discount": 300000,
     "commissionRate": 2,
     "items": [
-      { "id": "li_010", "name": "고도화 작업", "qty": 1, "unitPrice": 500 },
-      { "id": "li_011", "name": "운영 튜닝", "qty": 1, "unitPrice": 120 }
+      { "id": "li_010", "name": "고도화 작업", "qty": 1, "unitPrice": 5000000 },
+      { "id": "li_011", "name": "운영 튜닝", "qty": 1, "unitPrice": 1200000 }
     ]
   },
   {
@@ -86,8 +86,8 @@
     "discount": 0,
     "commissionRate": 0,
     "items": [
-      { "id": "li_012", "name": "칸반 UI 개선", "qty": 1, "unitPrice": 300 },
-      { "id": "li_013", "name": "드래그앤드롭 적용", "qty": 1, "unitPrice": 250 }
+      { "id": "li_012", "name": "칸반 UI 개선", "qty": 1, "unitPrice": 3000000 },
+      { "id": "li_013", "name": "드래그앤드롭 적용", "qty": 1, "unitPrice": 2500000 }
     ]
   }
 ]

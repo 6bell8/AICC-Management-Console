@@ -31,6 +31,7 @@ import {
   AlertDialogAction,
 } from '../../../components/ui/alert-dialog';
 import { VisuallyHidden } from '../../../components/ui/visually-hidden';
+import { ReadOnlyNotice, useCurrentUser } from '../../../lib/auth/useCurrentUser';
 
 function statusLabel(s: CampaignStatus) {
   switch (s) {
@@ -154,6 +155,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useCurrentUser();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmName, setConfirmName] = useState('');
@@ -257,7 +259,10 @@ export default function CampaignDetailClient({ id }: { id: string }) {
     },
   });
 
-  const onSubmit = form.handleSubmit((values) => m.mutate(values));
+  const onSubmit = form.handleSubmit((values) => {
+    if (!canWrite) return;
+    m.mutate(values);
+  });
 
   if (q.isLoading) return <LoadingSkeleton />;
   if (q.isError) {
@@ -275,6 +280,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
   const isDirty = form.formState.isDirty;
   const isValid = form.formState.isValid;
   const saving = m.isPending;
+  const formDisabled = !canWrite || saving;
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6 space-y-4">
@@ -302,12 +308,14 @@ export default function CampaignDetailClient({ id }: { id: string }) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             목록
           </Button>
-          <Button onClick={onSubmit} disabled={!isDirty || !isValid || saving}>
+          <Button onClick={onSubmit} disabled={!canWrite || !isDirty || !isValid || saving}>
             <Save className="h-4 w-4 mr-2" />
             {saving ? '저장 중…' : '저장'}
           </Button>
         </div>
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       <Separator />
 
@@ -321,7 +329,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
             <form className="space-y-5" onSubmit={onSubmit}>
               <div className="space-y-2">
                 <label className="text-sm font-medium">캠페인 이름</label>
-                <Input {...form.register('name')} placeholder="예) 2026 Q1 아웃바운드 캠페인" />
+                <Input {...form.register('name')} placeholder="예) 2026 Q1 아웃바운드 캠페인" disabled={formDisabled} />
                 {form.formState.errors.name?.message ? <p className="text-xs text-red-500">{form.formState.errors.name.message}</p> : null}
               </div>
 
@@ -335,6 +343,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                       shouldValidate: true,
                     })
                   }
+                  disabled={formDisabled}
                 >
                   <option value="DRAFT">초안</option>
                   <option value="RUNNING">운영중</option>
@@ -350,14 +359,15 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                   placeholder="캠페인 목적, 대상, 유의사항 등을 적어두세요."
                   className="resize-y min-h-[20vh] md:min-h-[24vh] lg:min-h-[28vh] max-h-[50vh]"
                   rows={5}
+                  disabled={formDisabled}
                 />
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={!isDirty || !isValid || saving}>
+                <Button type="submit" disabled={!canWrite || !isDirty || !isValid || saving}>
                   {saving ? '저장 중…' : '저장'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => form.reset()} disabled={saving}>
+                <Button type="button" variant="outline" onClick={() => form.reset()} disabled={formDisabled}>
                   변경 취소
                 </Button>
               </div>
@@ -387,6 +397,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                       shouldValidate: true,
                     })
                   }
+                  disabled={formDisabled}
                 />
               </div>
 
@@ -401,6 +412,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                       shouldValidate: true,
                     })
                   }
+                  disabled={formDisabled}
                 />
               </div>
 
@@ -455,7 +467,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                 }}
               >
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={saving || deleteMutation.isPending} onClick={() => setDeleteOpen(true)}>
+                  <Button variant="outline" disabled={!canWrite || saving || deleteMutation.isPending} onClick={() => setDeleteOpen(true)}>
                     캠페인 삭제
                   </Button>
                 </AlertDialogTrigger>
@@ -485,7 +497,13 @@ export default function CampaignDetailClient({ id }: { id: string }) {
 
                   <div className="space-y-2 pt-3">
                     <label className="text-sm font-medium ">캠페인명 입력</label>
-                    <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={c.name} autoFocus />
+                    <Input
+                      value={confirmName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                      placeholder={c.name}
+                      className="placeholder:text-slate-400"
+                      autoFocus
+                    />
                     <p className="text-xs text-muted-foreground">입력값이 캠페인명과 일치해야 삭제 버튼이 활성화됩니다.</p>
                   </div>
 
@@ -493,7 +511,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                     <AlertDialogCancel disabled={deleteMutation.isPending}>취소</AlertDialogCancel>
 
                     <AlertDialogAction
-                      disabled={deleteMutation.isPending || confirmName.trim() !== c.name || (c.status === 'RUNNING' && !forceStopThenDelete)}
+                      disabled={!canWrite || deleteMutation.isPending || confirmName.trim() !== c.name || (c.status === 'RUNNING' && !forceStopThenDelete)}
                       onClick={() => {
                         deleteMutation.mutate({ campaign: c, confirmName, forceStopThenDelete });
                       }}

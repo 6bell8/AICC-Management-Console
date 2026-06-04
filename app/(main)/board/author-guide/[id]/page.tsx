@@ -13,12 +13,14 @@ import { Separator } from '@/app/components/ui/separator';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { StatusToggle } from '@/app/components/ui/status-toggle';
 import type { PublishStatus } from '@/app/lib/types/common';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 export default function AuthorGuideDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canWrite } = useCurrentUser();
 
   const id = params?.id;
 
@@ -116,7 +118,8 @@ export default function AuthorGuideDetailPage() {
 
   const guide = q.data.authorGuide;
 
-  const canSave = title.trim().length > 0 && content.trim().length > 0 && !mSave.isPending && !mDel.isPending;
+  const canSave = canWrite && title.trim().length > 0 && content.trim().length > 0 && !mSave.isPending && !mDel.isPending;
+  const writeDisabled = !canWrite || mSave.isPending || mDel.isPending;
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6 space-y-4">
@@ -134,19 +137,21 @@ export default function AuthorGuideDetailPage() {
 
       <Separator />
 
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       <div className="space-y-2">
         <div className="text-sm text-slate-600">제목</div>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={writeDisabled} />
       </div>
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px]" />
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px]" disabled={writeDisabled} />
       </div>
 
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-end gap-3 w-full">
-          <StatusToggle value={status} onChange={setStatus} />
+          <StatusToggle value={status} onChange={canWrite ? setStatus : () => undefined} />
         </div>
       </div>
 
@@ -157,7 +162,7 @@ export default function AuthorGuideDetailPage() {
 
         <Button
           variant="dlOutline"
-          disabled={mDel.isPending}
+          disabled={!canWrite || mDel.isPending}
           onClick={() => {
             const ok = window.confirm('정말 삭제할까요?');
             if (ok) mDel.mutate();

@@ -35,6 +35,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local database artifacts
+.mysql-data/
+.mysql.pid
+backup.sql
 
 # vercel
 .vercel

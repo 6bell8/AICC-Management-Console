@@ -18,6 +18,7 @@ import { SimpleSelect } from '../../components/ui/select';
 import { useToast } from '../../components/ui/use-toast';
 
 import { getStatusPalette, normalizeStatusKey } from '../../components/ui/status-palette';
+import { ReadOnlyNotice, useCurrentUser } from '../../lib/auth/useCurrentUser';
 
 type StatusFilter = CampaignStatus | 'ALL';
 type PageItem = number | '…';
@@ -148,6 +149,7 @@ export default function CampaignsClient() {
   const searchParams = useSearchParams();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useCurrentUser();
 
   // URL -> 초기 state
   const initialQ = searchParams.get('q') ?? '';
@@ -278,10 +280,12 @@ export default function CampaignsClient() {
           <p className="text-sm text-muted-foreground">캠페인 목록을 확인하고 상세로 이동합니다.</p>
         </div>
 
-        <Button variant="outline" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+        <Button variant="outline" onClick={() => createMutation.mutate()} disabled={!canWrite || createMutation.isPending}>
           {createMutation.isPending ? '생성 중…' : '+ 새 캠페인'}
         </Button>
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       <Card>
         <CardHeader className="space-y-2">
@@ -377,7 +381,7 @@ export default function CampaignsClient() {
                           type="button"
                           variant="outline"
                           className="border border-gray-400 hover:border-gray-900 transition-colors duration-300 ease-in-out"
-                          disabled={!nextStatus || rowPending}
+                          disabled={!canWrite || !nextStatus || rowPending}
                           onClick={() => {
                             if (!nextStatus) return;
 

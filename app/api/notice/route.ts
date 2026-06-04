@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createNotice, listNotices } from '@/app/lib/notice/store';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -22,6 +23,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   try {
     const body = await req.json().catch(() => ({}) as any);
 

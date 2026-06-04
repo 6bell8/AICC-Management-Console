@@ -16,7 +16,8 @@ import KanbanColumn from '../../../components/ui/KanbanColumn';
 import DealCard from '../../../components/ui/DealCard';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getContractDeals } from '@/app/lib/api/contracts'; // ✅ 본인 프로젝트 경로에 맞게 수정
+import { deleteContractDeal, getContractDeals, saveContractDeal, updateContractDealStatus } from '@/app/lib/api/contracts';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 const ui = {
   border: 'border-stone-200/60',
@@ -35,19 +36,26 @@ const ui = {
 } as const;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+const MONEY_STEP = 10_000;
+type PendingAction = 'move' | 'save' | 'delete' | null;
 
 function clampNumber(v: number, min = 0) {
   if (Number.isNaN(v)) return min;
   return Math.max(min, v);
 }
 
+function normalizeContractMoney(v: number, min = MONEY_STEP) {
+  const value = clampNumber(v, min);
+  return Math.max(min, Math.round(value / MONEY_STEP) * MONEY_STEP);
+}
+
 function fmt(n: number) {
-  return n.toLocaleString();
+  return `${n.toLocaleString()}원`;
 }
 
 function calc(deal: ContractDeal) {
-  const subtotal = deal.items.reduce((acc, it) => acc + it.qty * it.unitPrice, 0);
-  const discount = clampNumber(deal.discount, 0);
+  const subtotal = deal.items.reduce((acc, it) => acc + clampNumber(it.qty, 0) * normalizeContractMoney(it.unitPrice), 0);
+  const discount = deal.discount > 0 ? normalizeContractMoney(deal.discount, 0) : 0;
   const supply = Math.max(0, subtotal - discount);
   const vat = Math.round(supply * 0.1);
   const total = supply + vat;
@@ -156,6 +164,11 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 export default function ContractsClient({ initialDeals }: { initialDeals: ContractDeal[] }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { canWrite } = useCurrentUser();
+  const [qText, setQText] = useState('');
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ContractDeal | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   // 훅은 항상 최상단에서 호출
   const sensors = useSensors(
@@ -178,15 +191,11 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
     if (q.data) setDeals(q.data);
   }, [q.data]);
 
-  // 로딩/에러 처리 (캠페인 스타일)
-  if (q.isLoading) return <ContractsBoardSkeleton />;
-  if (q.isError) {
-    return <ErrorState message={q.error instanceof Error ? q.error.message : 'Unknown Error'} onRetry={() => q.refetch()} />;
-  }
-  if (!q.data) return null;
-
-  const onDragEnd = ({ active, over }: any) => {
+  const onDragEnd = async ({ active, over }: any) => {
     if (!over) return;
+    if (pendingAction) return;
+    if (!canWrite) return;
+
     const activeId = String(active.id);
     const overId = String(over.id);
 
@@ -196,22 +205,31 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
     if (!CONTRACT_STATUS_META.some((s) => s.key === nextStatus)) return;
 
     // ✅ 로컬 UI 반영
+    const previousDeals = deals;
     setDeals((prev) => prev.map((d) => (d.id === activeId ? { ...d, status: nextStatus } : d)));
 
-    // TODO: 여기서 patch mutation 붙이면 서버 반영까지 가능
+    try {
+      setPendingAction('move');
+      await updateContractDealStatus(activeId, nextStatus);
+      await qc.invalidateQueries({ queryKey: ['contracts-deals'] });
+    } catch (error) {
+      setDeals(previousDeals);
+      toast({
+        title: '저장 실패',
+        description: error instanceof Error ? error.message : '계약 상태를 저장하지 못했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   // 검색
-  const [qText, setQText] = useState('');
   const filteredDeals = useMemo(() => {
     const keyword = qText.trim().toLowerCase();
     if (!keyword) return deals;
     return deals.filter((d) => (d.title + d.customer + d.owner).toLowerCase().includes(keyword));
   }, [deals, qText]);
-
-  // 모달 상태
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<ContractDeal | null>(null);
 
   // 상태별 그룹
   const grouped = useMemo(() => {
@@ -233,6 +251,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
   }, [filteredDeals]);
 
   const openNew = () => {
+    if (!canWrite) return;
     const blank: ContractDeal = {
       id: uid(),
       status: 'LEAD',
@@ -243,7 +262,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
       notes: '',
       discount: 0,
       commissionRate: 0,
-      items: [{ id: uid(), name: '기본 항목', qty: 1, unitPrice: 0 }],
+      items: [{ id: uid(), name: '기본 항목', qty: 1, unitPrice: MONEY_STEP }],
     };
     setEditing(blank);
     setOpen(true);
@@ -255,12 +274,15 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
   };
 
   const closeModal = () => {
+    if (pendingAction) return;
     setOpen(false);
     setEditing(null);
   };
 
-  const saveDeal = () => {
+  const saveDeal = async () => {
     if (!editing) return;
+    if (pendingAction) return;
+    if (!canWrite) return;
 
     const title = editing.title.trim();
     const customer = editing.customer.trim();
@@ -274,31 +296,64 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
       return;
     }
 
-    setDeals((prev) => {
-      const idx = prev.findIndex((p) => p.id === editing.id);
-      if (idx === -1) return [editing, ...prev];
-      const next = [...prev];
-      next[idx] = editing;
-      return next;
-    });
+    try {
+      setPendingAction('save');
+      const saved = await saveContractDeal(editing);
+      setDeals((prev) => {
+        const idx = prev.findIndex((p) => p.id === saved.id);
+        if (idx === -1) return [saved, ...prev];
+        const next = [...prev];
+        next[idx] = saved;
+        return next;
+      });
 
-    toast({ title: '저장 완료', description: '계약 정보가 저장되었습니다.' });
-    closeModal();
-
-    // TODO: 서버 저장 mutation 붙이면 여기서 invalidate/refetch 가능
-    // qc.invalidateQueries({ queryKey: ['contracts-deals'] });
+      await qc.invalidateQueries({ queryKey: ['contracts-deals'] });
+      toast({ title: '저장 완료', description: '계약 정보가 저장되었습니다.' });
+      closeModal();
+    } catch (error) {
+      toast({
+        title: '저장 실패',
+        description: error instanceof Error ? error.message : '계약 정보를 저장하지 못했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPendingAction(null);
+    }
   };
 
-  const deleteDeal = () => {
+  const deleteDeal = async () => {
     if (!editing) return;
+    if (pendingAction) return;
+    if (!canWrite) return;
     if (!confirm('삭제하시겠습니까?')) return;
 
-    setDeals((prev) => prev.filter((p) => p.id !== editing.id));
-    closeModal();
+    try {
+      setPendingAction('delete');
+      await deleteContractDeal(editing.id);
+      setDeals((prev) => prev.filter((p) => p.id !== editing.id));
+      await qc.invalidateQueries({ queryKey: ['contracts-deals'] });
+      closeModal();
+    } catch (error) {
+      toast({
+        title: '삭제 실패',
+        description: error instanceof Error ? error.message : '계약 정보를 삭제하지 못했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   // ✅ 데이터는 있는데 필터 결과가 비면 empty state를 보여줄지 결정(여기서는 "전체 데이터 없을 때만" empty)
   const hasAnyDeals = deals.length > 0;
+  const pendingLabel =
+    pendingAction === 'move' ? '상태 저장 중...' : pendingAction === 'save' ? '계약 저장 중...' : pendingAction === 'delete' ? '계약 삭제 중...' : '';
+
+  if (q.isLoading) return <ContractsBoardSkeleton />;
+  if (q.isError) {
+    return <ErrorState message={q.error instanceof Error ? q.error.message : 'Unknown Error'} onRetry={() => q.refetch()} />;
+  }
+  if (!q.data) return null;
 
   return (
     <div className="space-y-6">
@@ -315,12 +370,14 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
             onChange={(e) => setQText(e.target.value)}
             placeholder="검색: 계약명/고객사/담당자"
             className={['w-[220px]', ui.input].join(' ')}
+            disabled={Boolean(pendingAction)}
           />
           <Button
             variant="outline"
             className="border-stone-200 bg-white/60 hover:bg-amber-50/60 hover:border-amber-200/60"
             onClick={openNew}
             type="button"
+            disabled={!canWrite || Boolean(pendingAction)}
           >
             + 신규 계약
           </Button>
@@ -330,7 +387,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
             variant="outline"
             type="button"
             onClick={() => q.refetch()}
-            disabled={q.isFetching}
+            disabled={q.isFetching || Boolean(pendingAction)}
             className="border-stone-200 bg-white/60"
             title="새로고침"
           >
@@ -339,10 +396,18 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
         </div>
       </div>
 
+      {pendingLabel && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="status" aria-live="polite">
+          {pendingLabel}
+        </div>
+      )}
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       {!hasAnyDeals ? (
         <EmptyState onCreate={openNew} />
       ) : (
-        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+        <DndContext id="contracts-board" sensors={sensors} onDragEnd={onDragEnd}>
           <div className="grid gap-3 lg:grid-cols-5">
             {CONTRACT_STATUS_META.map((col) => {
               const list = grouped.get(col.key) ?? [];
@@ -371,9 +436,9 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
       {/* Modal */}
       {open && editing && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" onClick={closeModal} />
-          <div className="absolute left-1/2 top-1/2 w-[95vw] max-w-4xl -translate-x-1/2 -translate-y-1/2">
-            <Card className="rounded-2xl shadow-lg border border-stone-200 bg-white/80 backdrop-blur">
+          <div className="absolute inset-0 z-0 bg-black/45" onClick={closeModal} />
+          <div className="absolute left-1/2 top-1/2 z-10 w-[95vw] max-w-4xl -translate-x-1/2 -translate-y-1/2">
+            <Card className="rounded-2xl border border-stone-200 bg-white shadow-xl">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
@@ -393,6 +458,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       value={editing.status}
                       onChange={(e) => setEditing({ ...editing, status: e.target.value as ContractStatus })}
                       className={ui.input}
+                      disabled={!canWrite || Boolean(pendingAction)}
                     >
                       {CONTRACT_STATUS_META.map((s) => (
                         <option key={s.key} value={s.key}>
@@ -408,6 +474,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       onChange={(e) => setEditing({ ...editing, title: e.target.value })}
                       className={ui.input}
                       placeholder="예: 아웃바운드 캠페인 모듈"
+                      disabled={!canWrite || Boolean(pendingAction)}
                     />
                   </Field>
 
@@ -417,6 +484,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       onChange={(e) => setEditing({ ...editing, customer: e.target.value })}
                       className={ui.input}
                       placeholder="예: 통계청"
+                      disabled={!canWrite || Boolean(pendingAction)}
                     />
                   </Field>
 
@@ -427,6 +495,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                         onChange={(e) => setEditing({ ...editing, owner: e.target.value })}
                         className={ui.input}
                         placeholder="예: 봉춘"
+                        disabled={!canWrite || Boolean(pendingAction)}
                       />
                     </Field>
 
@@ -436,6 +505,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                         onChange={(e) => setEditing({ ...editing, closeDate: e.target.value })}
                         className={ui.input}
                         placeholder="YYYY-MM-DD"
+                        disabled={!canWrite || Boolean(pendingAction)}
                       />
                     </Field>
                   </div>
@@ -446,19 +516,20 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
                       className={['min-h-[84px] py-2', ui.input].join(' ')}
                       placeholder="협상 포인트, 특이사항 등"
+                      disabled={!canWrite || Boolean(pendingAction)}
                     />
                   </Field>
 
                   <div className="flex items-center justify-between pt-2">
-                    <Button variant="dlOutline" type="button" onClick={deleteDeal}>
-                      삭제
+                    <Button variant="dlOutline" type="button" onClick={deleteDeal} disabled={!canWrite || Boolean(pendingAction)}>
+                      {pendingAction === 'delete' ? '삭제 중...' : '삭제'}
                     </Button>
                     <div className="flex items-center gap-2">
-                      <Button variant="closeOutline" type="button" onClick={closeModal}>
+                      <Button variant="closeOutline" type="button" onClick={closeModal} disabled={Boolean(pendingAction)}>
                         닫기
                       </Button>
-                      <Button variant="saveOutlineGreen" type="button" onClick={saveDeal}>
-                        저장
+                      <Button variant="saveOutlineGreen" type="button" onClick={saveDeal} disabled={!canWrite || Boolean(pendingAction)}>
+                        {pendingAction === 'save' ? '저장 중...' : '저장'}
                       </Button>
                     </div>
                   </div>
@@ -474,9 +545,10 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       type="button"
                       aria-label="항목 추가"
                       onClick={() => {
-                        const next: ContractLineItem = { id: uid(), name: '', qty: 1, unitPrice: 0 };
+                        const next: ContractLineItem = { id: uid(), name: '', qty: 1, unitPrice: MONEY_STEP };
                         setEditing({ ...editing, items: [next, ...editing.items] });
                       }}
+                      disabled={!canWrite || Boolean(pendingAction)}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -507,12 +579,14 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                                   }}
                                   className={['w-[220px]', ui.input].join(' ')}
                                   placeholder="예: 기본 구축"
+                                  disabled={!canWrite || Boolean(pendingAction)}
                                 />
                               </td>
 
                               <td className="py-2 px-3 text-right">
                                 <input
                                   inputMode="numeric"
+                                  min={1}
                                   value={String(it.qty)}
                                   onChange={(e) => {
                                     const v = clampNumber(Number(e.target.value), 0);
@@ -520,23 +594,33 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                                     setEditing({ ...editing, items });
                                   }}
                                   className={['w-[120px]', ui.input].join(' ')}
+                                  disabled={!canWrite || Boolean(pendingAction)}
                                 />
                               </td>
 
                               <td className="py-2 px-3 text-right">
                                 <input
                                   inputMode="numeric"
+                                  min={MONEY_STEP}
+                                  step={MONEY_STEP}
                                   value={String(it.unitPrice)}
                                   onChange={(e) => {
                                     const v = clampNumber(Number(e.target.value), 0);
                                     const items = editing.items.map((x) => (x.id === it.id ? { ...x, unitPrice: v } : x));
                                     setEditing({ ...editing, items });
                                   }}
+                                  onBlur={() => {
+                                    const items = editing.items.map((x) =>
+                                      x.id === it.id ? { ...x, unitPrice: normalizeContractMoney(x.unitPrice) } : x,
+                                    );
+                                    setEditing({ ...editing, items });
+                                  }}
                                   className={['w-[140px]', ui.input].join(' ')}
+                                  disabled={!canWrite || Boolean(pendingAction)}
                                 />
                               </td>
 
-                              <td className="py-2 px-3 text-right font-medium">{fmt(it.qty * it.unitPrice)}</td>
+                              <td className="py-2 px-3 text-right font-medium">{fmt(clampNumber(it.qty, 0) * normalizeContractMoney(it.unitPrice))}</td>
 
                               <td className="py-2 px-3 text-right">
                                 <Button
@@ -548,10 +632,11 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                                     const items = editing.items.filter((x) => x.id !== it.id);
                                     setEditing({
                                       ...editing,
-                                      items: items.length ? items : [{ id: uid(), name: '', qty: 1, unitPrice: 0 }],
+                                      items: items.length ? items : [{ id: uid(), name: '', qty: 1, unitPrice: MONEY_STEP }],
                                     });
                                   }}
                                   className="h-9 w-9 text-slate-500 hover:text-red-600 hover:bg-red-50/60"
+                                  disabled={!canWrite || Boolean(pendingAction)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -566,9 +651,18 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                       <Field label="할인(정액)">
                         <input
                           inputMode="numeric"
+                          min={0}
+                          step={MONEY_STEP}
                           value={String(editing.discount)}
                           onChange={(e) => setEditing({ ...editing, discount: clampNumber(Number(e.target.value), 0) })}
+                          onBlur={() =>
+                            setEditing({
+                              ...editing,
+                              discount: editing.discount > 0 ? normalizeContractMoney(editing.discount, 0) : 0,
+                            })
+                          }
                           className={ui.input}
+                          disabled={!canWrite || Boolean(pendingAction)}
                         />
                       </Field>
                       <Field label="수수료율(%)">
@@ -577,6 +671,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                           value={String(editing.commissionRate)}
                           onChange={(e) => setEditing({ ...editing, commissionRate: clampNumber(Number(e.target.value), 0) })}
                           className={ui.input}
+                          disabled={!canWrite || Boolean(pendingAction)}
                         />
                       </Field>
                     </div>

@@ -10,6 +10,7 @@ import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 import type { AuthorGuide } from '@/app/lib/types/authorGuide';
 import type { AuthorGuideListResponse } from '@/app/lib/api/authorGuide';
@@ -63,6 +64,7 @@ function useDebouncedValue<T>(value: T, delay = 300) {
 export default function AuthorGuideListClient() {
   const sp = useSearchParams();
   const router = useRouter();
+  const { canWrite } = useCurrentUser();
 
   const page = toPosInt(sp.get('page'), 1);
   const pageSize = toPosInt(sp.get('pageSize'), 10);
@@ -112,10 +114,18 @@ export default function AuthorGuideListClient() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">저작가이드</h1>
-        <Link href="/board/author-guide/new">
-          <Button variant="outline">새 가이드</Button>
-        </Link>
+        {canWrite ? (
+          <Link href="/board/author-guide/new">
+            <Button variant="outline">새 가이드</Button>
+          </Link>
+        ) : (
+          <Button variant="outline" disabled>
+            새 가이드
+          </Button>
+        )}
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       {/* ✅ 검색 UI */}
       <div className="flex items-center gap-2">

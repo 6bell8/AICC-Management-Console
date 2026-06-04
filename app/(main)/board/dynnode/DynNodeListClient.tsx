@@ -8,6 +8,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getDynNodes } from '@/app/lib/api/dynnode';
 import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
@@ -49,6 +50,7 @@ function getCompactPages(current: number, total: number): Array<number | '...'> 
 export default function DynNodeListClient() {
   const sp = useSearchParams();
   const router = useRouter();
+  const { canWrite } = useCurrentUser();
 
   const page = toPosInt(sp.get('page'), 1);
   const pageSize = toPosInt(sp.get('pageSize'), 10);
@@ -77,10 +79,18 @@ export default function DynNodeListClient() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">동적노드 게시판</h1>
-        <Link href="/board/dynnode/new">
-          <Button variant="outline">새 글</Button>
-        </Link>
+        {canWrite ? (
+          <Link href="/board/dynnode/new">
+            <Button variant="outline">새 글</Button>
+          </Link>
+        ) : (
+          <Button variant="outline" disabled>
+            새 글
+          </Button>
+        )}
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 

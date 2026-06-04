@@ -7,10 +7,12 @@ import { useState } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton'; // ✅ 추가
 import { createDynNode } from '@/app/lib/api/dynnode';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 export default function DynNodeNewPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { canWrite } = useCurrentUser();
 
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -46,11 +48,13 @@ export default function DynNodeNewPage() {
           <Button variant="outline" onClick={() => router.push('/board/dynnode')} disabled={m.isPending}>
             취소
           </Button>
-          <Button variant="outline" onClick={() => m.mutate()} disabled={m.isPending}>
+          <Button variant="outline" onClick={() => m.mutate()} disabled={!canWrite || m.isPending}>
             {m.isPending ? '저장 중…' : '저장'}
           </Button>
         </div>
       </div>
+
+      {!canWrite ? <ReadOnlyNotice /> : null}
 
       {/* ✅ 폼 영역: pending일 때 오버레이 스켈레톤 */}
       <div className="relative">
@@ -68,8 +72,8 @@ export default function DynNodeNewPage() {
         )}
 
         <div className={`grid gap-3 ${m.isPending ? 'pointer-events-none opacity-60' : ''}`}>
-          <input className="h-10 rounded-md border px-3" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" />
-          <input className="h-10 rounded-md border px-3" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="요약(선택)" />
+          <input className="h-10 rounded-md border px-3" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" disabled={!canWrite || m.isPending} />
+          <input className="h-10 rounded-md border px-3" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="요약(선택)" disabled={!canWrite || m.isPending} />
 
           <div className="grid gap-2">
             <div className="text-sm font-semibold">
@@ -80,6 +84,7 @@ export default function DynNodeNewPage() {
                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              disabled={!canWrite || m.isPending}
             />
           </div>
 
@@ -93,6 +98,7 @@ export default function DynNodeNewPage() {
                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               value={sampleCtx}
               onChange={(e) => setSampleCtx(e.target.value)}
+              disabled={!canWrite || m.isPending}
             />
           </div>
         </div>

@@ -1,5 +1,25 @@
 [
   {
+    "id": "camp_639580",
+    "name": "New Campaign (camp_639580)",
+    "description": null,
+    "status": "DRAFT",
+    "startAt": null,
+    "endAt": null,
+    "createdAt": "2026-06-01T00:10:09.594Z",
+    "updatedAt": "2026-06-01T00:10:09.594Z"
+  },
+  {
+    "id": "camp_639579",
+    "name": "DB 테스트 ",
+    "description": "",
+    "status": "RUNNING",
+    "startAt": null,
+    "endAt": null,
+    "createdAt": "2026-06-01T00:10:06.105Z",
+    "updatedAt": "2026-06-01T00:11:09.079Z"
+  },
+  {
     "id": "camp_341236",
     "name": "새 캠페인(camp_341236)",
     "description": "",

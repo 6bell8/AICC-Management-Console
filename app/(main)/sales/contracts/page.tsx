@@ -1,8 +1,7 @@
 import ContractsClient from './ContractsClient';
-import contracts from '@/data/contracts.json';
-import type { ContractDeal } from '@/app/lib/types/contracts';
+import { listContractDeals } from '@/app/lib/db/contracts';
 
-export default function Page() {
-  const initialDeals = contracts as unknown as ContractDeal[];
+export default async function Page() {
+  const initialDeals = await listContractDeals();
   return <ContractsClient initialDeals={initialDeals} />;
 }

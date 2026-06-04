@@ -25,14 +25,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variantClass: Record<ButtonVariant, string> = {
-  default: 'bg-primary text-primary-foreground hover:opacity-90 cursor-pointer',
-  outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer',
-  secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-100 cursor-pointer',
-  destructive: 'bg-destructive text-destructive-foreground hover:opacity-90 cursor-pointer',
+  default: 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 cursor-pointer',
+  outline: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 cursor-pointer',
+  secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 cursor-pointer',
+  destructive: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700 cursor-pointer',
   draft: 'bg-amber-50 text-amber-900 hover:bg-amber-100 ring-1 ring-amber-200 cursor-pointer',
-  ghost: 'bg-gray-200 text-foreground cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
-  oHGhost: 'bg-gray-100 text-foreground hover:bg-gray-200 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
-  hoverGhost: 'text-foreground hover:bg-gray-200 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
+  ghost: 'bg-slate-100 text-slate-800 cursor-pointer hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700',
+  oHGhost: 'bg-slate-100 text-slate-800 hover:bg-slate-200 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
+  hoverGhost: 'text-slate-700 hover:bg-slate-100 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
   dlOutline:
     'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer',
   link: 'text-primary underline-offset-4 hover:underline cursor-pointer',

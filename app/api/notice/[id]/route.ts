@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteNotice, getNotice, patchNotice } from '@/app/lib/notice/store';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,9 @@ export async function GET(_: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}) as any);
   const updated = await patchNotice(id, body);
@@ -23,6 +27,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_: Request, ctx: Ctx) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await ctx.params;
 
   const removed = await deleteNotice(id);

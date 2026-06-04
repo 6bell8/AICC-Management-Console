@@ -1,5 +1,5 @@
 // lib/auth/storage.ts
-export type Role = 'ADMIN' | 'OPERATOR' | 'VIEWER';
+export type Role = 'HEAD' | 'ADMIN' | 'OPERATOR' | 'VIEWER';
 
 const KEY_TOKEN = 'aicc.token';
 const KEY_ROLE = 'aicc.role';

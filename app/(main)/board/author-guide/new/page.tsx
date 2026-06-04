@@ -11,6 +11,7 @@ import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
 import { StatusToggle } from '@/app/components/ui/status-toggle';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 import type { PublishStatus } from '@/app/lib/types/common';
 
@@ -18,6 +19,7 @@ export default function AuthorGuideNewPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useCurrentUser();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -58,7 +60,7 @@ export default function AuthorGuideNewPage() {
     return 'error';
   }
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
+  const canSubmit = canWrite && title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6 space-y-4">
@@ -71,19 +73,27 @@ export default function AuthorGuideNewPage() {
 
       <Separator />
 
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       <div className="space-y-2">
         <div className="text-sm text-slate-600">제목</div>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="가이드 제목" />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="가이드 제목" disabled={!canWrite || m.isPending} />
       </div>
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="가이드 내용을 입력하세요" className="min-h-[180px]" />
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="가이드 내용을 입력하세요"
+          className="min-h-[180px]"
+          disabled={!canWrite || m.isPending}
+        />
       </div>
 
       <>
         <div className="flex items-center justify-end gap-3 w-full">
-          <StatusToggle value={status} onChange={setStatus} />
+          <StatusToggle value={status} onChange={canWrite ? setStatus : () => undefined} />
         </div>
       </>
 

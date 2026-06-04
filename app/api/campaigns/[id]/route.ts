@@ -1,41 +1,30 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { campaignSchema } from '../../../lib/schemas/campaigns';
-import type { CampaignUpdateFormValues } from '../../../lib/types/campaign';
 
-type Campaign = z.infer<typeof campaignSchema>;
+import { deleteCampaign, getCampaignById, updateCampaign } from '@/app/lib/db/campaigns';
+import { campaignUpdateSchema } from '@/app/lib/schemas/campaigns';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
-const DATA_PATH = process.cwd() + '/data/campaigns.json';
-
-async function readCampaigns(): Promise<Campaign[]> {
-  const fs = await import('fs/promises');
-  const raw = await fs.readFile(DATA_PATH, 'utf-8').catch(() => '[]');
-  const parsed = z.array(campaignSchema).safeParse(JSON.parse(raw));
-  if (!parsed.success) return [];
-  return parsed.data;
-}
-
-async function writeCampaigns(list: Campaign[]) {
-  const fs = await import('fs/promises');
-  await fs.writeFile(DATA_PATH, JSON.stringify(list, null, 2), 'utf-8');
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
+export const runtime = 'nodejs';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params; // ✅ 핵심: await
+  const { id } = await params;
 
-  const list = await readCampaigns();
-  const found = list.find((c) => c.id === id);
-
-  if (!found) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  return NextResponse.json(found, { status: 200 });
+  try {
+    const campaign = await getCampaignById(id);
+    if (!campaign) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    return NextResponse.json(campaign, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Failed to load campaign' }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params; // ✅ 핵심: await
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
+  const { id } = await params;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -43,49 +32,37 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ message: 'Invalid JSON' }, { status: 400 });
   }
 
-  const input = body as CampaignUpdateFormValues;
+  const parsed = campaignUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ message: 'Invalid campaign payload' }, { status: 400 });
+  }
 
-  const list = await readCampaigns();
-  const idx = list.findIndex((c) => c.id === id);
-  if (idx < 0) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-
-  const updated: Campaign = campaignSchema.parse({
-    ...list[idx],
-    ...input,
-    description: input.description ?? null,
-    updatedAt: nowIso(),
-  });
-
-  const next = [...list];
-  next[idx] = updated;
-  await writeCampaigns(next);
-
-  return NextResponse.json(updated, { status: 200 });
+  try {
+    const campaign = await updateCampaign(id, parsed.data);
+    if (!campaign) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    return NextResponse.json(campaign, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Failed to update campaign' }, { status: 500 });
+  }
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const { id } = await params;
 
-  // 옵션 파싱 (원하신 스펙)
-  const url = new URL(req.url);
-  const includeDeleted = url.searchParams.get('includeDeleted') === 'true';
+  try {
+    const result = await deleteCampaign(id);
+    if (result.blocked) {
+      return NextResponse.json({ message: 'RUNNING campaigns cannot be deleted' }, { status: 409 });
+    }
+    if (!result.deleted) return NextResponse.json({ message: 'Not found' }, { status: 404 });
 
-  const list = await readCampaigns();
-  const target = list.find((c) => c.id === id);
-
-  if (!target) {
-    return NextResponse.json({ message: 'Not found' }, { status: 404 });
+    return NextResponse.json({ ok: true, id }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ message: 'Failed to delete campaign' }, { status: 500 });
   }
-
-  // 제약: RUNNING 삭제 불가
-  if (target.status === 'RUNNING') {
-    return NextResponse.json({ message: 'RUNNING 캠페인은 삭제할 수 없습니다. 중지(PAUSED) 또는 보관(ARCHIVED) 후 삭제하세요.' }, { status: 409 });
-  }
-
-  // 하드 삭제: 리스트에서 제거
-  const next = list.filter((c) => c.id !== id);
-  await writeCampaigns(next);
-
-  // includeDeleted는 “옵션을 받았다”는 표시 정도로만 반환(하드 삭제에서는 큰 의미 없음)
-  return NextResponse.json({ ok: true, id, includeDeleted }, { status: 200 });
 }

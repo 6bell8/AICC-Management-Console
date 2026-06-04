@@ -1,81 +1,106 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { randomUUID } from 'crypto';
-import type { Notice } from '../types/notice';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'notice.json');
+import { getMysqlPool } from '../db/mysql';
+import type { Notice, NoticeStatus } from '../types/notice';
 
-async function readAll(): Promise<Notice[]> {
-  try {
-    const txt = await fs.readFile(DB_PATH, 'utf-8');
-    const data = JSON.parse(txt);
-    return Array.isArray(data) ? (data as Notice[]) : [];
-  } catch {
-    return [];
-  }
+type NoticeRow = RowDataPacket & {
+  id: string;
+  title: string;
+  content: string;
+  pinned: number | boolean;
+  status: NoticeStatus;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
+function toIso(value: Date | string) {
+  if (value instanceof Date) return value.toISOString();
+  return new Date(value).toISOString();
 }
 
-async function writeAll(items: Notice[]) {
-  await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-  await fs.writeFile(DB_PATH, JSON.stringify(items, null, 2), 'utf-8');
+function mapNotice(row: NoticeRow): Notice {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    pinned: Boolean(row.pinned),
+    status: row.status,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  };
 }
-
-const nowIso = () => new Date().toISOString();
 
 export async function listNotices() {
-  const all = await readAll();
-  // 최신순 기본 정렬 (updatedAt desc)
-  return all.sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<NoticeRow[]>(
+    `
+      SELECT id, title, content, pinned, status, created_at, updated_at
+      FROM notices
+      ORDER BY updated_at DESC
+    `,
+  );
+  return rows.map(mapNotice);
 }
 
 export async function getNotice(id: string) {
-  const all = await readAll();
-  return all.find((x) => x.id === id) ?? null;
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<NoticeRow[]>(
+    `
+      SELECT id, title, content, pinned, status, created_at, updated_at
+      FROM notices
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id],
+  );
+  return rows[0] ? mapNotice(rows[0]) : null;
 }
 
 export async function createNotice(input: Pick<Notice, 'title' | 'content' | 'pinned' | 'status'>) {
-  const all = await readAll();
-  const now = nowIso();
+  const pool = getMysqlPool();
+  const id = randomUUID();
+  const status: NoticeStatus = input.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT';
 
-  const notice: Notice = {
-    id: randomUUID(),
-    title: input.title,
-    content: input.content,
-    pinned: !!input.pinned,
-    status: input.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
-    createdAt: now,
-    updatedAt: now,
-  };
+  await pool.execute(
+    `
+      INSERT INTO notices (id, title, content, pinned, status)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    [id, input.title, input.content, input.pinned === true, status],
+  );
 
-  all.unshift(notice);
-  await writeAll(all);
-  return notice;
+  const created = await getNotice(id);
+  if (!created) throw new Error('Failed to create notice');
+  return created;
 }
 
 export async function patchNotice(id: string, patch: Partial<Pick<Notice, 'title' | 'content' | 'pinned' | 'status'>>) {
-  const all = await readAll();
-  const idx = all.findIndex((x) => x.id === id);
-  if (idx < 0) return null;
+  const current = await getNotice(id);
+  if (!current) return null;
 
-  const cur = all[idx];
-  const next: Notice = {
-    ...cur,
-    title: typeof patch.title === 'string' ? patch.title : cur.title,
-    content: typeof patch.content === 'string' ? patch.content : cur.content,
-    pinned: typeof patch.pinned === 'boolean' ? patch.pinned : cur.pinned,
-    status: patch.status === 'PUBLISHED' ? 'PUBLISHED' : patch.status === 'DRAFT' ? 'DRAFT' : cur.status,
-    updatedAt: nowIso(),
+  const pool = getMysqlPool();
+  const next = {
+    title: typeof patch.title === 'string' ? patch.title : current.title,
+    content: typeof patch.content === 'string' ? patch.content : current.content,
+    pinned: typeof patch.pinned === 'boolean' ? patch.pinned : current.pinned,
+    status: patch.status === 'PUBLISHED' ? 'PUBLISHED' : patch.status === 'DRAFT' ? 'DRAFT' : current.status,
   };
 
-  all[idx] = next;
-  await writeAll(all);
-  return next;
+  await pool.execute(
+    `
+      UPDATE notices
+      SET title = ?, content = ?, pinned = ?, status = ?
+      WHERE id = ?
+    `,
+    [next.title, next.content, next.pinned, next.status, id],
+  );
+
+  return getNotice(id);
 }
 
 export async function deleteNotice(id: string) {
-  const all = await readAll();
-  const before = all.length;
-  const next = all.filter((x) => x.id !== id);
-  await writeAll(next);
-  return before - next.length; // removed count
+  const pool = getMysqlPool();
+  const [result] = await pool.execute<ResultSetHeader>('DELETE FROM notices WHERE id = ?', [id]);
+  return result.affectedRows;
 }

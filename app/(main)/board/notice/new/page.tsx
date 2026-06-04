@@ -10,11 +10,13 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Separator } from '@/app/components/ui/separator';
+import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 export default function AuthorGuideNewPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { canWrite } = useCurrentUser();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -34,7 +36,7 @@ export default function AuthorGuideNewPage() {
     },
   });
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
+  const canSubmit = canWrite && title.trim().length > 0 && content.trim().length > 0 && !m.isPending;
 
   return (
     <div className="p-6 space-y-4 max-w-3xl">
@@ -47,22 +49,30 @@ export default function AuthorGuideNewPage() {
 
       <Separator />
 
+      {!canWrite ? <ReadOnlyNotice /> : null}
+
       <div className="space-y-2">
         <div className="text-sm text-slate-600">제목</div>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="가이드 제목" />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="가이드 제목" disabled={!canWrite || m.isPending} />
       </div>
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="가이드 내용을 입력하세요" className="min-h-[180px]" />
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="가이드 내용을 입력하세요"
+          className="min-h-[180px]"
+          disabled={!canWrite || m.isPending}
+        />
       </div>
 
       <div className="flex items-center gap-3">
         <div className="ml-auto flex gap-2">
-          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button">
+          <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={!canWrite || m.isPending}>
             공개
           </Button>
-          <Button variant={status === 'DRAFT' ? 'secondary' : 'outline'} onClick={() => setStatus('DRAFT')} type="button">
+          <Button variant={status === 'DRAFT' ? 'secondary' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={!canWrite || m.isPending}>
             임시저장
           </Button>
         </div>

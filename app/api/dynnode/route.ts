@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPost, listPosts } from '@/app/lib/dynnode/store';
+import { requireWriteAccess } from '@/app/lib/auth/permissions';
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -22,6 +23,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireWriteAccess();
+  if (denied) return denied;
+
   const body = await req.json().catch(() => ({}) as any);
 
   if (!body?.title || typeof body.title !== 'string') {
