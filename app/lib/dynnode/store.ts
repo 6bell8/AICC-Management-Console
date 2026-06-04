@@ -9,7 +9,7 @@ type DynNodeRow = RowDataPacket & {
   title: string;
   summary: string | null;
   code: string;
-  sample_ctx: string | null;
+  sample_ctx: unknown;
   tags: string | string[];
   status: DynNodeStatus;
   created_at: Date | string;

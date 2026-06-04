@@ -23,17 +23,28 @@ export const DEFAULT_DYNNODE_SAMPLE_CTX = `{
 }
 `;
 
-export function getDynnodeSampleCtx(value?: string | null) {
-  if (!value?.trim()) return DEFAULT_DYNNODE_SAMPLE_CTX;
+export function getDynnodeSampleCtx(value: unknown) {
+  if (value == null) return DEFAULT_DYNNODE_SAMPLE_CTX;
 
-  try {
-    const parsed = JSON.parse(value);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length === 0) {
-      return DEFAULT_DYNNODE_SAMPLE_CTX;
+  if (typeof value === 'string') {
+    if (!value.trim()) return DEFAULT_DYNNODE_SAMPLE_CTX;
+
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length === 0) {
+        return DEFAULT_DYNNODE_SAMPLE_CTX;
+      }
+    } catch {
+      return value;
     }
-  } catch {
+
     return value;
   }
 
-  return value;
+  if (typeof value === 'object') {
+    if (!Array.isArray(value) && Object.keys(value).length === 0) return DEFAULT_DYNNODE_SAMPLE_CTX;
+    return JSON.stringify(value, null, 2);
+  }
+
+  return DEFAULT_DYNNODE_SAMPLE_CTX;
 }
