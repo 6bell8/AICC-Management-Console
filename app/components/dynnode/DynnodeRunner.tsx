@@ -134,24 +134,11 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      // textarea/input/select/contenteditable에서 입력 중이면 실행 막는 정책
-      const el = e.target as HTMLElement | null;
-      const tag = el?.tagName?.toLowerCase();
-      const isTyping = tag === 'textarea' || tag === 'input' || tag === 'select' || el?.getAttribute?.('contenteditable') === 'true';
-
-      // ✅ Ctrl+F10: 브라우저 강력 새로고침이 우선될 수 있음 (환경 따라 preventDefault가 안 먹을 때도 있음)
-      // e.key는 보통 'F10'로 들어옵니다.
-      if (e.ctrlKey && e.key === 'F10') {
+      // Ctrl+F5의 브라우저 새로고침 동작을 막고 실행기로 전달합니다.
+      if (e.ctrlKey && e.key === 'F5') {
         e.preventDefault();
         e.stopPropagation();
-        if (!isTyping) onRun();
-        return;
-      }
-
-      // ✅ 대안(권장): Ctrl+Enter는 거의 100% 먹힘
-      if (e.ctrlKey && (e.key === 'Enter' || e.code === 'Enter')) {
-        e.preventDefault();
-        if (!isTyping) onRun();
+        onRun();
       }
     };
 
@@ -190,7 +177,7 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
           ) : (
             <Button variant="outline" onClick={onRun} className="gap-2">
               실행
-              <span className="text-[11px] font-medium text-slate-400 font-mono">Ctrl + F10</span>
+              <span className="text-[11px] font-medium text-slate-400 font-mono">Ctrl + F5</span>
             </Button>
           )}
         </div>
@@ -198,7 +185,7 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex h-8 items-center justify-between">
             <div className="text-sm font-semibold">실행 코드</div>
           </div>
           <textarea
@@ -211,19 +198,14 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex h-8 items-center justify-between gap-2">
             <div className="text-sm font-semibold">JSON DATA</div>
-            <div className="text-[11px] text-slate-500 font-mono">
-              userMap.get(&apos;{contextKey.trim() || DEFAULT_CONTEXT_KEY}&apos;)
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="dynnode-context-key" className="shrink-0 text-xs font-medium text-slate-600">
+            <label htmlFor="dynnode-context-key" className="ml-auto shrink-0 text-[11px] font-medium text-slate-500">
               userMap 키
             </label>
             <input
               id="dynnode-context-key"
-              className="h-9 min-w-0 flex-1 rounded-md border bg-white px-3 font-mono text-sm"
+              className="h-7 w-36 rounded-md border bg-white px-2 font-mono text-xs sm:w-44"
               value={contextKey}
               onChange={(e) => setContextKey(e.target.value)}
               placeholder={DEFAULT_CONTEXT_KEY}
@@ -271,11 +253,6 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
         읽을 수 있으며, <span className="font-mono">console.log()</span> 출력은 logs로 들어옵니다.
       </div>
 
-      {/* 참고용 안내(원하시면 제거 가능)
-      <div className="text-[11px] text-slate-400">
-        Ctrl+F10는 브라우저 강력 새로고침과 충돌할 수 있어요. 필요하면 Ctrl+Enter도 같이 지원 중입니다.
-      </div>
-      */}
     </div>
   );
 }
