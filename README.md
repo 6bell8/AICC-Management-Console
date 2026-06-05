@@ -2,14 +2,14 @@
 
 금융권 AICC 운영 환경을 가정해 제작한 통합 관리 콘솔 포트폴리오입니다.
 
-캠페인과 모니터링 중심의 기존 콘솔을 MySQL 기반 운영 포털로 확장했습니다.
-인증·권한, 계정 승인, 결재, 알림, 인사, 영업, 사업용 회선, 게시판 데이터를 하나의 콘솔에서 관리합니다.
+캠페인과 모니터링 중심의 콘솔을 MySQL 기반 운영 포털로 확장했습니다. 인증·권한, 계정 승인, 결재, 알림, 인사, 출장여비, 영업, 사업용 회선, 게시판 데이터를 하나의 콘솔에서 관리합니다.
 
 ## 주요 특징
 
 - **MySQL 기반 데이터 관리**: Railway MySQL 또는 로컬 MySQL 연결
 - **승인형 계정 시스템**: 회원가입 후 관리자 승인, 역할별 접근 제어
-- **운영 업무 통합**: 캠페인, 모니터링, 결재, 알림, 인사, 영업관리
+- **운영 업무 통합**: 캠페인, 모니터링, 결재, 알림, 인사, 출장여비, 영업관리
+- **외부 연동 준비**: Notion 승인 캘린더 동기화, Railway S3 호환 버킷 첨부파일 저장
 - **포트폴리오 게스트 모드**: 읽기 전용 `VIEWER` 계정 제공
 - **배포 환경 대응**: Vercel + Railway MySQL 구성 및 DB 상태 확인 API
 - **초기 데이터 자동화**: 스키마 생성과 도메인별 시드 스크립트 제공
@@ -24,6 +24,8 @@
 | Form / Validation | React Hook Form, Zod |
 | Database | MySQL 8, mysql2 |
 | Auth | HttpOnly Cookie, HMAC 세션 토큰, bcryptjs |
+| Storage | Railway S3-compatible Bucket, AWS SDK S3 Client |
+| Integration | Notion API approval calendar sync |
 | Visualization | Chart.js, Recharts |
 | Interaction | dnd-kit, Web Worker |
 | Deployment | Vercel, Railway MySQL |
@@ -54,9 +56,25 @@
 - 읽지 않은 알림 및 결재 대기 건수 표시
 - 사업용 회선 관리
 
-### 인사·영업관리
+### 인사·출장 관리
 
 - 연차 정책, 잔여 연차, 연차 신청 관리
+- 출장 신청 시 목적과 장소 필수 입력
+- 사용자 권한별 연차 조회 범위 분리: 전체, 팀, 본인
+- 승인 완료 출장 건 기반 출장여비 신청
+- 시내·시외 출장 구분, 교통비·일비·숙박비 자동 합산
+- 출장여비 증빙 첨부파일 업로드 및 다운로드
+
+### 결재와 외부 연동
+
+- 연차·출장·출장여비 결재 대기 목록 통합
+- 결재 승인·반려 후 신청자 알림 생성
+- 연차·출장 승인 시 Notion 캘린더 동기화
+- Notion 환경변수가 없으면 mock 동기화 결과로 흐름 검증 가능
+- 동기화 상태는 `approval_calendar_syncs`에 저장
+
+### 영업관리
+
 - 영업 계약 칸반과 Drag & Drop
 - 계약 상세 및 품목별 금액 관리
 - 영업 활동 및 계약 현황 통계
@@ -65,6 +83,7 @@
 
 - 공지사항 CRUD 및 상단 배너
 - 동적노드 가이드 CRUD 및 Web Worker 실행
+- 동적노드 실행기 JSON DATA 키 입력, 기본 예시 객체, `Ctrl + F5` 실행 단축키
 - 저작가이드 CRUD
 
 ## 화면 라우트
@@ -82,7 +101,8 @@
 | 캠페인 | `/campaigns/[id]` | 캠페인 상세 |
 | 모니터링 | `/campaigns/monitoring` | 캠페인 실행 모니터링 |
 | 회선관리 | `/business-lines` | 사업용 회선 관리 |
-| 인사관리 | `/hr/leave` | 연차 신청 관리 |
+| 인사관리 | `/hr/leave` | 연차·출장 신청 관리 |
+| 인사관리 | `/hr/trip-expenses` | 출장여비 신청 및 증빙 관리 |
 | 영업관리 | `/sales/contracts` | 계약 칸반 및 상세 관리 |
 | 영업관리 | `/sales/activity-stats` | 계약 현황 통계 |
 | 게시판 | `/board/notice` | 공지사항 |
@@ -122,9 +142,19 @@ AUTH_HEAD_PASSWORD=replace_with_head_password
 AUTH_HEAD_NAME=Head Admin
 AUTH_GUEST_EMAIL=portfolio-guest@aicc.local
 AUTH_GUEST_NAME=Portfolio Guest
+
+NOTION_API_KEY=
+NOTION_APPROVAL_CALENDAR_DATABASE_ID=
+NOTION_VERSION=2022-06-28
+
+RAILWAY_BUCKET_ENDPOINT=
+RAILWAY_BUCKET_REGION=auto
+RAILWAY_BUCKET_NAME=
+RAILWAY_BUCKET_ACCESS_KEY=
+RAILWAY_BUCKET_SECRET_KEY=
 ```
 
-`AUTH_HEAD_EMAIL`과 `AUTH_HEAD_PASSWORD`를 설정하면 DB 초기화 시 최초 `HEAD` 관리자가 생성됩니다.
+`AUTH_HEAD_EMAIL`과 `AUTH_HEAD_PASSWORD`를 설정하면 DB 초기화 시 최초 `HEAD` 관리자가 생성됩니다. Notion과 Railway Bucket 값이 없으면 해당 외부 연동은 제한되거나 mock 흐름으로 동작합니다.
 
 ### DB 초기화와 실행
 
@@ -142,8 +172,8 @@ npm run dev
 
 | 명령어 | 설명 |
 | --- | --- |
-| `npm run dev` | 개발 서버 실행 |
-| `npm run build` | 프로덕션 빌드 |
+| `npm run dev` | Webpack 기반 개발 서버 실행 |
+| `npm run build` | Webpack 기반 프로덕션 빌드 |
 | `npm run start` | 프로덕션 서버 실행 |
 | `npm run lint` | ESLint 검사 |
 | `npm run db:check` | MySQL 연결 확인 |
@@ -168,7 +198,7 @@ Next.js Route Handlers를 사용하며, 인증이 필요한 API는 세션 쿠키
 | 캠페인 | `/api/campaigns`, `/api/campaigns/[id]` |
 | 모니터링 | `/api/monitoring/summary`, `/api/monitoring/run`, `/api/monitoring/run/[runId]`, `/api/monitoring/campaigns/[id]/stop` |
 | 회선관리 | `/api/business-lines` |
-| 인사관리 | `/api/hr/leave` |
+| 인사관리 | `/api/hr/leave`, `/api/hr/trip-expenses`, `/api/hr/trip-expenses/[id]/attachments`, `/api/hr/trip-expenses/attachments/[attachmentId]` |
 | 영업관리 | `/api/contracts/deals` |
 | 게시판 | `/api/notice`, `/api/notice/[id]`, `/api/notice/banner`, `/api/dynnode`, `/api/dynnode/[id]`, `/api/author-guide`, `/api/author-guide/[id]` |
 | 상태확인 | `/api/health/db` |
@@ -177,67 +207,30 @@ Next.js Route Handlers를 사용하며, 인증이 필요한 API는 세션 쿠키
 
 주요 테이블은 다음과 같습니다.
 
-- 캠페인·모니터링: `campaigns`, `monitoring_runs`, `monitoring_run_events`
-- 인증·조직: `users`, `teams`, `user_team_memberships`, `employee_profiles`
-- 인사·결재·알림: `leave_policies`, `leave_balances`, `leave_requests`, `leave_balance_events`, `approval_steps`, `notifications`
-- 영업·회선: `contract_deals`, `contract_line_items`, `business_lines`
-- 게시판: `notices`, `author_guides`, `dynnode_posts`
+| 영역 | 테이블 |
+| --- | --- |
+| 인증·권한 | `users`, `teams`, `user_team_memberships`, `employee_profiles` |
+| 인사 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_balance_events` |
+| 출장여비 | `trip_expense_requests`, `trip_expense_attachments` |
+| 결재·알림 | `approval_steps`, `approval_calendar_syncs`, `notifications` |
+| 캠페인 | `campaigns`, `monitoring_runs`, `monitoring_events` |
+| 영업 | `contract_deals`, `contract_line_items` |
+| 회선관리 | `business_lines` |
+| 게시판 | `notices`, `dynnode_posts`, `author_guides` |
 
-전체 스키마는 [`docs/db/mysql-schema.sql`](docs/db/mysql-schema.sql), 배포 방법은 [`docs/db/deployment.md`](docs/db/deployment.md)를 참고하세요.
+스키마 파일은 `docs/db/mysql-schema.sql`에 있습니다. `scripts/db/schema.cjs`는 이 SQL을 실행합니다.
 
-`data/*.json` 파일은 DB 초기 시드 원본으로 사용하며, 런타임 데이터는 MySQL에 저장합니다.
+## 배포 메모
 
-## 프로젝트 구조
+- Vercel Production은 `master` 브랜치 push를 기준으로 배포됩니다.
+- Next.js 16 Turbopack 빌드가 Windows symlink 권한 문제를 일으킬 수 있어 `npm run build`는 `next build --webpack`으로 고정했습니다.
+- Vercel Project Settings > Environment Variables에 DB, Auth, Notion, Railway Bucket 환경변수를 등록합니다.
+- Railway MySQL을 사용할 경우 Railway의 public host/port 값을 사용합니다. `mysql.railway.internal`은 Railway 내부 서비스 전용이라 Vercel이나 로컬 PC에서는 사용하지 않습니다.
 
-```text
-.
-├─ app
-│  ├─ (auth)                 # 로그인, 회원가입, 게스트
-│  ├─ (main)                 # 인증된 운영 화면
-│  │  ├─ admin
-│  │  ├─ approvals
-│  │  ├─ board
-│  │  ├─ business-lines
-│  │  ├─ campaigns
-│  │  ├─ dashboard
-│  │  ├─ hr
-│  │  ├─ notifications
-│  │  └─ sales
-│  ├─ api                    # Route Handlers
-│  ├─ components             # 공용 UI 및 도메인 컴포넌트
-│  └─ lib
-│     ├─ api                 # 클라이언트 API 함수
-│     ├─ auth                # 세션 및 권한
-│     ├─ db                  # MySQL 데이터 접근
-│     └─ types               # 도메인 타입
-├─ data                      # 초기 시드 JSON
-├─ docs/db                   # DB 스키마와 배포 문서
-├─ scripts/db                # 스키마 및 시드 자동화
-└─ proxy.ts                  # 인증 경로 보호
-```
+배포 후 DB 상태 확인:
 
-## Railway MySQL / Vercel 배포
-
-Vercel 환경변수에 `DB_*`와 `AUTH_*` 값을 등록합니다. Railway MySQL을 Vercel 또는 로컬에서 사용할 때는 Railway의 **Public TCP Proxy host/port**를 사용해야 합니다.
-
-```text
-DB_HOST
-DB_PORT
-DB_USER
-DB_PASSWORD
-DB_NAME
-AUTH_SESSION_SECRET
-AUTH_HEAD_EMAIL
-AUTH_HEAD_PASSWORD
-AUTH_HEAD_NAME
-AUTH_GUEST_EMAIL
-AUTH_GUEST_NAME
-```
-
-배포 후 DB 연결 상태를 확인합니다.
-
-```text
-GET https://your-domain/api/health/db
+```txt
+https://your-vercel-domain/api/health/db
 ```
 
 정상 응답:
@@ -246,17 +239,9 @@ GET https://your-domain/api/health/db
 { "ok": true }
 ```
 
-## 보안 및 운영 주의사항
+## 운영 주의사항
 
-- `.env`, `.env.local`, `backup.sql`, `.mysql-data/`는 커밋하지 않습니다.
-- 운영 환경에서는 충분히 긴 `AUTH_SESSION_SECRET`을 사용합니다.
-- `VIEWER` 역할은 쓰기 API가 차단되는 읽기 전용 역할입니다.
-- 운영 DB에 `db:setup` 또는 시드 명령을 실행하기 전 반드시 백업합니다.
-- Railway의 `mysql.railway.internal` 주소는 Railway 내부 서비스에서만 사용합니다.
-
-## 현재 검증 상태
-
-- `npm ci`: 통과
-- `npm run build`: 통과
-- MySQL 연결: `npm run db:check` 및 `/api/health/db` 제공
-- ESLint: 기존 코드와 통합 기능의 규칙 위반 정리 진행 중
+- `.env.local`은 커밋하지 않습니다.
+- `backup.sql`은 민감 데이터가 들어갈 수 있으므로 커밋하지 않습니다.
+- 운영 DB에 `npm run db:setup`을 실행하기 전 반드시 백업과 스키마 변경 내용을 확인합니다.
+- 외부 스냅샷 통합 시 `.snapshot-protected-paths`에 등록된 동적노드 영역은 명시 요청 없이 덮어쓰지 않습니다.

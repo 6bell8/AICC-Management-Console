@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -34,7 +34,7 @@ const NAV: NavNode[] = [
   },
   {
     type: 'link',
-    label: '사업용 회선 관리',
+    label: '사업 회선 관리',
     href: '/business-lines',
     icon: <Building2 className="h-4 w-4" />,
   },
@@ -42,7 +42,7 @@ const NAV: NavNode[] = [
     type: 'group',
     label: '인사관리',
     icon: <CalendarDays className="h-4 w-4" />,
-    items: [{ label: '연차신청 관리 현황', href: '/hr/leave' }],
+    items: [{ label: '근태신청 관리 현황', href: '/hr/leave' }, { label: '출장여비 신청', href: '/hr/trip-expenses' }],
   },
   {
     type: 'group',
@@ -60,7 +60,7 @@ const NAV: NavNode[] = [
     items: [
       { label: '공지사항', href: '/board/notice' },
       { label: '동적노드 가이드', href: '/board/dynnode' },
-      { label: '저작가이드', href: '/board/author-guide' },
+      { label: '작가 가이드', href: '/board/author-guide' },
     ],
   },
 ];
@@ -105,7 +105,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100">
-      {/* 헤더 */}
+      {/* Header */}
       <div className="px-4 py-4">
         <Link
           href="/dashboard"
@@ -117,7 +117,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
         </Link>
       </div>
 
-      {/* 메뉴 (스크롤) */}
+      {/* Menu */}
       <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         <div className="space-y-2">
           {nav.map((node) => {
@@ -186,7 +186,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
         </div>
       </nav>
 
-      {/* 로그아웃 (하단 고정) */}
+      {/* Footer */}
       <div className="border-t border-slate-800 p-3">
         <div className="mb-2 rounded-md bg-slate-800/70 px-3 py-2">
           <div className="truncate text-xs font-medium text-white">{initialUser.name}</div>

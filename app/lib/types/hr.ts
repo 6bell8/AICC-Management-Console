@@ -67,6 +67,10 @@ export type LeaveRequest = {
   approverId: string | null;
   approverName: string | null;
   approvalStatus: ApprovalStatus | null;
+  notionSyncStatus: 'PENDING' | 'SYNCED' | 'FAILED' | null;
+  notionPageId: string | null;
+  notionPageUrl: string | null;
+  notionSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

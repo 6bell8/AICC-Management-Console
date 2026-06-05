@@ -211,6 +211,30 @@ CREATE TABLE IF NOT EXISTS leave_policies (
   CONSTRAINT chk_leave_policies_granted CHECK (granted_days >= 0)
 ) ENGINE=InnoDB;
 
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000000', 'ALL', 0, 0, 15, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000000');
+
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000001', 'ALL', 1, 1, 17, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000001');
+
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000002', 'ALL', 2, 2, 19, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000002');
+
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000003', 'ALL', 3, 3, 21, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000003');
+
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000004', 'ALL', 4, 4, 23, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000004');
+
+INSERT INTO leave_policies (id, position, min_years, max_years, granted_days, effective_from)
+SELECT '00000000-0000-4000-9000-000000000005', 'ALL', 5, NULL, 25, '2026-01-01'
+WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE id = '00000000-0000-4000-9000-000000000005');
+
 CREATE TABLE IF NOT EXISTS leave_balances (
   user_id CHAR(36) NOT NULL,
   balance_year INT NOT NULL,
@@ -290,6 +314,126 @@ CREATE TABLE IF NOT EXISTS approval_steps (
     ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS trip_expense_requests (
+  id CHAR(36) NOT NULL,
+  business_trip_request_id CHAR(36) NOT NULL,
+  requester_id CHAR(36) NOT NULL,
+  team_id CHAR(36) NULL,
+  origin VARCHAR(150) NOT NULL,
+  destination VARCHAR(150) NOT NULL,
+  trip_scope ENUM('IN_CITY', 'OUT_CITY') NOT NULL DEFAULT 'IN_CITY',
+  transport_type ENUM('TRAIN', 'CAR', 'BUS', 'TAXI', 'OTHER') NOT NULL DEFAULT 'TRAIN',
+  train_fare_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  car_depreciation_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  other_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  lodging_nights INT NOT NULL DEFAULT 0,
+  daily_allowance_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  lodging_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  memo TEXT NULL,
+  status ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_trip_expense_requests_business_trip (business_trip_request_id),
+  INDEX idx_trip_expense_requests_requester_status (requester_id, status, created_at),
+  INDEX idx_trip_expense_requests_team_status (team_id, status, created_at),
+  CONSTRAINT fk_trip_expense_requests_business_trip
+    FOREIGN KEY (business_trip_request_id) REFERENCES leave_requests (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_trip_expense_requests_requester
+    FOREIGN KEY (requester_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_trip_expense_requests_team
+    FOREIGN KEY (team_id) REFERENCES teams (id)
+    ON DELETE SET NULL,
+  CONSTRAINT chk_trip_expense_amounts CHECK (
+    train_fare_amount >= 0 AND car_depreciation_amount >= 0 AND other_amount >= 0
+    AND lodging_nights >= 0 AND daily_allowance_amount >= 0 AND lodging_amount >= 0 AND total_amount >= 0
+  )
+) ENGINE=InnoDB;
+
+SET @trip_expense_requests_trip_scope_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN trip_scope ENUM(''IN_CITY'', ''OUT_CITY'') NOT NULL DEFAULT ''IN_CITY'' AFTER destination',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'trip_scope'
+);
+PREPARE trip_expense_requests_trip_scope_stmt FROM @trip_expense_requests_trip_scope_sql;
+EXECUTE trip_expense_requests_trip_scope_stmt;
+DEALLOCATE PREPARE trip_expense_requests_trip_scope_stmt;
+
+SET @trip_expense_requests_lodging_nights_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN lodging_nights INT NOT NULL DEFAULT 0 AFTER other_amount',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'lodging_nights'
+);
+PREPARE trip_expense_requests_lodging_nights_stmt FROM @trip_expense_requests_lodging_nights_sql;
+EXECUTE trip_expense_requests_lodging_nights_stmt;
+DEALLOCATE PREPARE trip_expense_requests_lodging_nights_stmt;
+
+SET @trip_expense_requests_daily_allowance_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN daily_allowance_amount DECIMAL(12, 2) NOT NULL DEFAULT 0 AFTER lodging_nights',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'daily_allowance_amount'
+);
+PREPARE trip_expense_requests_daily_allowance_stmt FROM @trip_expense_requests_daily_allowance_sql;
+EXECUTE trip_expense_requests_daily_allowance_stmt;
+DEALLOCATE PREPARE trip_expense_requests_daily_allowance_stmt;
+
+SET @trip_expense_requests_lodging_amount_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN lodging_amount DECIMAL(12, 2) NOT NULL DEFAULT 0 AFTER daily_allowance_amount',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'lodging_amount'
+);
+PREPARE trip_expense_requests_lodging_amount_stmt FROM @trip_expense_requests_lodging_amount_sql;
+EXECUTE trip_expense_requests_lodging_amount_stmt;
+DEALLOCATE PREPARE trip_expense_requests_lodging_amount_stmt;
+
+CREATE TABLE IF NOT EXISTS trip_expense_attachments (
+  id CHAR(36) NOT NULL,
+  trip_expense_request_id CHAR(36) NOT NULL,
+  storage_provider ENUM('RAILWAY_BUCKET', 'LOCAL_MOCK') NOT NULL DEFAULT 'LOCAL_MOCK',
+  storage_key VARCHAR(500) NOT NULL,
+  original_filename VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  file_size BIGINT NOT NULL DEFAULT 0,
+  uploaded_by CHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_trip_expense_attachments_request (trip_expense_request_id, created_at),
+  CONSTRAINT fk_trip_expense_attachments_request
+    FOREIGN KEY (trip_expense_request_id) REFERENCES trip_expense_requests (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_trip_expense_attachments_uploaded_by
+    FOREIGN KEY (uploaded_by) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT chk_trip_expense_attachments_file_size CHECK (file_size >= 0)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS notifications (
   id CHAR(36) NOT NULL,
   user_id CHAR(36) NOT NULL,
@@ -305,6 +449,23 @@ CREATE TABLE IF NOT EXISTS notifications (
   CONSTRAINT fk_notifications_user_id
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS approval_calendar_syncs (
+  id CHAR(36) NOT NULL,
+  target_type ENUM('LEAVE_REQUEST', 'BUSINESS_TRIP', 'TRIP_EXPENSE') NOT NULL,
+  target_id CHAR(36) NOT NULL,
+  provider ENUM('NOTION') NOT NULL DEFAULT 'NOTION',
+  sync_status ENUM('PENDING', 'SYNCED', 'FAILED') NOT NULL DEFAULT 'PENDING',
+  external_page_id VARCHAR(120) NULL,
+  external_url TEXT NULL,
+  last_error TEXT NULL,
+  synced_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_approval_calendar_syncs_target_provider (target_type, target_id, provider),
+  INDEX idx_approval_calendar_syncs_status_created (sync_status, created_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS monitoring_runs (

@@ -3,6 +3,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 
 import { getMysqlPool } from './mysql';
 import type { AuthUser } from './users';
+import { buildLeaveNotionPayload, createNotionCalendarPage } from '../integrations/notionCalendar';
 import type {
   ApprovalItem,
   ApprovalStatus,
@@ -39,6 +40,10 @@ type LeaveRow = RowDataPacket & {
   approver_name: string | null;
   approval_status: ApprovalStatus | null;
   approval_step_id?: string;
+  notion_sync_status: 'PENDING' | 'SYNCED' | 'FAILED' | null;
+  notion_page_id: string | null;
+  notion_page_url: string | null;
+  notion_synced_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -68,6 +73,7 @@ type EmployeeProfileRow = RowDataPacket & {
 type LeaveBalanceRow = RowDataPacket & {
   employment_type: EmploymentType | null;
   hire_date: Date | string | null;
+  years_of_service: number | null;
   used_days: string | number | null;
 };
 
@@ -112,6 +118,10 @@ function mapLeave(row: LeaveRow): LeaveRequest {
     approverId: row.approver_id,
     approverName: row.approver_name,
     approvalStatus: row.approval_status,
+    notionSyncStatus: row.notion_sync_status,
+    notionPageId: row.notion_page_id,
+    notionPageUrl: row.notion_page_url,
+    notionSyncedAt: toIso(row.notion_synced_at),
     createdAt: toIso(row.created_at) ?? new Date().toISOString(),
     updatedAt: toIso(row.updated_at) ?? new Date().toISOString(),
   };
@@ -132,7 +142,11 @@ function mapNotification(row: NotificationRow): NotificationItem {
 
 function mapEmployeeProfile(row: EmployeeProfileRow): EmployeeProfile {
   const employmentType = row.employment_type ?? 'P';
-  const grantedDays = calculateGrantedDays({ employmentType, hireDate: row.hire_date == null ? null : toDateOnly(row.hire_date) });
+  const grantedDays = calculateGrantedDays({
+    employmentType,
+    hireDate: row.hire_date == null ? null : toDateOnly(row.hire_date),
+    yearsOfService: Number(row.years_of_service ?? 0),
+  });
   const usedDays = Number(row.used_days ?? 0);
   return {
     userId: row.user_id,
@@ -158,8 +172,9 @@ function fullMonthsSince(dateValue: string | null) {
   return Math.max(0, months);
 }
 
-export function calculateGrantedDays(input: { employmentType: EmploymentType; hireDate: string | null }) {
-  if (input.employmentType === 'P') return 15;
+export function calculateGrantedDays(input: { employmentType: EmploymentType; hireDate: string | null; yearsOfService?: number | null }) {
+  const yearsOfService = Math.max(0, Math.floor(Number(input.yearsOfService ?? 0)));
+  if (input.employmentType === 'P') return Math.min(25, 15 + yearsOfService * 2);
   return fullMonthsSince(input.hireDate);
 }
 
@@ -298,7 +313,7 @@ export async function getLeaveBalanceForUser(userId: string): Promise<LeaveBalan
   const pool = getMysqlPool();
   const [rows] = await pool.query<LeaveBalanceRow[]>(
     `
-      SELECT ep.employment_type, ep.hire_date, COALESCE(used.used_days, 0) AS used_days
+      SELECT ep.employment_type, ep.hire_date, ep.years_of_service, COALESCE(used.used_days, 0) AS used_days
       FROM users u
       LEFT JOIN employee_profiles ep ON ep.user_id = u.id
       LEFT JOIN (${getLeaveUseSql()}) used ON used.requester_id = u.id
@@ -310,7 +325,7 @@ export async function getLeaveBalanceForUser(userId: string): Promise<LeaveBalan
   const row = rows[0];
   const employmentType = row?.employment_type ?? 'P';
   const hireDate = row?.hire_date == null ? null : toDateOnly(row.hire_date);
-  const grantedDays = calculateGrantedDays({ employmentType, hireDate });
+  const grantedDays = calculateGrantedDays({ employmentType, hireDate, yearsOfService: Number(row?.years_of_service ?? 0) });
   const usedDays = Number(row?.used_days ?? 0);
   return {
     employmentType,
@@ -406,10 +421,37 @@ export async function ensureDefaultTeamForUser(user: AuthUser) {
   return defaultTeamId;
 }
 
+export type LeaveVisibilityScope = 'ALL' | 'TEAM' | 'SELF';
+
+export async function getLeaveVisibilityForUser(user: AuthUser): Promise<{ scope: LeaveVisibilityScope; teamIds: string[] }> {
+  if (user.role === 'HEAD' || user.role === 'ADMIN') {
+    return { scope: 'ALL', teamIds: [] };
+  }
+
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT DISTINCT team_id AS id
+      FROM user_team_memberships
+      WHERE user_id = ? AND team_role = 'HEAD'
+      UNION
+      SELECT id
+      FROM teams
+      WHERE head_user_id = ?
+    `,
+    [user.id, user.id],
+  );
+  const teamIds = rows.map((row) => String(row.id)).filter(Boolean);
+  if (teamIds.length > 0) return { scope: 'TEAM', teamIds };
+
+  return { scope: 'SELF', teamIds: [] };
+}
+
 export async function listLeaveRequests(input: { user: AuthUser; month?: string }) {
   const pool = getMysqlPool();
   const params: unknown[] = [];
   const where: string[] = [];
+  const visibility = await getLeaveVisibilityForUser(input.user);
 
   if (input.month && /^\d{4}-\d{2}$/.test(input.month)) {
     where.push('lr.start_date < DATE_ADD(?, INTERVAL 1 MONTH)');
@@ -417,9 +459,13 @@ export async function listLeaveRequests(input: { user: AuthUser; month?: string 
     params.push(`${input.month}-01`, `${input.month}-01`);
   }
 
-  if (input.user.role === 'VIEWER') {
+  if (visibility.scope === 'SELF') {
     where.push('lr.requester_id = ?');
     params.push(input.user.id);
+  } else if (visibility.scope === 'TEAM') {
+    const placeholders = visibility.teamIds.map(() => '?').join(', ');
+    where.push(`(lr.team_id IN (${placeholders}) OR lr.requester_id = ?)`);
+    params.push(...visibility.teamIds, input.user.id);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -430,12 +476,17 @@ export async function listLeaveRequests(input: { user: AuthUser; month?: string 
         lr.team_id, t.name AS team_name, lr.request_type, lr.start_date, lr.end_date,
         lr.half_day, lr.reason, lr.status,
         aps.approver_id, approver.name AS approver_name, aps.status AS approval_status,
+        sync.sync_status AS notion_sync_status,
+        sync.external_page_id AS notion_page_id,
+        sync.external_url AS notion_page_url,
+        sync.synced_at AS notion_synced_at,
         lr.created_at, lr.updated_at
       FROM leave_requests lr
       JOIN users requester ON requester.id = lr.requester_id
       LEFT JOIN teams t ON t.id = lr.team_id
       LEFT JOIN approval_steps aps ON aps.target_type = 'LEAVE_REQUEST' AND aps.target_id = lr.id AND aps.step_order = 1
       LEFT JOIN users approver ON approver.id = aps.approver_id
+      LEFT JOIN approval_calendar_syncs sync ON sync.target_type = 'LEAVE_REQUEST' AND sync.target_id = lr.id AND sync.provider = 'NOTION'
       ${whereSql}
       ORDER BY lr.start_date ASC, lr.created_at DESC
     `,
@@ -523,15 +574,12 @@ export async function createLeaveRequest(input: {
 
 export async function listApprovalItems(user: AuthUser) {
   const pool = getMysqlPool();
-  const params: unknown[] = [];
-  const where: string[] = ["aps.target_type = 'LEAVE_REQUEST'", "aps.status = 'PENDING'"];
+  const approvalScope = user.role === 'HEAD' || user.role === 'ADMIN' ? '' : 'AND aps.approver_id = ?';
+  const approvalParams = user.role === 'HEAD' || user.role === 'ADMIN' ? [] : [user.id];
+  const leaveParams: unknown[] = [...approvalParams];
+  const tripExpenseParams: unknown[] = [...approvalParams];
 
-  if (user.role !== 'HEAD' && user.role !== 'ADMIN') {
-    where.push('aps.approver_id = ?');
-    params.push(user.id);
-  }
-
-  const [rows] = await pool.query<(LeaveRow & { approval_step_id: string })[]>(
+  const [leaveRows] = await pool.query<(LeaveRow & { approval_step_id: string })[]>(
     `
       SELECT
         aps.id AS approval_step_id,
@@ -539,19 +587,167 @@ export async function listApprovalItems(user: AuthUser) {
         lr.team_id, t.name AS team_name, lr.request_type, lr.start_date, lr.end_date,
         lr.half_day, lr.reason, lr.status,
         aps.approver_id, approver.name AS approver_name, aps.status AS approval_status,
+        sync.sync_status AS notion_sync_status,
+        sync.external_page_id AS notion_page_id,
+        sync.external_url AS notion_page_url,
+        sync.synced_at AS notion_synced_at,
         lr.created_at, lr.updated_at
       FROM approval_steps aps
       JOIN leave_requests lr ON lr.id = aps.target_id
       JOIN users requester ON requester.id = lr.requester_id
       LEFT JOIN teams t ON t.id = lr.team_id
       LEFT JOIN users approver ON approver.id = aps.approver_id
-      WHERE ${where.join(' AND ')}
+      LEFT JOIN approval_calendar_syncs sync ON sync.target_type = 'LEAVE_REQUEST' AND sync.target_id = lr.id AND sync.provider = 'NOTION'
+      WHERE aps.target_type = 'LEAVE_REQUEST'
+        AND aps.status = 'PENDING'
+        ${approvalScope}
       ORDER BY lr.start_date ASC, lr.created_at ASC
     `,
-    params,
+    leaveParams,
   );
 
-  return rows.map((row) => ({ ...mapLeave(row), approvalStepId: row.approval_step_id })) satisfies ApprovalItem[];
+  const [tripExpenseRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT
+        aps.id AS approval_step_id,
+        ter.id,
+        ter.requester_id,
+        requester.name AS requester_name,
+        ter.team_id,
+        t.name AS team_name,
+        'TRIP_EXPENSE' AS request_type,
+        trip.start_date,
+        trip.end_date,
+        NULL AS half_day,
+        CONCAT(ter.origin, ' - ', ter.destination, ' / ', FORMAT(ter.total_amount, 0), '원', IF(ter.memo IS NULL OR ter.memo = '', '', CONCAT(' / ', ter.memo))) AS reason,
+        ter.status,
+        aps.approver_id,
+        approver.name AS approver_name,
+        aps.status AS approval_status,
+        NULL AS notion_sync_status,
+        NULL AS notion_page_id,
+        NULL AS notion_page_url,
+        NULL AS notion_synced_at,
+        ter.created_at,
+        ter.updated_at
+      FROM approval_steps aps
+      JOIN trip_expense_requests ter ON ter.id = aps.target_id
+      JOIN leave_requests trip ON trip.id = ter.business_trip_request_id
+      JOIN users requester ON requester.id = ter.requester_id
+      LEFT JOIN teams t ON t.id = ter.team_id
+      LEFT JOIN users approver ON approver.id = aps.approver_id
+      WHERE aps.target_type = 'TRIP_EXPENSE'
+        AND aps.status = 'PENDING'
+        ${approvalScope}
+      ORDER BY trip.end_date ASC, ter.created_at ASC
+    `,
+    tripExpenseParams,
+  );
+
+  const leaveItems = leaveRows.map((row) => ({ ...mapLeave(row), approvalStepId: row.approval_step_id })) satisfies ApprovalItem[];
+  const tripExpenseItems = tripExpenseRows.map((row) => ({ ...mapLeave(row as LeaveRow), approvalStepId: String(row.approval_step_id) })) satisfies ApprovalItem[];
+
+  return [...leaveItems, ...tripExpenseItems];
+}
+
+export type CalendarSyncResult = {
+  status: 'PENDING' | 'SYNCED' | 'FAILED';
+  mode: 'mock' | 'real' | null;
+  externalPageId: string | null;
+  externalUrl: string | null;
+  error: string | null;
+};
+
+async function syncApprovedLeaveRequestToNotion(targetId: string): Promise<CalendarSyncResult> {
+  const pool = getMysqlPool();
+
+  await pool.execute(
+    `
+      INSERT INTO approval_calendar_syncs (id, target_type, target_id, provider, sync_status)
+      VALUES (?, 'LEAVE_REQUEST', ?, 'NOTION', 'PENDING')
+      ON DUPLICATE KEY UPDATE
+        sync_status = 'PENDING',
+        last_error = NULL,
+        updated_at = CURRENT_TIMESTAMP(3)
+    `,
+    [randomUUID(), targetId],
+  );
+
+  const [rows] = await pool.query<LeaveRow[]>(
+    `
+      SELECT
+        lr.id, lr.requester_id, requester.name AS requester_name,
+        lr.team_id, t.name AS team_name, lr.request_type, lr.start_date, lr.end_date,
+        lr.half_day, lr.reason, lr.status,
+        aps.approver_id, approver.name AS approver_name, aps.status AS approval_status,
+        sync.sync_status AS notion_sync_status,
+        sync.external_page_id AS notion_page_id,
+        sync.external_url AS notion_page_url,
+        sync.synced_at AS notion_synced_at,
+        lr.created_at, lr.updated_at
+      FROM leave_requests lr
+      JOIN users requester ON requester.id = lr.requester_id
+      LEFT JOIN teams t ON t.id = lr.team_id
+      LEFT JOIN approval_steps aps ON aps.target_type = 'LEAVE_REQUEST' AND aps.target_id = lr.id AND aps.step_order = 1
+      LEFT JOIN users approver ON approver.id = aps.approver_id
+      LEFT JOIN approval_calendar_syncs sync ON sync.target_type = 'LEAVE_REQUEST' AND sync.target_id = lr.id AND sync.provider = 'NOTION'
+      WHERE lr.id = ?
+      LIMIT 1
+    `,
+    [targetId],
+  );
+
+  const leave = rows[0] ? mapLeave(rows[0]) : null;
+  if (!leave) {
+    const error = 'Leave request not found for Notion sync';
+    await pool.execute(
+      `
+        UPDATE approval_calendar_syncs
+        SET sync_status = 'FAILED', last_error = ?
+        WHERE target_type = 'LEAVE_REQUEST' AND target_id = ? AND provider = 'NOTION'
+      `,
+      [error, targetId],
+    );
+    return { status: 'FAILED', mode: null, externalPageId: null, externalUrl: null, error };
+  }
+
+  try {
+    const result = await createNotionCalendarPage(
+      buildLeaveNotionPayload({ leave, typeLabel: getRequestTypeLabel(leave.requestType) }),
+    );
+
+    await pool.execute(
+      `
+        UPDATE approval_calendar_syncs
+        SET sync_status = 'SYNCED',
+            external_page_id = ?,
+            external_url = ?,
+            last_error = NULL,
+            synced_at = CURRENT_TIMESTAMP(3)
+        WHERE target_type = 'LEAVE_REQUEST' AND target_id = ? AND provider = 'NOTION'
+      `,
+      [result.externalPageId, result.externalUrl, targetId],
+    );
+
+    return {
+      status: 'SYNCED',
+      mode: result.mode,
+      externalPageId: result.externalPageId,
+      externalUrl: result.externalUrl,
+      error: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Notion calendar sync failed';
+    await pool.execute(
+      `
+        UPDATE approval_calendar_syncs
+        SET sync_status = 'FAILED', last_error = ?
+        WHERE target_type = 'LEAVE_REQUEST' AND target_id = ? AND provider = 'NOTION'
+      `,
+      [message, targetId],
+    );
+    return { status: 'FAILED', mode: null, externalPageId: null, externalUrl: null, error: message };
+  }
 }
 
 export async function decideApproval(input: { user: AuthUser; stepId: string; decision: 'APPROVED' | 'REJECTED'; comment?: string }) {
@@ -560,6 +756,57 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
 
   try {
     await connection.beginTransaction();
+    const [stepRows] = await connection.query<RowDataPacket[]>(
+      `
+        SELECT id, target_type, approver_id, target_id
+        FROM approval_steps
+        WHERE id = ? AND status = 'PENDING'
+        LIMIT 1
+      `,
+      [input.stepId],
+    );
+    const pendingStep = stepRows[0];
+    if (!pendingStep) throw new Error('처리할 결재 건을 찾지 못했습니다.');
+    if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN' && pendingStep.approver_id !== input.user.id) {
+      throw new Error('결재 권한이 없습니다.');
+    }
+
+    if (pendingStep.target_type === 'TRIP_EXPENSE') {
+      const [targets] = await connection.query<RowDataPacket[]>(
+        `
+          SELECT ter.id, ter.requester_id
+          FROM trip_expense_requests ter
+          WHERE ter.id = ?
+          LIMIT 1
+        `,
+        [pendingStep.target_id],
+      );
+      const target = targets[0];
+      if (!target) throw new Error('출장여비 신청 건을 찾지 못했습니다.');
+
+      await connection.execute(
+        `
+          UPDATE approval_steps
+          SET status = ?, comment = ?, decided_at = CURRENT_TIMESTAMP(3)
+          WHERE id = ?
+        `,
+        [input.decision, input.comment?.trim() || null, input.stepId],
+      );
+      await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', [input.decision, pendingStep.target_id]);
+      await connection.commit();
+
+      await createNotification({
+        userId: String(target.requester_id),
+        type: input.decision === 'APPROVED' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
+        title: `출장여비 신청이 ${input.decision === 'APPROVED' ? '승인' : '반려'}되었습니다.`,
+        message: input.comment?.trim() || `${input.user.name}님이 결재를 처리했습니다.`,
+        targetType: 'TRIP_EXPENSE',
+        targetId: String(pendingStep.target_id),
+      });
+
+      return { calendarSync: null };
+    }
+
     const [rows] = await connection.query<RowDataPacket[]>(
       `
         SELECT aps.id, aps.approver_id, aps.target_id, lr.requester_id, requester.name AS requester_name, lr.request_type
@@ -596,6 +843,11 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
       targetType: 'LEAVE_REQUEST',
       targetId: String(step.target_id),
     });
+    if (input.decision === 'APPROVED') {
+      return { calendarSync: await syncApprovedLeaveRequestToNotion(String(step.target_id)) };
+    }
+
+    return { calendarSync: null };
   } catch (error) {
     await connection.rollback();
     throw error;

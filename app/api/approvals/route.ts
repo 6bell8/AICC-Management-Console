@@ -29,8 +29,8 @@ export async function PATCH(req: Request) {
   try {
     const parsed = decisionSchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ message: '결재 처리 정보를 확인해 주세요.' }, { status: 400 });
-    await decideApproval({ user, ...parsed.data });
-    return NextResponse.json({ ok: true }, { status: 200 });
+    const result = await decideApproval({ user, ...parsed.data });
+    return NextResponse.json({ ok: true, ...result }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '결재를 처리하지 못했습니다.';
     return NextResponse.json({ message }, { status: 500 });

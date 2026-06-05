@@ -10,6 +10,17 @@ type ApprovalResponse = {
   items: ApprovalItem[];
 };
 
+type DecisionResponse = {
+  ok: true;
+  calendarSync: {
+    status: 'PENDING' | 'SYNCED' | 'FAILED';
+    mode: 'mock' | 'real' | null;
+    externalPageId: string | null;
+    externalUrl: string | null;
+    error: string | null;
+  } | null;
+};
+
 function formatPeriod(item: ApprovalItem) {
   return item.startDate === item.endDate ? item.startDate : `${item.startDate} ~ ${item.endDate}`;
 }
@@ -35,11 +46,12 @@ export default function ApprovalsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '결재를 처리하지 못했습니다.');
-      return data;
+      return data as DecisionResponse;
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['approvals'] });
       await qc.invalidateQueries({ queryKey: ['hr', 'leave'] });
+      await qc.invalidateQueries({ queryKey: ['hr', 'trip-expenses'] });
       await qc.invalidateQueries({ queryKey: ['notifications', 'counts'] });
     },
   });
@@ -51,7 +63,7 @@ export default function ApprovalsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">결재함</h1>
-          <p className="text-sm text-muted-foreground">팀원이 올린 연차, 반차, 출장성 신청을 승인하거나 반려합니다.</p>
+          <p className="text-sm text-muted-foreground">팀원이 올린 연차, 반차, 출장, 출장여비 신청을 승인하거나 반려합니다.</p>
         </div>
         <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
           {query.isFetching ? '갱신 중...' : '새로고침'}
@@ -59,6 +71,20 @@ export default function ApprovalsPage() {
       </div>
 
       {decisionMutation.isError ? <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{(decisionMutation.error as Error).message}</div> : null}
+      {decisionMutation.data?.calendarSync ? (
+        <div
+          className={[
+            'rounded-md border px-3 py-2 text-sm',
+            decisionMutation.data.calendarSync.status === 'SYNCED'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-700',
+          ].join(' ')}
+        >
+          {decisionMutation.data.calendarSync.status === 'SYNCED'
+            ? `Notion calendar sync ${decisionMutation.data.calendarSync.mode === 'mock' ? 'mock ' : ''}completed.`
+            : `Notion calendar sync failed: ${decisionMutation.data.calendarSync.error ?? 'unknown error'}`}
+        </div>
+      ) : null}
 
       <Card className="border-slate-200 bg-white">
         <CardHeader className="pb-2">
@@ -73,7 +99,7 @@ export default function ApprovalsPage() {
                   <th className="py-2 text-left font-medium">팀</th>
                   <th className="py-2 text-left font-medium">유형</th>
                   <th className="py-2 text-left font-medium">기간</th>
-                  <th className="py-2 text-left font-medium">사유</th>
+                  <th className="py-2 text-left font-medium">내용</th>
                   <th className="py-2 text-right font-medium">처리</th>
                 </tr>
               </thead>

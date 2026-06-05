@@ -21,8 +21,10 @@ npm run db:setup
 This runs:
 
 - `npm run db:schema`
+- `npm run db:seed:auth`
 - `npm run db:seed:campaigns`
 - `npm run db:seed:contracts`
+- `npm run db:seed:business-lines`
 - `npm run db:seed:board`
 - `npm run db:seed:monitoring`
 
@@ -44,7 +46,9 @@ For Vercel or Railway deployment variables, see `docs/db/deployment.md`.
 
 The first DB-backed vertical slices are `campaigns`, `contract_deals`,
 `notices`, `author_guides`, `dynnode_posts`, `monitoring_runs`, and
-`monitoring_run_events`.
+`monitoring_run_events`. HR approval data is also stored in MySQL, including
+`leave_requests`, `approval_steps`, `notifications`, and Notion calendar sync
+history in `approval_calendar_syncs`.
 
 - `app/api/campaigns/route.ts`
 - `app/api/campaigns/[id]/route.ts`
@@ -56,3 +60,28 @@ The first DB-backed vertical slices are `campaigns`, `contract_deals`,
 - `app/lib/dynnode/store.ts`
 - `app/lib/db/authorGuides.ts`
 - `app/lib/monitoring/store.ts`
+- `app/lib/db/hr.ts`
+- `app/lib/integrations/notionCalendar.ts`
+
+## Notion approval calendar sync
+
+Approved leave or trip requests can be mapped into a Notion calendar database.
+Without Notion credentials, the app records a mock sync result so the local
+approval flow can be tested before the external integration is ready.
+
+Add these values to `.env.local` when the Notion database is ready:
+
+```env
+NOTION_API_KEY=
+NOTION_APPROVAL_CALENDAR_DATABASE_ID=
+NOTION_VERSION=2022-06-28
+```
+
+The target Notion database should include these properties:
+
+- `Name` as title
+- `Date` as date
+- `Status` as status
+- `Type` as select
+- `Requester` as text
+- `Approval ID` as text

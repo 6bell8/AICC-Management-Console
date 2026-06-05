@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
-import { createLeaveRequest, getLeaveBalanceForUser, listLeaveRequests } from '@/app/lib/db/hr';
+import { createLeaveRequest, getLeaveBalanceForUser, getLeaveVisibilityForUser, listLeaveRequests } from '@/app/lib/db/hr';
 import { REQUEST_TYPES } from '@/app/lib/types/hr';
 
 export const runtime = 'nodejs';
@@ -19,8 +19,12 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const month = new URL(req.url).searchParams.get('month') ?? undefined;
-  const [items, balance] = await Promise.all([listLeaveRequests({ user, month }), getLeaveBalanceForUser(user.id)]);
-  return NextResponse.json({ items, balance }, { status: 200 });
+  const [items, balance, visibility] = await Promise.all([
+    listLeaveRequests({ user, month }),
+    getLeaveBalanceForUser(user.id),
+    getLeaveVisibilityForUser(user),
+  ]);
+  return NextResponse.json({ items, balance, visibility: visibility.scope }, { status: 200 });
 }
 
 export async function POST(req: Request) {
@@ -31,6 +35,13 @@ export async function POST(req: Request) {
   try {
     const parsed = createSchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ message: '신청 정보를 확인해 주세요.' }, { status: 400 });
+
+    if (parsed.data.requestType === 'BUSINESS_TRIP') {
+      const reason = parsed.data.reason?.trim() ?? '';
+      if (!/ㅇ 목적\s*:\s*\S/.test(reason) || !/ㅇ 장소\s*:\s*\S/.test(reason)) {
+        return NextResponse.json({ message: '출장 신청은 목적과 장소를 필수로 입력해야 합니다.' }, { status: 400 });
+      }
+    }
 
     const id = await createLeaveRequest({
       requester: user,

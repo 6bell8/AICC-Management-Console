@@ -2,26 +2,51 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink } from 'lucide-react';
 
-import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
-import { EMPLOYMENT_TYPE_LABEL, REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL, type LeaveBalanceSummary, type LeaveRequest, type RequestType } from '@/app/lib/types/hr';
+import type { LeaveBalanceSummary, LeaveRequest, RequestType } from '@/app/lib/types/hr';
 
 type LeaveResponse = {
   items: LeaveRequest[];
   balance: LeaveBalanceSummary;
+  visibility: 'ALL' | 'TEAM' | 'SELF';
 };
 
 const REQUEST_OPTIONS: Array<{ value: RequestType; label: string }> = [
+  { value: 'BUSINESS_TRIP', label: '출장 신청' },
   { value: 'ANNUAL', label: '연차' },
   { value: 'SICK', label: '병가' },
   { value: 'OFFICIAL', label: '공가' },
   { value: 'COMP', label: '대체휴무' },
 ];
+
+const REQUEST_LABEL: Record<RequestType, string> = {
+  ANNUAL: '연차',
+  AM_HALF: '오전 반차',
+  PM_HALF: '오후 반차',
+  SICK: '병가',
+  OFFICIAL: '공가',
+  COMP: '대체휴무',
+  BUSINESS_TRIP: '출장 신청',
+  TRIP_EXPENSE: '출장 여비',
+};
+
+const STATUS_LABEL: Record<LeaveRequest['status'], string> = {
+  DRAFT: '임시저장',
+  PENDING: '결재 대기',
+  APPROVED: '승인',
+  REJECTED: '반려',
+  CANCELLED: '취소',
+  REVOKED: '승인 취소',
+};
+
+const NOTION_APPROVAL_CALENDAR_URL =
+  'https://app.notion.com/p/37652247bcaa804f85fef7322c8e10ad?v=37652247bcaa804f997d000cb5ccee74&source=copy_link';
 
 function getMonthValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -35,11 +60,27 @@ function buildCalendar(month: string) {
 
   for (let i = 0; i < first.getDay(); i++) cells.push({ date: '', day: null, muted: true });
   for (let day = 1; day <= last.getDate(); day++) {
-    const date = `${year}-${String(monthRaw).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    cells.push({ date, day });
+    cells.push({
+      date: `${year}-${String(monthRaw).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      day,
+    });
   }
   while (cells.length % 7 !== 0) cells.push({ date: '', day: null, muted: true });
   return cells;
+}
+
+function eachDateInRange(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [startDate];
+
+  const dates: string[] = [];
+  const current = new Date(start);
+  while (current <= end) {
+    dates.push(`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`);
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
 }
 
 function statusClass(status: LeaveRequest['status']) {
@@ -63,36 +104,27 @@ function requestCategoryValue(type: RequestType) {
   return isHalfDayType(type) ? 'ANNUAL' : type;
 }
 
-function eachDateInRange(startDate: string, endDate: string) {
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [startDate];
-
-  const dates: string[] = [];
-  const current = new Date(start);
-  while (current <= end) {
-    dates.push(`${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`);
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
+function formatPeriod(item: LeaveRequest) {
+  return item.startDate === item.endDate ? item.startDate : `${item.startDate} ~ ${item.endDate}`;
 }
 
 export default function LeavePage() {
   const qc = useQueryClient();
-  const { canWrite, user } = useCurrentUser();
-  const canViewRequestList = user?.role === 'HEAD' || user?.role === 'ADMIN';
+  const { canWrite } = useCurrentUser();
   const [month, setMonth] = useState(getMonthValue());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [moreListDate, setMoreListDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState('');
   const [requestType, setRequestType] = useState<RequestType>('ANNUAL');
   const [reason, setReason] = useState('');
+  const [tripPurpose, setTripPurpose] = useState('');
+  const [tripPlace, setTripPlace] = useState('');
 
   const query = useQuery<LeaveResponse>({
     queryKey: ['hr', 'leave', month],
     queryFn: async () => {
       const res = await fetch(`/api/hr/leave?month=${month}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error('연차 현황을 불러오지 못했습니다.');
+      if (!res.ok) throw new Error('근태 현황을 불러오지 못했습니다.');
       return res.json();
     },
     retry: 1,
@@ -102,10 +134,19 @@ export default function LeavePage() {
     mutationFn: async () => {
       if (!selectedDate) throw new Error('날짜를 선택해 주세요.');
       const normalizedEndDate = isHalfDayType(requestType) ? selectedDate : endDate || selectedDate;
+      const normalizedReason =
+        requestType === 'BUSINESS_TRIP'
+          ? `ㅇ 날짜 : ${selectedDate === normalizedEndDate ? selectedDate : `${selectedDate} ~ ${normalizedEndDate}`}\nㅇ 목적 : ${tripPurpose.trim()}\nㅇ 장소 : ${tripPlace.trim()}`
+          : reason;
+
+      if (requestType === 'BUSINESS_TRIP' && (!tripPurpose.trim() || !tripPlace.trim())) {
+        throw new Error('출장 신청은 목적과 장소를 필수로 입력해야 합니다.');
+      }
+
       const res = await fetch('/api/hr/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestType, startDate: selectedDate, endDate: normalizedEndDate, reason }),
+        body: JSON.stringify({ requestType, startDate: selectedDate, endDate: normalizedEndDate, reason: normalizedReason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '신청을 저장하지 못했습니다.');
@@ -115,18 +156,18 @@ export default function LeavePage() {
       setSelectedDate(null);
       setEndDate('');
       setReason('');
+      setTripPurpose('');
+      setTripPlace('');
       setRequestType('ANNUAL');
       await qc.invalidateQueries({ queryKey: ['hr', 'leave'] });
       await qc.invalidateQueries({ queryKey: ['notifications', 'counts'] });
     },
   });
 
-  const items = query.data?.items ?? [];
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const balance = query.data?.balance;
-  const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [items]);
   const calendar = useMemo(() => buildCalendar(month), [month]);
+  const sortedItems = useMemo(() => [...items].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [items]);
   const byDate = useMemo(() => {
     const map = new Map<string, LeaveRequest[]>();
     for (const item of items) {
@@ -139,16 +180,22 @@ export default function LeavePage() {
     return map;
   }, [items]);
   const moreListItems = moreListDate ? byDate.get(moreListDate) ?? [] : [];
+  const canViewRequestList = query.data?.visibility === 'ALL' || query.data?.visibility === 'TEAM';
 
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">연차신청 관리 현황</h1>
-          <p className="text-sm text-muted-foreground">월별 캘린더에서 날짜를 선택해 연차, 반차, 출장성 신청을 등록합니다.</p>
+          <h1 className="text-xl font-semibold">근태신청 관리 현황</h1>
+          <p className="text-sm text-muted-foreground">월별 캘린더에서 날짜를 선택해 근태 신청을 등록합니다.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Input type="month" value={month} onChange={(e) => setMonth(e.target.value || getMonthValue())} className="w-[170px]" />
+          <Input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value || getMonthValue())}
+            className="w-[152px] border-slate-200 bg-white/90 pr-1 font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-visible:border-sky-300 focus-visible:ring-sky-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
+          />
           <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
             {query.isFetching ? '갱신 중...' : '새로고침'}
           </Button>
@@ -156,6 +203,24 @@ export default function LeavePage() {
       </div>
 
       {!canWrite ? <ReadOnlyNotice /> : null}
+
+      <section className="rounded-lg border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm text-sky-900">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="font-semibold">Notion 캘린더 연동 안내</div>
+            <p className="mt-1 text-sky-800">근태 신청이 승인되면 Notion 근태 데이터베이스에 자동 등록되고, 신청 기간은 날짜 속성에 바인딩됩니다.</p>
+          </div>
+          <a
+            href={NOTION_APPROVAL_CALENDAR_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Notion 캘린더
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        </div>
+      </section>
 
       {balance ? (
         <div className="grid gap-3 sm:grid-cols-3">
@@ -165,13 +230,13 @@ export default function LeavePage() {
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <div className="text-sm text-slate-500">고용형태</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">
-              {balance.employmentType} · {EMPLOYMENT_TYPE_LABEL[balance.employmentType]}
-            </div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">{balance.employmentType === 'P' ? '정규직' : '계약직'}</div>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <div className="text-sm text-slate-500">연차 현황</div>
-            <div className="mt-1 text-lg font-semibold text-slate-900">부여 {balance.grantedDays}일 / 사용 {balance.usedDays}일</div>
+            <div className="mt-1 text-lg font-semibold text-slate-900">
+              부여 {balance.grantedDays}일 / 사용 {balance.usedDays}일
+            </div>
           </div>
         </div>
       ) : null}
@@ -183,10 +248,7 @@ export default function LeavePage() {
         <CardContent>
           <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-amber-100/80 bg-amber-50/40 text-sm shadow-sm">
             {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-              <div
-                key={day}
-                className="border-b-2 border-r border-slate-200 bg-gradient-to-b from-slate-100 via-slate-50 to-white px-2 py-2.5 text-center text-xs font-bold text-slate-600 shadow-sm last:border-r-0"
-              >
+              <div key={day} className="border-b-2 border-r border-slate-200 bg-gradient-to-b from-slate-100 via-slate-50 to-white px-2 py-2.5 text-center text-xs font-bold text-slate-600 shadow-sm last:border-r-0">
                 {day}
               </div>
             ))}
@@ -211,36 +273,22 @@ export default function LeavePage() {
                           setSelectedDate(cell.date);
                           setEndDate(cell.date);
                         }}
-                        className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white/80 px-1.5 text-xs font-semibold text-slate-700 ring-1 ring-amber-100 transition hover:bg-amber-50 disabled:cursor-default"
+                        className="inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-full bg-white/90 px-1.5 text-xs font-bold text-slate-800 ring-1 ring-amber-100 transition duration-150 hover:-translate-y-0.5 hover:bg-amber-100 hover:text-amber-900 hover:ring-amber-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:bg-white/90 disabled:hover:text-slate-700 disabled:hover:shadow-none"
                         aria-label={cell.date ? `${cell.date} 신청 등록` : undefined}
                       >
                         {cell.day ?? ''}
                       </button>
-                      {dayItems.length > 0 ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{dayItems.length}</span>
-                      ) : null}
+                      {dayItems.length > 0 ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{dayItems.length}</span> : null}
                     </div>
 
                     <div className="mt-2 w-full space-y-1">
                       {dayItems.slice(0, 3).map((item) => (
-                        <div
-                          key={item.id}
-                          className="truncate rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm ring-1 ring-amber-100"
-                          title={`${REQUEST_TYPE_LABEL[item.requestType]} · ${item.requesterName}`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {REQUEST_TYPE_LABEL[item.requestType]} · {item.requesterName}
+                        <div key={item.id} className="truncate rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm ring-1 ring-amber-100" title={`${REQUEST_LABEL[item.requestType]} - ${item.requesterName}`}>
+                          {REQUEST_LABEL[item.requestType]} - {item.requesterName}
                         </div>
                       ))}
                       {dayItems.length > 3 ? (
-                        <button
-                          type="button"
-                          className="pl-1 text-left text-[11px] font-medium text-amber-700 hover:text-amber-900 hover:underline"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setMoreListDate(cell.date);
-                          }}
-                        >
+                        <button type="button" className="pl-1 text-left text-[11px] font-medium text-amber-700 hover:text-amber-900 hover:underline" onClick={() => setMoreListDate(cell.date)}>
                           +{dayItems.length - 3}건 더보기
                         </button>
                       ) : null}
@@ -273,12 +321,12 @@ export default function LeavePage() {
                 <tbody>
                   {sortedItems.map((item) => (
                     <tr key={item.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60">
-                      <td className="py-2">{item.startDate === item.endDate ? item.startDate : `${item.startDate} ~ ${item.endDate}`}</td>
+                      <td className="py-2">{formatPeriod(item)}</td>
                       <td className="py-2">{item.requesterName}</td>
-                      <td className="py-2">{REQUEST_TYPE_LABEL[item.requestType]}</td>
+                      <td className="py-2">{REQUEST_LABEL[item.requestType]}</td>
                       <td className="py-2">{item.approverName ?? '-'}</td>
                       <td className="py-2">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs ${statusClass(item.status)}`}>{REQUEST_STATUS_LABEL[item.status]}</span>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs ${statusClass(item.status)}`}>{STATUS_LABEL[item.status]}</span>
                       </td>
                     </tr>
                   ))}
@@ -296,26 +344,6 @@ export default function LeavePage() {
         </Card>
       ) : null}
 
-      <Card className="border-slate-200 bg-slate-50/40">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">잔여연차 설정 힌트</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="font-medium text-slate-900">직급별 기본 부여</div>
-            <div className="mt-1">사원/대리/과장 등 직급별 기본 연차와 근속 가산일을 정책 테이블로 관리하는 방식이 좋습니다.</div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="font-medium text-slate-900">사용량 차감</div>
-            <div className="mt-1">승인된 연차는 1일, 반차는 0.5일로 차감하고 반려/취소 건은 잔여일에 반영하지 않습니다.</div>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <div className="font-medium text-slate-900">추천 테이블</div>
-            <div className="mt-1">`leave_policies`, `leave_balances`, `leave_balance_events`로 정책, 잔여일, 차감 이력을 분리하면 확장성이 좋습니다.</div>
-          </div>
-        </CardContent>
-      </Card>
-
       {moreListDate ? (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/35" onClick={() => setMoreListDate(null)} />
@@ -331,18 +359,15 @@ export default function LeavePage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-medium text-slate-900">
-                            {REQUEST_TYPE_LABEL[item.requestType]} · {item.requesterName}
+                            {REQUEST_LABEL[item.requestType]} - {item.requesterName}
                           </div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {item.startDate === item.endDate ? item.startDate : `${item.startDate} ~ ${item.endDate}`}
-                          </div>
-                          {item.reason ? <div className="mt-2 text-sm text-slate-600">{item.reason}</div> : null}
+                          <div className="mt-1 text-xs text-slate-500">{formatPeriod(item)}</div>
+                          {item.reason ? <div className="mt-2 whitespace-pre-line text-sm text-slate-600">{item.reason}</div> : null}
                         </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${statusClass(item.status)}`}>{REQUEST_STATUS_LABEL[item.status]}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${statusClass(item.status)}`}>{STATUS_LABEL[item.status]}</span>
                       </div>
                     </div>
                   ))}
-                  {moreListItems.length === 0 ? <div className="p-6 text-center text-sm text-slate-500">표시할 신청 내역이 없습니다.</div> : null}
                 </div>
                 <div className="mt-4 flex justify-end">
                   <Button variant="outline" onClick={() => setMoreListDate(null)}>
@@ -368,10 +393,11 @@ export default function LeavePage() {
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-sm text-emerald-800">
                     <div className="font-semibold">잔여연차 {balance.remainingDays}일</div>
                     <div className="mt-0.5 text-xs text-emerald-700">
-                      {balance.employmentType} · {EMPLOYMENT_TYPE_LABEL[balance.employmentType]} / 부여 {balance.grantedDays}일 / 사용 {balance.usedDays}일
+                      부여 {balance.grantedDays}일 / 사용 {balance.usedDays}일
                     </div>
                   </div>
                 ) : null}
+
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">신청 유형</label>
                   <select
@@ -390,10 +416,11 @@ export default function LeavePage() {
                     ))}
                   </select>
                 </div>
+
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <label className="text-sm font-medium">반차 기준</label>
-                    <span className="text-xs text-slate-500">선택 시 기준일 하루로 신청됩니다.</span>
+                    <span className="text-xs text-slate-500">선택한 날짜 하루로 신청됩니다.</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
@@ -402,13 +429,7 @@ export default function LeavePage() {
                     ].map((option) => {
                       const checked = requestType === option.value;
                       return (
-                        <label
-                          key={option.value}
-                          className={[
-                            'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition',
-                            checked ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-                          ].join(' ')}
-                        >
+                        <label key={option.value} className={['flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition', checked ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'].join(' ')}>
                           <input
                             type="checkbox"
                             checked={checked}
@@ -424,6 +445,7 @@ export default function LeavePage() {
                     })}
                   </div>
                 </div>
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">시작일</label>
@@ -439,19 +461,37 @@ export default function LeavePage() {
                   </div>
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">종료일</label>
-                    <Input
-                      type="date"
-                      value={isHalfDayType(requestType) ? selectedDate : endDate || selectedDate}
-                      min={selectedDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      disabled={isHalfDayType(requestType)}
-                    />
+                    <Input type="date" value={isHalfDayType(requestType) ? selectedDate : endDate || selectedDate} min={selectedDate} onChange={(e) => setEndDate(e.target.value)} disabled={isHalfDayType(requestType)} />
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">사유</label>
-                  <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="필요 시 사유를 입력해 주세요." className="min-h-[96px]" />
-                </div>
+
+                {requestType === 'BUSINESS_TRIP' ? (
+                  <div className="grid gap-3 rounded-lg border border-sky-100 bg-sky-50/50 p-3">
+                    <div className="text-sm font-semibold text-sky-900">출장 신청 정보</div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-slate-700">ㅇ 날짜</label>
+                      <Input value={selectedDate === (endDate || selectedDate) ? selectedDate : `${selectedDate} ~ ${endDate || selectedDate}`} readOnly className="bg-white/80 text-slate-700" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-slate-700">
+                        ㅇ 목적 <span className="text-rose-500">*</span>
+                      </label>
+                      <Input value={tripPurpose} onChange={(e) => setTripPurpose(e.target.value)} placeholder="출장 목적을 입력하세요" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-slate-700">
+                        ㅇ 장소 <span className="text-rose-500">*</span>
+                      </label>
+                      <Input value={tripPlace} onChange={(e) => setTripPlace(e.target.value)} placeholder="출장 장소를 입력하세요" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">사유</label>
+                    <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="필요 시 사유를 입력해 주세요." className="min-h-[96px]" />
+                  </div>
+                )}
+
                 {createMutation.isError ? <div className="text-sm text-rose-600">{(createMutation.error as Error).message}</div> : null}
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setSelectedDate(null)} disabled={createMutation.isPending}>
