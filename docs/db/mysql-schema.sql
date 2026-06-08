@@ -95,6 +95,23 @@ CREATE TABLE IF NOT EXISTS author_guides (
 ) ENGINE=InnoDB;
 
 
+CREATE TABLE IF NOT EXISTS dynnode_posts (
+  id VARCHAR(80) NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  summary TEXT NULL,
+  code MEDIUMTEXT NOT NULL,
+  sample_ctx JSON NULL,
+  tags JSON NOT NULL,
+  status ENUM('DRAFT', 'PUBLISHED') NOT NULL DEFAULT 'DRAFT',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_dynnode_posts_status_updated_at (status, updated_at),
+  FULLTEXT INDEX ftx_dynnode_posts_title_summary_code (title, summary, code),
+  CONSTRAINT chk_dynnode_posts_sample_ctx_json CHECK (sample_ctx IS NULL OR JSON_VALID(sample_ctx)),
+  CONSTRAINT chk_dynnode_posts_tags_json CHECK (JSON_VALID(tags))
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS contract_deals (
   id VARCHAR(64) NOT NULL,
   status ENUM('LEAD', 'PROPOSAL', 'NEGOTIATION', 'CONTRACTED', 'DONE') NOT NULL DEFAULT 'LEAD',

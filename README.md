@@ -1,7 +1,7 @@
 # aicc-console
 
 AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
-캠페인/모니터링/대시보드/게시판(공지·저작가이드) + 영업관리(contracts 칸반) 흐름을 중심으로 구현합니다.
+캠페인/모니터링/대시보드/게시판(동적노드·공지·저작가이드) + 영업관리(contracts 칸반) 흐름을 중심으로 구현합니다.
 
 ---
 
@@ -37,12 +37,15 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 
 ### Board
 - `/board` : 게시판 홈
+- `/board/dynnode` : 동적노드 목록(페이지네이션)
+- `/board/dynnode/new` : 동적노드 작성
+- `/board/dynnode/[id]` : 동적노드 상세/수정/삭제/실행
 
 - `/board/notice` : 공지사항 목록
 - `/board/notice/new` : 공지사항 작성
 - `/board/notice/[id]` : 공지사항 상세/수정/삭제
 
-- `/board/author-guide` : 저작가이드(CRUD, 공지 패턴 재사용)
+- `/board/author-guide` : 저작가이드(CRUD, 공지/동적노드 패턴 재사용)
 
 ### Sales
 - `/sales/activity-stats` : 영업 지표(카드/차트/요약)
@@ -55,6 +58,9 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 
 - `api/campaigns/route.ts`
 - `api/campaigns/[id]/route.ts`
+
+- `api/dynnode/route.ts`
+- `api/dynnode/[id]/route.ts`
 
 
 - `api/notice/route.ts`
@@ -91,6 +97,7 @@ aicc-console
 │  ├─ (main)
 │  │  ├─ board
 │  │  │  ├─ author-guide
+│  │  │  ├─ dynnode
 │  │  │  ├─ notice
 │  │  │  └─ layout.tsx
 │  │  ├─ campaigns
@@ -122,6 +129,7 @@ aicc-console
 │  ├─ authorGuide.json
 │  ├─ campaigns.json
 │  ├─ contracts.json
+│  ├─ dynnode.json
 │  ├─ monitoring.json
 │  └─ notice.json
 │

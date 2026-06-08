@@ -45,7 +45,7 @@ For Vercel or Railway deployment variables, see `docs/db/deployment.md`.
 ## Current migration scope
 
 The first DB-backed vertical slices are `campaigns`, `contract_deals`,
-`notices`, `author_guides`, `monitoring_runs`, and
+`notices`, `author_guides`, `dynnode_posts`, `monitoring_runs`, and
 `monitoring_run_events`. HR approval data is also stored in MySQL, including
 `leave_requests`, `approval_steps`, `notifications`, and Notion calendar sync
 history in `approval_calendar_syncs`.
@@ -58,6 +58,7 @@ history in `approval_calendar_syncs`.
 - `app/lib/db/contracts.ts`
 - `app/lib/notice/store.ts`
 - `app/lib/db/authorGuides.ts`
+- `app/lib/dynnode/store.ts`
 - `app/lib/monitoring/store.ts`
 - `app/lib/db/hr.ts`
 - `app/lib/integrations/notionCalendar.ts`

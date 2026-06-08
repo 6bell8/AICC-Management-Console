@@ -5,6 +5,19 @@ const mysql = require('mysql2/promise');
 const { getMysqlConfig, loadLocalEnv } = require('./env.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
+const DEFAULT_DYNNODE_SAMPLE_CTX = `{
+  "id": "sample-001",
+  "name": "봉춘",
+  "active": true,
+  "count": 2,
+  "items": [
+    { "id": "item-001", "name": "상담 요청", "amount": 120000, "active": true },
+    { "id": "item-002", "name": "콜백 예약", "amount": 80000, "active": false }
+  ],
+  "data": { "value": "example" }
+}
+`;
+
 
 function readJson(fileName, fallback) {
   const filePath = path.join(ROOT_DIR, 'data', fileName);
@@ -101,6 +114,45 @@ async function seedAuthorGuides(connection) {
   console.log(`Seeded ${items.length} author guides.`);
 }
 
+async function seedDynnodePosts(connection) {
+  const store = readJson('dynnode.json', { items: [] });
+  const items = Array.isArray(store.items) ? store.items : [];
+  const seen = new Set();
+
+  for (const [index, raw] of items.entries()) {
+    const id = uniqueId(raw.id, seen, 'dynnode', index);
+    await connection.execute(
+      `
+        INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, tags, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          title = VALUES(title),
+          summary = VALUES(summary),
+          code = VALUES(code),
+          sample_ctx = VALUES(sample_ctx),
+          tags = VALUES(tags),
+          status = VALUES(status),
+          created_at = VALUES(created_at),
+          updated_at = VALUES(updated_at)
+      `,
+      [
+        id,
+        String(raw.title || '').trim() || 'Untitled post',
+        raw.summary == null ? null : String(raw.summary),
+        String(raw.code || ''),
+        String(raw.sampleCtx || DEFAULT_DYNNODE_SAMPLE_CTX),
+        JSON.stringify(Array.isArray(raw.tags) ? raw.tags.filter((tag) => typeof tag === 'string') : []),
+        raw.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+        toMysqlDateTime(raw.createdAt),
+        toMysqlDateTime(raw.updatedAt),
+      ],
+    );
+  }
+
+  console.log(`Seeded ${items.length} dynnode posts.`);
+}
+
+
 async function main() {
   loadLocalEnv(ROOT_DIR);
   const connection = await mysql.createConnection(getMysqlConfig());
@@ -109,6 +161,7 @@ async function main() {
     await connection.beginTransaction();
     await seedNotices(connection);
     await seedAuthorGuides(connection);
+    await seedDynnodePosts(connection);
     await connection.commit();
   } catch (error) {
     await connection.rollback();
