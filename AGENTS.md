@@ -26,6 +26,17 @@
 `master` 반영이 최종 목적이라는 점을 기본 전제로 하되, 빌드 실패, 비밀정보 노출,
 DB 스키마 충돌이 있으면 먼저 해결한 후 병합한다.
 
+## Preferred Zip Snapshot Operation
+
+봉춘은 작업용 컴퓨터에서 만든 zip 또는 압축 해제된 스냅샷 폴더를 가져와 이 저장소의 `master`에 반영하는 방식으로 운영한다. 앞으로 같은 요청이 오면 이 흐름을 기본값으로 삼는다.
+
+- 스냅샷 폴더를 새 Git 히스토리로 그대로 push하지 않는다. 반드시 기존 `origin/master`를 기준으로 통합 브랜치를 만든다.
+- 스냅샷의 최신 코드를 이식하되, `.snapshot-protected-paths`에 등록된 경로는 현재 `master` 버전을 보존한다.
+- 삭제가 필요한 파일은 `git diff`에 삭제 이력이 남도록 처리한다. 그래야 머지 후 이전 파일이 남지 않는다.
+- 반대로 보존해야 하는 이전 기능은 백업 태그나 현재 `master`에서 경로 단위로 복원한다.
+- 통합 전에는 `backup/master-before-<작업명>-YYYYMMDD` 형태의 태그를 남긴다.
+- 검증 우선순위는 `git diff --check`, 비밀정보/산출물 제외 확인, `npm run build`, 필요 시 `npm run lint` 순서로 둔다.
+- Vercel 배포 기준은 `master`이며, build script와 환경변수 요구사항을 README와 실제 Vercel 설정에 맞춘다.
 ## Protected Integration Area
 
 동적노드 가이드는 이전 master 버전에서 복원해 보존한다.
