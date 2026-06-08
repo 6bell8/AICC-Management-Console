@@ -77,6 +77,7 @@ export type LeaveRequest = {
 
 export type ApprovalItem = LeaveRequest & {
   approvalStepId: string;
+  approvalStepOrder: number;
 };
 
 export type NotificationItem = {

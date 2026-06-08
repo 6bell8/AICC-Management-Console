@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   id CHAR(36) NOT NULL,
   email VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  force_password_change BOOLEAN NOT NULL DEFAULT FALSE,
   name VARCHAR(100) NOT NULL,
   role ENUM('HEAD', 'ADMIN', 'OPERATOR', 'VIEWER') NOT NULL DEFAULT 'VIEWER',
   status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
@@ -31,6 +32,41 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_email (email),
   INDEX idx_users_status_created_at (status, created_at),
   INDEX idx_users_role_status (role, status)
+) ENGINE=InnoDB;
+
+SET @users_force_password_change_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE users ADD COLUMN force_password_change BOOLEAN NOT NULL DEFAULT FALSE AFTER password_hash',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'force_password_change'
+);
+PREPARE users_force_password_change_stmt FROM @users_force_password_change_sql;
+EXECUTE users_force_password_change_stmt;
+DEALLOCATE PREPARE users_force_password_change_stmt;
+
+CREATE TABLE IF NOT EXISTS security_audit_logs (
+  id CHAR(36) NOT NULL,
+  actor_id CHAR(36) NULL,
+  target_user_id CHAR(36) NULL,
+  action VARCHAR(80) NOT NULL,
+  details JSON NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_security_audit_logs_actor_created (actor_id, created_at),
+  INDEX idx_security_audit_logs_target_created (target_user_id, created_at),
+  INDEX idx_security_audit_logs_action_created (action, created_at),
+  CONSTRAINT fk_security_audit_logs_actor_id
+    FOREIGN KEY (actor_id) REFERENCES users (id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_security_audit_logs_target_user_id
+    FOREIGN KEY (target_user_id) REFERENCES users (id)
+    ON DELETE SET NULL,
+  CONSTRAINT chk_security_audit_logs_details_json CHECK (details IS NULL OR JSON_VALID(details))
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS notices (
@@ -58,22 +94,6 @@ CREATE TABLE IF NOT EXISTS author_guides (
   FULLTEXT INDEX ftx_author_guides_title_content (title, content)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS dynnode_posts (
-  id VARCHAR(80) NOT NULL,
-  title VARCHAR(200) NOT NULL,
-  summary TEXT NULL,
-  code MEDIUMTEXT NOT NULL,
-  sample_ctx JSON NULL,
-  tags JSON NOT NULL,
-  status ENUM('DRAFT', 'PUBLISHED') NOT NULL DEFAULT 'DRAFT',
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  INDEX idx_dynnode_posts_status_updated_at (status, updated_at),
-  FULLTEXT INDEX ftx_dynnode_posts_title_summary_code (title, summary, code),
-  CONSTRAINT chk_dynnode_posts_sample_ctx_json CHECK (sample_ctx IS NULL OR JSON_VALID(sample_ctx)),
-  CONSTRAINT chk_dynnode_posts_tags_json CHECK (JSON_VALID(tags))
-) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS contract_deals (
   id VARCHAR(64) NOT NULL,
@@ -332,6 +352,9 @@ CREATE TABLE IF NOT EXISTS trip_expense_requests (
   total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
   memo TEXT NULL,
   status ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+  settlement_status ENUM('PENDING', 'PAID') NOT NULL DEFAULT 'PENDING',
+  settled_by CHAR(36) NULL,
+  settled_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -347,11 +370,59 @@ CREATE TABLE IF NOT EXISTS trip_expense_requests (
   CONSTRAINT fk_trip_expense_requests_team
     FOREIGN KEY (team_id) REFERENCES teams (id)
     ON DELETE SET NULL,
+  CONSTRAINT fk_trip_expense_requests_settled_by
+    FOREIGN KEY (settled_by) REFERENCES users (id)
+    ON DELETE SET NULL,
   CONSTRAINT chk_trip_expense_amounts CHECK (
     train_fare_amount >= 0 AND car_depreciation_amount >= 0 AND other_amount >= 0
     AND lodging_nights >= 0 AND daily_allowance_amount >= 0 AND lodging_amount >= 0 AND total_amount >= 0
   )
 ) ENGINE=InnoDB;
+
+SET @trip_expense_requests_settlement_status_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN settlement_status ENUM(''PENDING'', ''PAID'') NOT NULL DEFAULT ''PENDING'' AFTER status',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'settlement_status'
+);
+PREPARE trip_expense_requests_settlement_status_stmt FROM @trip_expense_requests_settlement_status_sql;
+EXECUTE trip_expense_requests_settlement_status_stmt;
+DEALLOCATE PREPARE trip_expense_requests_settlement_status_stmt;
+
+SET @trip_expense_requests_settled_by_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN settled_by CHAR(36) NULL AFTER settlement_status',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'settled_by'
+);
+PREPARE trip_expense_requests_settled_by_stmt FROM @trip_expense_requests_settled_by_sql;
+EXECUTE trip_expense_requests_settled_by_stmt;
+DEALLOCATE PREPARE trip_expense_requests_settled_by_stmt;
+
+SET @trip_expense_requests_settled_at_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN settled_at DATETIME(3) NULL AFTER settled_by',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'settled_at'
+);
+PREPARE trip_expense_requests_settled_at_stmt FROM @trip_expense_requests_settled_at_sql;
+EXECUTE trip_expense_requests_settled_at_stmt;
+DEALLOCATE PREPARE trip_expense_requests_settled_at_stmt;
 
 SET @trip_expense_requests_trip_scope_sql = (
   SELECT IF(

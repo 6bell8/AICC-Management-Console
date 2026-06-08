@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { RowDataPacket } from 'mysql2/promise';
+import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 
 import type { AuthUser } from './users';
 import { getMysqlPool } from './mysql';
@@ -34,6 +34,8 @@ type TripExpenseRow = RowDataPacket & {
   total_amount: string | number;
   memo: string | null;
   status: TripExpenseRequest['status'];
+  settlement_status: TripExpenseRequest['settlementStatus'];
+  settled_at: Date | string | null;
   approver_name: string | null;
   approval_step_id: string | null;
   created_at: Date | string;
@@ -94,6 +96,8 @@ function mapTripExpense(row: TripExpenseRow): TripExpenseRequest {
     totalAmount: Number(row.total_amount ?? 0),
     memo: row.memo,
     status: row.status,
+    settlementStatus: row.settlement_status ?? 'PENDING',
+    settledAt: toIso(row.settled_at),
     approverName: row.approver_name,
     approvalStepId: row.approval_step_id,
     attachments: [],
@@ -112,6 +116,24 @@ function mapAttachment(row: TripExpenseAttachmentRow): TripExpenseAttachment {
     fileSize: Number(row.file_size ?? 0),
     createdAt: toIso(row.created_at) ?? new Date().toISOString(),
   };
+}
+
+async function createNotification(input: {
+  userId: string;
+  type: 'APPROVAL_REQUESTED' | 'APPROVAL_APPROVED' | 'APPROVAL_REJECTED' | 'REQUEST_CANCELLED' | 'SYSTEM';
+  title: string;
+  message: string;
+  targetType?: string;
+  targetId?: string;
+}) {
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      INSERT INTO notifications (id, user_id, type, title, message, target_type, target_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [randomUUID(), input.userId, input.type, input.title, input.message, input.targetType ?? null, input.targetId ?? null],
+  );
 }
 
 export async function listEligibleBusinessTrips(user: AuthUser) {
@@ -141,7 +163,15 @@ export async function listTripExpenseRequests(user: AuthUser) {
   const where: string[] = [];
 
   if (user.role !== 'HEAD' && user.role !== 'ADMIN') {
-    where.push('(ter.requester_id = ? OR aps.approver_id = ?)');
+    where.push(
+      `(ter.requester_id = ? OR EXISTS (
+        SELECT 1
+        FROM approval_steps access_aps
+        WHERE access_aps.target_type = 'TRIP_EXPENSE'
+          AND access_aps.target_id = ter.id
+          AND access_aps.approver_id = ?
+      ))`,
+    );
     params.push(user.id, user.id);
   }
 
@@ -152,12 +182,23 @@ export async function listTripExpenseRequests(user: AuthUser) {
         ter.team_id, t.name AS team_name, ter.origin, ter.destination, ter.trip_scope, ter.transport_type,
         ter.train_fare_amount, ter.car_depreciation_amount, ter.other_amount,
         ter.lodging_nights, ter.daily_allowance_amount, ter.lodging_amount, ter.total_amount,
-        ter.memo, ter.status, approver.name AS approver_name, aps.id AS approval_step_id,
+        ter.memo, ter.status, ter.settlement_status, ter.settled_at, approver.name AS approver_name, aps.id AS approval_step_id,
         ter.created_at, ter.updated_at
       FROM trip_expense_requests ter
       JOIN users requester ON requester.id = ter.requester_id
       LEFT JOIN teams t ON t.id = ter.team_id
-      LEFT JOIN approval_steps aps ON aps.target_type = 'TRIP_EXPENSE' AND aps.target_id = ter.id AND aps.step_order = 1
+      LEFT JOIN approval_steps aps
+        ON aps.target_type = 'TRIP_EXPENSE'
+       AND aps.target_id = ter.id
+       AND aps.status = 'PENDING'
+       AND NOT EXISTS (
+         SELECT 1
+         FROM approval_steps prev
+         WHERE prev.target_type = aps.target_type
+           AND prev.target_id = aps.target_id
+           AND prev.step_order < aps.step_order
+           AND prev.status <> 'APPROVED'
+       )
       LEFT JOIN users approver ON approver.id = aps.approver_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY ter.created_at DESC
@@ -186,6 +227,65 @@ export async function listTripExpenseRequests(user: AuthUser) {
   return items.map((item) => ({ ...item, attachments: attachmentsByRequest.get(item.id) ?? [] }));
 }
 
+export async function settleTripExpenseRequest(input: { user: AuthUser; id: string }) {
+  if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN') {
+    throw new Error('출장여비 정산 처리는 관리자 이상만 가능합니다.');
+  }
+
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT id, status, settlement_status
+      FROM trip_expense_requests
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [input.id],
+  );
+  const current = rows[0];
+  if (!current) throw new Error('출장여비 신청을 찾지 못했습니다.');
+  if (current.status !== 'APPROVED') throw new Error('승인 완료된 출장여비만 정산 처리할 수 있습니다.');
+
+  await pool.execute(
+    `
+      UPDATE trip_expense_requests
+      SET settlement_status = 'PAID',
+          settled_by = ?,
+          settled_at = CURRENT_TIMESTAMP(3)
+      WHERE id = ?
+    `,
+    [input.user.id, input.id],
+  );
+}
+
+async function findHrFinalApproverId(connection: PoolConnection) {
+  const [hrRows] = await connection.query<RowDataPacket[]>(
+    `
+      SELECT t.id, t.name, COALESCE(t.head_user_id, team_head.user_id) AS approver_id
+      FROM teams t
+      LEFT JOIN user_team_memberships team_head ON team_head.team_id = t.id AND team_head.team_role = 'HEAD'
+      WHERE t.name IN ('인사팀', 'HR', 'Human Resources')
+      ORDER BY FIELD(t.name, '인사팀', 'HR', 'Human Resources'), t.created_at ASC
+    `,
+  );
+  const hrTeamWithApprover = hrRows.find((row) => row.approver_id);
+  if (hrTeamWithApprover?.approver_id) return String(hrTeamWithApprover.approver_id);
+  if (hrRows.length > 0) {
+    throw new Error('출장여비 최종 결재를 받을 인사팀 팀장을 먼저 지정해 주세요.');
+  }
+
+  const [fallbackRows] = await connection.query<RowDataPacket[]>(
+    `
+      SELECT id
+      FROM users
+      WHERE status = 'APPROVED' AND role IN ('ADMIN', 'HEAD')
+      ORDER BY FIELD(role, 'ADMIN', 'HEAD'), created_at ASC
+      LIMIT 1
+    `,
+  );
+  return fallbackRows[0]?.id ? String(fallbackRows[0].id) : null;
+}
+
 export async function createTripExpenseRequest(input: {
   user: AuthUser;
   businessTripRequestId: string;
@@ -203,6 +303,7 @@ export async function createTripExpenseRequest(input: {
   const connection = await pool.getConnection();
   const id = randomUUID();
   const approvalStepId = randomUUID();
+  const hrApprovalStepId = randomUUID();
   const dailyAllowanceAmount = input.tripScope === 'OUT_CITY' ? 50_000 : 30_000;
   const lodgingNights = Math.max(0, Math.floor(Number(input.lodgingNights || 0)));
   const lodgingAmount = lodgingNights * 150_000;
@@ -242,6 +343,8 @@ export async function createTripExpenseRequest(input: {
     );
     const trip = trips[0];
     if (!trip) throw new Error('여비 신청 가능한 승인 완료 출장 건을 찾지 못했습니다.');
+    const firstApproverId = String(trip.approver_id || input.user.id);
+    const hrApproverId = await findHrFinalApproverId(connection);
 
     await connection.execute(
       `
@@ -277,10 +380,28 @@ export async function createTripExpenseRequest(input: {
         INSERT INTO approval_steps (id, target_type, target_id, step_order, approver_id, status)
         VALUES (?, 'TRIP_EXPENSE', ?, 1, ?, 'PENDING')
       `,
-      [approvalStepId, id, String(trip.approver_id || input.user.id)],
+      [approvalStepId, id, firstApproverId],
     );
 
+    if (hrApproverId && hrApproverId !== firstApproverId) {
+      await connection.execute(
+        `
+          INSERT INTO approval_steps (id, target_type, target_id, step_order, approver_id, status)
+          VALUES (?, 'TRIP_EXPENSE', ?, 2, ?, 'PENDING')
+        `,
+        [hrApprovalStepId, id, hrApproverId],
+      );
+    }
+
     await connection.commit();
+    await createNotification({
+      userId: firstApproverId,
+      type: 'APPROVAL_REQUESTED',
+      title: '출장여비 결재 요청',
+      message: `${input.origin} - ${input.destination} 출장여비 결재가 요청되었습니다.`,
+      targetType: 'TRIP_EXPENSE',
+      targetId: id,
+    });
     return id;
   } catch (error) {
     await connection.rollback();

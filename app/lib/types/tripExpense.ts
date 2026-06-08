@@ -5,6 +5,7 @@ export type TransportType = (typeof TRANSPORT_TYPES)[number];
 export type TripScope = (typeof TRIP_SCOPES)[number];
 
 export type TripExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type TripExpenseSettlementStatus = 'PENDING' | 'PAID';
 
 export type EligibleBusinessTrip = {
   id: string;
@@ -45,6 +46,8 @@ export type TripExpenseRequest = {
   totalAmount: number;
   memo: string | null;
   status: TripExpenseStatus;
+  settlementStatus: TripExpenseSettlementStatus;
+  settledAt: string | null;
   approverName: string | null;
   approvalStepId: string | null;
   attachments: TripExpenseAttachment[];

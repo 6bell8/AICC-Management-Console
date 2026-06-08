@@ -143,6 +143,22 @@ export default function TripExpensesPage() {
     },
   });
 
+  const settleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch('/api/hr/trip-expenses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'SETTLE' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || '출장여비 정산 처리에 실패했습니다.');
+      return data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['hr', 'trip-expenses'] });
+    },
+  });
+
   const items = query.data?.items ?? [];
 
   function addFiles(nextFiles: FileList | null) {
@@ -374,6 +390,7 @@ export default function TripExpensesPage() {
                   <th className="px-3 py-2 text-right font-medium">지급액</th>
                   <th className="px-3 py-2 text-left font-medium">증빙</th>
                   <th className="px-3 py-2 text-left font-medium">상태</th>
+                  <th className="px-3 py-2 text-left font-medium">정산</th>
                 </tr>
               </thead>
               <tbody>
@@ -406,11 +423,35 @@ export default function TripExpensesPage() {
                       )}
                     </td>
                     <td className="px-3 py-2">{item.status}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={[
+                            'rounded-full border px-2 py-1 text-xs font-medium',
+                            item.settlementStatus === 'PAID'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-slate-200 bg-slate-50 text-slate-600',
+                          ].join(' ')}
+                        >
+                          {item.settlementStatus === 'PAID' ? '정산 완료' : '정산 대기'}
+                        </span>
+                        {item.status === 'APPROVED' && item.settlementStatus !== 'PAID' ? (
+                          <Button
+                            size="sm"
+                            variant="saveOutlineGreen"
+                            disabled={settleMutation.isPending}
+                            onClick={() => settleMutation.mutate(item.id)}
+                          >
+                            완료
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {items.length === 0 ? (
                   <tr>
-                    <td className="px-3 py-8 text-center text-slate-500" colSpan={7}>
+                    <td className="px-3 py-8 text-center text-slate-500" colSpan={8}>
                       출장여비 신청 내역이 없습니다.
                     </td>
                   </tr>

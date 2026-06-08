@@ -42,23 +42,31 @@ export default function UsersAdminClient({ currentUser }: Props) {
   async function loadUsers() {
     setLoading(true);
     setMessage(null);
-    const [usersRes, teamsRes, profilesRes] = await Promise.all([
-      fetch('/api/admin/users', { cache: 'no-store' }),
-      fetch('/api/admin/teams', { cache: 'no-store' }),
-      fetch('/api/admin/hr-profiles', { cache: 'no-store' }),
-    ]);
-    const usersBody = await usersRes.json().catch(() => ({}));
-    const teamsBody = await teamsRes.json().catch(() => ({}));
-    const profilesBody = await profilesRes.json().catch(() => ({}));
-    if (!usersRes.ok) {
-      setMessage(usersBody.message || '사용자 목록을 불러오지 못했습니다.');
+    try {
+      const [usersRes, teamsRes, profilesRes] = await Promise.all([
+        fetch('/api/admin/users', { cache: 'no-store' }),
+        fetch('/api/admin/teams', { cache: 'no-store' }),
+        fetch('/api/admin/hr-profiles', { cache: 'no-store' }),
+      ]);
+      const usersBody = await usersRes.json().catch(() => ({}));
+      const teamsBody = await teamsRes.json().catch(() => ({}));
+      const profilesBody = await profilesRes.json().catch(() => ({}));
+      if (!usersRes.ok) {
+        setMessage(usersBody.message || '사용자 목록을 불러오지 못했습니다.');
+        return;
+      }
+      setUsers(usersBody.users ?? []);
+      setTeams(teamsRes.ok ? teamsBody.teams ?? [] : []);
+      setProfiles(profilesRes.ok ? profilesBody.profiles ?? [] : []);
+      if (!teamsRes.ok || !profilesRes.ok) {
+        setMessage('사용자 목록은 불러왔지만 팀 또는 HR 프로필 일부를 불러오지 못했습니다.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '계정 승인 관리 데이터를 불러오지 못했습니다.';
+      setMessage(message);
+    } finally {
       setLoading(false);
-      return;
     }
-    setUsers(usersBody.users ?? []);
-    setTeams(teamsRes.ok ? teamsBody.teams ?? [] : []);
-    setProfiles(profilesRes.ok ? profilesBody.profiles ?? [] : []);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -98,6 +106,27 @@ export default function UsersAdminClient({ currentUser }: Props) {
     }
 
     await loadUsers();
+  }
+
+  async function resetPassword(id: string, name: string) {
+    if (!confirm(`${name}님의 비밀번호를 new123!@로 초기화하시겠습니까?`)) return;
+    setPendingId(`password:${id}`);
+    setMessage(null);
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, resetPassword: true }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setPendingId(null);
+
+    if (!res.ok) {
+      setMessage(body.message || '비밀번호 초기화에 실패했습니다.');
+      return;
+    }
+
+    await loadUsers();
+    setMessage(`${name}님의 비밀번호를 new123!@로 초기화했습니다.`);
   }
 
   function getProfile(userId: string): EmployeeProfile {
@@ -249,7 +278,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1880px] table-fixed text-sm">
+          <table className="w-full min-w-[1970px] table-fixed text-sm">
             <colgroup>
               <col className="w-[160px]" />
               <col className="w-[260px]" />
@@ -262,7 +291,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
               <col className="w-[170px]" />
               <col className="w-[110px]" />
               <col className="w-[130px]" />
-              <col className="w-[290px]" />
+              <col className="w-[380px]" />
             </colgroup>
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
@@ -296,7 +325,8 @@ export default function UsersAdminClient({ currentUser }: Props) {
               ) : (
                 users.map((user) => {
                   const isHead = user.role === 'HEAD';
-                  const busy = pendingId === user.id;
+                  const passwordBusy = pendingId === `password:${user.id}`;
+                  const busy = pendingId === user.id || passwordBusy;
                   const canEdit = !isHead && (currentUser.role === 'HEAD' || user.role !== 'ADMIN');
                   const profile = getProfile(user.id);
                   const canEditProfile = currentUser.role === 'HEAD' || currentUser.role === 'ADMIN';
@@ -411,6 +441,16 @@ export default function UsersAdminClient({ currentUser }: Props) {
                               {status}
                             </button>
                           ))}
+                          {currentUser.role === 'HEAD' && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => resetPassword(user.id, user.name)}
+                              className="min-w-[86px] rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {passwordBusy ? '초기화 중' : '비번 초기화'}
+                            </button>
+                          )}
                           {currentUser.role === 'HEAD' && !isHead && (
                             <button
                               type="button"

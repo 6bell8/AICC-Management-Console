@@ -15,6 +15,7 @@ export type AuthUser = {
   name: string;
   role: UserRole;
   status: UserStatus;
+  forcePasswordChange: boolean;
   createdAt: string;
   updatedAt: string;
   approvedBy: string | null;
@@ -29,6 +30,7 @@ type UserRow = RowDataPacket & {
   id: string;
   email: string;
   password_hash: string;
+  force_password_change: 0 | 1 | boolean;
   name: string;
   role: UserRole;
   status: UserStatus;
@@ -49,6 +51,7 @@ function mapUser(row: UserRow): UserWithPassword {
     id: row.id,
     email: row.email,
     passwordHash: row.password_hash,
+    forcePasswordChange: Boolean(row.force_password_change),
     name: row.name,
     role: row.role,
     status: row.status,
@@ -68,7 +71,7 @@ export async function getUserByEmail(email: string) {
   const pool = getMysqlPool();
   const [rows] = await pool.query<UserRow[]>(
     `
-      SELECT id, email, password_hash, name, role, status, approved_by, approved_at, created_at, updated_at
+      SELECT id, email, password_hash, force_password_change, name, role, status, approved_by, approved_at, created_at, updated_at
       FROM users
       WHERE email = ?
       LIMIT 1
@@ -83,7 +86,7 @@ export async function getUserById(id: string) {
   const pool = getMysqlPool();
   const [rows] = await pool.query<UserRow[]>(
     `
-      SELECT id, email, password_hash, name, role, status, approved_by, approved_at, created_at, updated_at
+      SELECT id, email, password_hash, force_password_change, name, role, status, approved_by, approved_at, created_at, updated_at
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -98,7 +101,7 @@ export async function listUsers() {
   const pool = getMysqlPool();
   const [rows] = await pool.query<UserRow[]>(
     `
-      SELECT id, email, password_hash, name, role, status, approved_by, approved_at, created_at, updated_at
+      SELECT id, email, password_hash, force_password_change, name, role, status, approved_by, approved_at, created_at, updated_at
       FROM users
       ORDER BY FIELD(status, 'PENDING', 'APPROVED', 'REJECTED'), created_at DESC
     `,
@@ -187,6 +190,44 @@ export async function updateUserControl(
       WHERE id = ?
     `,
     [nextStatus, nextRole, nextStatus, input.approvedBy, nextStatus, id],
+  );
+
+  const updated = await getUserById(id);
+  return updated ? withoutPassword(updated) : null;
+}
+
+export async function resetUserPassword(id: string, passwordHash: string) {
+  const current = await getUserById(id);
+  if (!current) return null;
+
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      UPDATE users
+      SET password_hash = ?,
+          force_password_change = TRUE
+      WHERE id = ?
+    `,
+    [passwordHash, id],
+  );
+
+  const updated = await getUserById(id);
+  return updated ? withoutPassword(updated) : null;
+}
+
+export async function changeUserPassword(id: string, passwordHash: string) {
+  const current = await getUserById(id);
+  if (!current) return null;
+
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      UPDATE users
+      SET password_hash = ?,
+          force_password_change = FALSE
+      WHERE id = ?
+    `,
+    [passwordHash, id],
   );
 
   const updated = await getUserById(id);

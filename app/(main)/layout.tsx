@@ -5,6 +5,7 @@ import { getCurrentUser } from '../lib/auth/session';
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/dashboard');
+  if (user.forcePasswordChange) redirect('/change-password');
 
   return (
     <div className="min-h-screen">

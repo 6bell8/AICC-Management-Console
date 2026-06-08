@@ -583,6 +583,7 @@ export async function listApprovalItems(user: AuthUser) {
     `
       SELECT
         aps.id AS approval_step_id,
+        aps.step_order AS approval_step_order,
         lr.id, lr.requester_id, requester.name AS requester_name,
         lr.team_id, t.name AS team_name, lr.request_type, lr.start_date, lr.end_date,
         lr.half_day, lr.reason, lr.status,
@@ -600,6 +601,14 @@ export async function listApprovalItems(user: AuthUser) {
       LEFT JOIN approval_calendar_syncs sync ON sync.target_type = 'LEAVE_REQUEST' AND sync.target_id = lr.id AND sync.provider = 'NOTION'
       WHERE aps.target_type = 'LEAVE_REQUEST'
         AND aps.status = 'PENDING'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM approval_steps prev
+          WHERE prev.target_type = aps.target_type
+            AND prev.target_id = aps.target_id
+            AND prev.step_order < aps.step_order
+            AND prev.status <> 'APPROVED'
+        )
         ${approvalScope}
       ORDER BY lr.start_date ASC, lr.created_at ASC
     `,
@@ -610,6 +619,7 @@ export async function listApprovalItems(user: AuthUser) {
     `
       SELECT
         aps.id AS approval_step_id,
+        aps.step_order AS approval_step_order,
         ter.id,
         ter.requester_id,
         requester.name AS requester_name,
@@ -638,14 +648,30 @@ export async function listApprovalItems(user: AuthUser) {
       LEFT JOIN users approver ON approver.id = aps.approver_id
       WHERE aps.target_type = 'TRIP_EXPENSE'
         AND aps.status = 'PENDING'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM approval_steps prev
+          WHERE prev.target_type = aps.target_type
+            AND prev.target_id = aps.target_id
+            AND prev.step_order < aps.step_order
+            AND prev.status <> 'APPROVED'
+        )
         ${approvalScope}
       ORDER BY trip.end_date ASC, ter.created_at ASC
     `,
     tripExpenseParams,
   );
 
-  const leaveItems = leaveRows.map((row) => ({ ...mapLeave(row), approvalStepId: row.approval_step_id })) satisfies ApprovalItem[];
-  const tripExpenseItems = tripExpenseRows.map((row) => ({ ...mapLeave(row as LeaveRow), approvalStepId: String(row.approval_step_id) })) satisfies ApprovalItem[];
+  const leaveItems = leaveRows.map((row) => ({
+    ...mapLeave(row),
+    approvalStepId: row.approval_step_id,
+    approvalStepOrder: Number(row.approval_step_order ?? 1),
+  })) satisfies ApprovalItem[];
+  const tripExpenseItems = tripExpenseRows.map((row) => ({
+    ...mapLeave(row as LeaveRow),
+    approvalStepId: String(row.approval_step_id),
+    approvalStepOrder: Number(row.approval_step_order ?? 1),
+  })) satisfies ApprovalItem[];
 
   return [...leaveItems, ...tripExpenseItems];
 }
@@ -792,14 +818,66 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
         `,
         [input.decision, input.comment?.trim() || null, input.stepId],
       );
-      await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', [input.decision, pendingStep.target_id]);
+
+      if (input.decision === 'REJECTED') {
+        await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', ['REJECTED', pendingStep.target_id]);
+        await connection.commit();
+
+        await createNotification({
+          userId: String(target.requester_id),
+          type: 'APPROVAL_REJECTED',
+          title: '출장여비 신청이 반려되었습니다.',
+          message: input.comment?.trim() || `${input.user.name}님이 결재를 반려했습니다.`,
+          targetType: 'TRIP_EXPENSE',
+          targetId: String(pendingStep.target_id),
+        });
+
+        return { calendarSync: null };
+      }
+
+      const [nextSteps] = await connection.query<RowDataPacket[]>(
+        `
+          SELECT aps.id, aps.approver_id, approver.name AS approver_name
+          FROM approval_steps aps
+          JOIN users approver ON approver.id = aps.approver_id
+          WHERE aps.target_type = 'TRIP_EXPENSE'
+            AND aps.target_id = ?
+            AND aps.status = 'PENDING'
+            AND aps.step_order > (
+              SELECT current_step.step_order
+              FROM approval_steps current_step
+              WHERE current_step.id = ?
+              LIMIT 1
+            )
+          ORDER BY aps.step_order ASC
+          LIMIT 1
+        `,
+        [pendingStep.target_id, input.stepId],
+      );
+      const nextStep = nextSteps[0];
+      if (nextStep) {
+        await connection.commit();
+
+        await createNotification({
+          userId: String(nextStep.approver_id),
+          type: 'APPROVAL_REQUESTED',
+          title: '출장여비 최종 결재 요청',
+          message: '팀장 결재가 완료된 출장여비 신청의 최종 결재가 요청되었습니다.',
+          targetType: 'TRIP_EXPENSE',
+          targetId: String(pendingStep.target_id),
+        });
+
+        return { calendarSync: null };
+      }
+
+      await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', ['APPROVED', pendingStep.target_id]);
       await connection.commit();
 
       await createNotification({
         userId: String(target.requester_id),
-        type: input.decision === 'APPROVED' ? 'APPROVAL_APPROVED' : 'APPROVAL_REJECTED',
-        title: `출장여비 신청이 ${input.decision === 'APPROVED' ? '승인' : '반려'}되었습니다.`,
-        message: input.comment?.trim() || `${input.user.name}님이 결재를 처리했습니다.`,
+        type: 'APPROVAL_APPROVED',
+        title: '출장여비 신청이 최종 승인되었습니다.',
+        message: input.comment?.trim() || `${input.user.name}님이 출장여비 최종 결재를 승인했습니다.`,
         targetType: 'TRIP_EXPENSE',
         targetId: String(pendingStep.target_id),
       });
@@ -892,6 +970,14 @@ export async function getNotificationCounts(user: AuthUser) {
           FROM approval_steps aps
           WHERE aps.status = 'PENDING'
             AND (? IN ('HEAD', 'ADMIN') OR aps.approver_id = ?)
+            AND NOT EXISTS (
+              SELECT 1
+              FROM approval_steps prev
+              WHERE prev.target_type = aps.target_type
+                AND prev.target_id = aps.target_id
+                AND prev.step_order < aps.step_order
+                AND prev.status <> 'APPROVED'
+            )
         ) AS pending_approvals
     `,
     [user.id, user.role, user.id],
