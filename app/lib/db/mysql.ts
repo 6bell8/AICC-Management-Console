@@ -38,7 +38,7 @@ declare global {
 }
 
 function getPort() {
-  const raw = getEnv('DB_PORT', 'MYSQL_PORT') ?? '3306';
+  const raw = getEnv('DB_PORT', 'MYSQL_PORT', 'MYSQLPORT') ?? '3306';
   const port = Number(raw);
   if (!Number.isInteger(port) || port <= 0) {
     throw new Error('DB_PORT must be a positive integer');
@@ -46,12 +46,12 @@ function getPort() {
   return port;
 }
 
-function getEnv(primaryName: string, legacyName: string) {
-  return process.env[primaryName] ?? process.env[legacyName];
+function getEnv(primaryName: string, legacyName: string, railwayName?: string) {
+  return process.env[primaryName] ?? process.env[legacyName] ?? (railwayName ? process.env[railwayName] : undefined);
 }
 
-function requiredDbEnv(primaryName: string, legacyName: string) {
-  const value = getEnv(primaryName, legacyName);
+function requiredDbEnv(primaryName: string, legacyName: string, railwayName?: string) {
+  const value = getEnv(primaryName, legacyName, railwayName);
   if (value == null || value === '') {
     throw new Error(`${primaryName} is required for MySQL connection`);
   }
@@ -61,11 +61,11 @@ function requiredDbEnv(primaryName: string, legacyName: string) {
 export function getMysqlPool() {
   if (!globalThis.__AICC_MYSQL_POOL__) {
     globalThis.__AICC_MYSQL_POOL__ = mysql.createPool({
-      host: requiredDbEnv('DB_HOST', 'MYSQL_HOST'),
+      host: requiredDbEnv('DB_HOST', 'MYSQL_HOST', 'MYSQLHOST'),
       port: getPort(),
-      user: requiredDbEnv('DB_USER', 'MYSQL_USER'),
-      password: getEnv('DB_PASSWORD', 'MYSQL_PASSWORD') ?? '',
-      database: requiredDbEnv('DB_NAME', 'MYSQL_DATABASE'),
+      user: requiredDbEnv('DB_USER', 'MYSQL_USER', 'MYSQLUSER'),
+      password: getEnv('DB_PASSWORD', 'MYSQL_PASSWORD', 'MYSQLPASSWORD') ?? '',
+      database: requiredDbEnv('DB_NAME', 'MYSQL_DATABASE', 'MYSQLDATABASE'),
       waitForConnections: true,
       connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? process.env.MYSQL_CONNECTION_LIMIT ?? 5),
       decimalNumbers: true,
