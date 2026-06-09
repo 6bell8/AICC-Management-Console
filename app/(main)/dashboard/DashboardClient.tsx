@@ -16,6 +16,15 @@ type Campaign = {
   updatedAt: string; // ISO 예상
 };
 
+type ErpSummary = {
+  pendingApprovals: number;
+  unreadNotifications: number;
+  pendingSettlements: number;
+  pendingSettlementAmount: number;
+  yearlyLeaveRequests: number;
+  recentAuditLogs: number;
+};
+
 // ✅ Dashboard/캠페인 공통: StatusKey -> Badge variant
 function statusKeyToBadgeVariant(key: ReturnType<typeof normalizeStatusKey>): 'running' | 'paused' | 'draft' | 'archived' | 'info' {
   switch (key) {
@@ -58,6 +67,7 @@ function getErrorMessage(e: unknown) {
 export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Campaign[]>([]);
+  const [erpSummary, setErpSummary] = useState<ErpSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,10 +78,16 @@ export default function DashboardClient() {
         setLoading(true);
         setError(null);
 
-        const res = await getCampaigns();
+        const [res, erpRes] = await Promise.all([
+          getCampaigns(),
+          fetch('/api/dashboard/erp-summary', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)),
+        ]);
         const list = ((res as any)?.items ?? res ?? []) as Campaign[];
 
-        if (mounted) setItems(list);
+        if (mounted) {
+          setItems(list);
+          setErpSummary(erpRes);
+        }
       } catch (e: unknown) {
         if (mounted) setError(getErrorMessage(e));
       } finally {
@@ -158,27 +174,52 @@ export default function DashboardClient() {
       {/* 에러 */}
       {error ? <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div> : null}
 
-      {/* KPI */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm text-slate-600">전체</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? '—' : kpi.total}</div>
+      <section className="grid gap-4 lg:grid-cols-[1.15fr_1.85fr]">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-slate-500">오늘의 운영 우선순위</div>
+              <div className="mt-2 text-3xl font-semibold text-slate-950">{erpSummary?.pendingApprovals ?? '—'}건</div>
+            </div>
+            <Link href="/approvals" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+              결재함
+            </Link>
+          </div>
+          <div className="mt-5 space-y-3">
+            <OperationRow label="정산 대기" value={`${erpSummary?.pendingSettlements ?? '—'}건`} href="/hr/trip-expenses" tone="emerald" />
+            <OperationRow label="정산 대기 금액" value={erpSummary ? `${erpSummary.pendingSettlementAmount.toLocaleString()}원` : '—'} href="/hr/trip-expenses" tone="sky" />
+            <OperationRow label="미확인 알림" value={`${erpSummary?.unreadNotifications ?? '—'}건`} href="/notifications" tone="slate" />
+          </div>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm text-slate-600">진행중</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? '—' : kpi.running}</div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm text-slate-600">일시정지</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? '—' : kpi.paused}</div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm text-slate-600">종료</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? '—' : kpi.archived}</div>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-sm text-slate-600">최근 7일 업데이트</div>
-          <div className="mt-2 text-2xl font-semibold">{loading ? '—' : kpi.updated7d}</div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-slate-500">운영 상태 보드</div>
+              <div className="mt-1 text-sm text-slate-600">캠페인과 ERP 흐름을 한 화면에서 봅니다.</div>
+            </div>
+            <Link href="/hr/leave-stats" className="text-sm font-medium text-slate-600 hover:text-slate-950">근태 통계</Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <StatusRail
+              title="캠페인"
+              items={[
+                ['전체', loading ? '—' : kpi.total],
+                ['진행중', loading ? '—' : kpi.running],
+                ['일시정지', loading ? '—' : kpi.paused],
+                ['최근 7일', loading ? '—' : kpi.updated7d],
+              ]}
+            />
+            <StatusRail
+              title="ERP"
+              items={[
+                ['올해 근태 신청', erpSummary?.yearlyLeaveRequests ?? '—'],
+                ['대기 결재', erpSummary?.pendingApprovals ?? '—'],
+                ['정산 대기', erpSummary?.pendingSettlements ?? '—'],
+                ['최근 감사 로그', erpSummary?.recentAuditLogs ?? '—'],
+              ]}
+            />
+          </div>
         </div>
       </section>
 
@@ -242,6 +283,36 @@ export default function DashboardClient() {
           {loading ? <div className="py-6 text-center text-sm text-slate-500">불러오는 중…</div> : null}
         </div>
       </section>
+    </div>
+  );
+}
+
+function OperationRow({ label, value, href, tone }: { label: string; value: string; href: string; tone: 'emerald' | 'sky' | 'slate' }) {
+  const toneClass = {
+    emerald: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+    sky: 'bg-sky-50 text-sky-800 border-sky-100',
+    slate: 'bg-slate-50 text-slate-700 border-slate-100',
+  }[tone];
+  return (
+    <Link href={href} className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm transition hover:brightness-[0.98] ${toneClass}`}>
+      <span>{label}</span>
+      <span className="font-semibold">{value}</span>
+    </Link>
+  );
+}
+
+function StatusRail({ title, items }: { title: string; items: Array<[string, number | string]> }) {
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase text-slate-400">{title}</div>
+      <div className="divide-y divide-slate-100 rounded-md border border-slate-100">
+        {items.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between px-3 py-2 text-sm">
+            <span className="text-slate-500">{label}</span>
+            <span className="font-semibold text-slate-950">{value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

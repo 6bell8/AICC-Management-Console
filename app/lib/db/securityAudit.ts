@@ -2,7 +2,12 @@ import { randomUUID } from 'crypto';
 
 import { getMysqlPool } from './mysql';
 
-type SecurityAuditAction = 'PASSWORD_RESET' | 'PASSWORD_CHANGED';
+type SecurityAuditAction =
+  | 'PASSWORD_RESET'
+  | 'PASSWORD_CHANGED'
+  | 'TRIP_EXPENSE_APPROVED'
+  | 'TRIP_EXPENSE_REJECTED'
+  | 'TRIP_EXPENSE_SETTLED';
 
 export async function createSecurityAuditLog(input: {
   actorId: string | null;

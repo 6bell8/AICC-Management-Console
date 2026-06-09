@@ -57,8 +57,8 @@ history in `approval_calendar_syncs`.
 - `app/api/contracts/deals/route.ts`
 - `app/lib/db/contracts.ts`
 - `app/lib/notice/store.ts`
-- `app/lib/db/authorGuides.ts`
 - `app/lib/dynnode/store.ts`
+- `app/lib/db/authorGuides.ts`
 - `app/lib/monitoring/store.ts`
 - `app/lib/db/hr.ts`
 - `app/lib/integrations/notionCalendar.ts`

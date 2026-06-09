@@ -3,7 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
-import { deleteUser, listUsers, resetUserPassword, updateUserControl, USER_ROLES, USER_STATUSES } from '@/app/lib/db/users';
+import { deleteUser, listUsers, listUsersPage, resetUserPassword, updateUserControl, USER_ROLES, USER_STATUSES } from '@/app/lib/db/users';
 import { createSecurityAuditLog } from '@/app/lib/db/securityAudit';
 
 export const runtime = 'nodejs';
@@ -27,9 +27,20 @@ function canChangeRole(user: Awaited<ReturnType<typeof getCurrentUser>>, role?: 
   return role !== 'HEAD' && role !== 'ADMIN';
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!canControl(user)) return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+
+  const url = new URL(req.url);
+  const page = Number(url.searchParams.get('page') || 0);
+  if (page > 0) {
+    const pageSize = Number(url.searchParams.get('pageSize') || 10);
+    const search = url.searchParams.get('search') || undefined;
+    const status = (url.searchParams.get('status') || 'ALL') as (typeof USER_STATUSES)[number] | 'ALL';
+    const role = (url.searchParams.get('role') || 'ALL') as (typeof USER_ROLES)[number] | 'ALL';
+    const teamId = url.searchParams.get('teamId') || 'ALL';
+    return NextResponse.json(await listUsersPage({ page, pageSize, search, status, role, teamId }), { status: 200 });
+  }
 
   return NextResponse.json({ users: await listUsers() }, { status: 200 });
 }

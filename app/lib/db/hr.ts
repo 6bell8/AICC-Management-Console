@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 
 import { getMysqlPool } from './mysql';
+import { createSecurityAuditLog } from './securityAudit';
 import type { AuthUser } from './users';
 import { buildLeaveNotionPayload, createNotionCalendarPage } from '../integrations/notionCalendar';
 import type {
@@ -290,7 +291,19 @@ export async function updateTeam(input: { id: string; name: string; headUserId?:
 
 export async function deleteTeam(id: string) {
   const pool = getMysqlPool();
-  await pool.execute('DELETE FROM teams WHERE id = ?', [id]);
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute('UPDATE employee_profiles SET team_id = NULL WHERE team_id = ?', [id]);
+    await connection.execute('DELETE FROM user_team_memberships WHERE team_id = ?', [id]);
+    await connection.execute('DELETE FROM teams WHERE id = ?', [id]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function listEmployeeProfiles() {
@@ -784,7 +797,7 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
     await connection.beginTransaction();
     const [stepRows] = await connection.query<RowDataPacket[]>(
       `
-        SELECT id, target_type, approver_id, target_id
+        SELECT id, target_type, approver_id, target_id, step_order
         FROM approval_steps
         WHERE id = ? AND status = 'PENDING'
         LIMIT 1
@@ -823,6 +836,18 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
         await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', ['REJECTED', pendingStep.target_id]);
         await connection.commit();
 
+        await createSecurityAuditLog({
+          actorId: input.user.id,
+          targetUserId: String(target.requester_id),
+          action: 'TRIP_EXPENSE_REJECTED',
+          details: {
+            tripExpenseRequestId: String(pendingStep.target_id),
+            approvalStepId: input.stepId,
+            stepOrder: Number(pendingStep.step_order ?? 1),
+            comment: input.comment?.trim() || null,
+          },
+        });
+
         await createNotification({
           userId: String(target.requester_id),
           type: 'APPROVAL_REJECTED',
@@ -858,6 +883,19 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
       if (nextStep) {
         await connection.commit();
 
+        await createSecurityAuditLog({
+          actorId: input.user.id,
+          targetUserId: String(target.requester_id),
+          action: 'TRIP_EXPENSE_APPROVED',
+          details: {
+            tripExpenseRequestId: String(pendingStep.target_id),
+            approvalStepId: input.stepId,
+            stepOrder: Number(pendingStep.step_order ?? 1),
+            finalApproval: false,
+            nextApproverId: String(nextStep.approver_id),
+          },
+        });
+
         await createNotification({
           userId: String(nextStep.approver_id),
           type: 'APPROVAL_REQUESTED',
@@ -872,6 +910,19 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
 
       await connection.execute('UPDATE trip_expense_requests SET status = ? WHERE id = ?', ['APPROVED', pendingStep.target_id]);
       await connection.commit();
+
+      await createSecurityAuditLog({
+        actorId: input.user.id,
+        targetUserId: String(target.requester_id),
+        action: 'TRIP_EXPENSE_APPROVED',
+        details: {
+          tripExpenseRequestId: String(pendingStep.target_id),
+          approvalStepId: input.stepId,
+          stepOrder: Number(pendingStep.step_order ?? 1),
+          finalApproval: true,
+          comment: input.comment?.trim() || null,
+        },
+      });
 
       await createNotification({
         userId: String(target.requester_id),

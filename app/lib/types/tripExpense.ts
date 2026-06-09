@@ -47,7 +47,11 @@ export type TripExpenseRequest = {
   memo: string | null;
   status: TripExpenseStatus;
   settlementStatus: TripExpenseSettlementStatus;
+  settledByName: string | null;
   settledAt: string | null;
+  paymentDate: string | null;
+  paymentAccount: string | null;
+  settlementMemo: string | null;
   approverName: string | null;
   approvalStepId: string | null;
   attachments: TripExpenseAttachment[];

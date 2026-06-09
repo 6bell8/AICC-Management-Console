@@ -75,6 +75,10 @@ export default function TripExpensesPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [fileNotice, setFileNotice] = useState('');
+  const [settlementTarget, setSettlementTarget] = useState<TripExpenseRequest | null>(null);
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentAccount, setPaymentAccount] = useState('');
+  const [settlementMemo, setSettlementMemo] = useState('');
 
   const query = useQuery<TripExpenseResponse>({
     queryKey: ['hr', 'trip-expenses'],
@@ -144,18 +148,23 @@ export default function TripExpensesPage() {
   });
 
   const settleMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (input: { id: string; paymentDate: string; paymentAccount: string; settlementMemo: string }) => {
       const res = await fetch('/api/hr/trip-expenses', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'SETTLE' }),
+        body: JSON.stringify({ ...input, action: 'SETTLE' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || '출장여비 정산 처리에 실패했습니다.');
       return data;
     },
     onSuccess: async () => {
+      setSettlementTarget(null);
+      setPaymentDate(new Date().toISOString().slice(0, 10));
+      setPaymentAccount('');
+      setSettlementMemo('');
       await qc.invalidateQueries({ queryKey: ['hr', 'trip-expenses'] });
+      await qc.invalidateQueries({ queryKey: ['notifications', 'counts'] });
     },
   });
 
@@ -203,6 +212,23 @@ export default function TripExpensesPage() {
   function removeFile(key: string) {
     setFiles((current) => current.filter((file) => fileKey(file) !== key));
     setFileNotice('선택한 파일을 첨부 대기 목록에서 제거했습니다.');
+  }
+
+  function openSettlement(item: TripExpenseRequest) {
+    setSettlementTarget(item);
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentAccount(item.paymentAccount ?? '');
+    setSettlementMemo(item.settlementMemo ?? '');
+  }
+
+  function submitSettlement() {
+    if (!settlementTarget) return;
+    settleMutation.mutate({
+      id: settlementTarget.id,
+      paymentDate,
+      paymentAccount,
+      settlementMemo,
+    });
   }
 
   return (
@@ -440,12 +466,18 @@ export default function TripExpensesPage() {
                             size="sm"
                             variant="saveOutlineGreen"
                             disabled={settleMutation.isPending}
-                            onClick={() => settleMutation.mutate(item.id)}
+                            onClick={() => openSettlement(item)}
                           >
                             완료
                           </Button>
                         ) : null}
                       </div>
+                      {item.settlementStatus === 'PAID' ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          {item.paymentDate ?? '-'} · {item.settledByName ?? '담당자 미기록'}
+                        </div>
+                      ) : null}
+                      {item.settlementMemo ? <div className="mt-1 max-w-[220px] truncate text-xs text-slate-500">정산 메모: {item.settlementMemo}</div> : null}
                     </td>
                   </tr>
                 ))}
@@ -461,6 +493,46 @@ export default function TripExpensesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {settlementTarget ? (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/35" onClick={() => setSettlementTarget(null)} />
+          <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2">
+            <Card className="border-slate-200 bg-white shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-base">출장여비 정산 처리</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-900">
+                  <div className="font-semibold">{settlementTarget.requesterName} · {won(settlementTarget.totalAmount)}</div>
+                  <div className="mt-1 text-emerald-800">{settlementTarget.origin} - {settlementTarget.destination}</div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium text-slate-700">지급일</span>
+                    <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className={fieldClass} />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium text-slate-700">지급 계좌/메모</span>
+                    <Input value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} placeholder="예: 국민 000-00-0000" className={fieldClass} />
+                  </label>
+                </div>
+                <label className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-700">정산 메모</span>
+                  <Textarea value={settlementMemo} onChange={(e) => setSettlementMemo(e.target.value)} placeholder="정산 특이사항이 있으면 입력해 주세요." className={`min-h-[92px] ${fieldClass}`} />
+                </label>
+                {settleMutation.isError ? <div className="text-sm text-rose-600">{(settleMutation.error as Error).message}</div> : null}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setSettlementTarget(null)} disabled={settleMutation.isPending}>취소</Button>
+                  <Button variant="saveOutlineGreen" onClick={submitSettlement} disabled={settleMutation.isPending || !paymentDate}>
+                    {settleMutation.isPending ? '처리 중...' : '정산 완료'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

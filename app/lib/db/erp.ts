@@ -15,6 +15,51 @@ function toDateOnly(value: Date | string | null) {
   return String(value).slice(0, 10);
 }
 
+async function ensureOrganizationSettingsTable() {
+  const pool = getMysqlPool();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS organization_settings (
+      id TINYINT NOT NULL DEFAULT 1,
+      root_name VARCHAR(100) NOT NULL DEFAULT 'AICC 본부',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      CONSTRAINT chk_organization_settings_singleton CHECK (id = 1)
+    ) ENGINE=InnoDB
+  `);
+  await pool.execute(`
+    INSERT INTO organization_settings (id, root_name)
+    VALUES (1, 'AICC 본부')
+    ON DUPLICATE KEY UPDATE root_name = root_name
+  `);
+}
+
+export async function getOrganizationSettings() {
+  await ensureOrganizationSettingsTable();
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>('SELECT root_name FROM organization_settings WHERE id = 1 LIMIT 1');
+  return {
+    rootName: rows[0]?.root_name ? String(rows[0].root_name) : 'AICC 본부',
+  };
+}
+
+export async function updateOrganizationRootName(rootName: string) {
+  const nextName = rootName.trim();
+  if (!nextName) throw new Error('ROOT명을 입력해 주세요.');
+  if (nextName.length > 100) throw new Error('ROOT명은 100자 이하로 입력해 주세요.');
+  await ensureOrganizationSettingsTable();
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      INSERT INTO organization_settings (id, root_name)
+      VALUES (1, ?)
+      ON DUPLICATE KEY UPDATE root_name = VALUES(root_name)
+    `,
+    [nextName],
+  );
+  return getOrganizationSettings();
+}
+
 export async function listSecurityAuditLogs() {
   const pool = getMysqlPool();
   const [rows] = await pool.query<RowDataPacket[]>(
@@ -44,10 +89,11 @@ export async function listSecurityAuditLogs() {
 
 export async function listOrganizationSnapshot() {
   const pool = getMysqlPool();
+  const settings = await getOrganizationSettings();
   const [rows] = await pool.query<RowDataPacket[]>(
     `
       SELECT
-        t.id AS team_id, t.name AS team_name, head.name AS head_name,
+        t.id AS team_id, t.name AS team_name, t.head_user_id, head.name AS head_name,
         u.id AS user_id, u.name AS user_name, u.email, u.role, u.status,
         ep.position, ep.employment_type, ep.hire_date, ep.years_of_service
       FROM teams t
@@ -58,12 +104,13 @@ export async function listOrganizationSnapshot() {
     `,
   );
 
-  const teams = new Map<string, { id: string; name: string; headName: string; members: Array<Record<string, unknown>> }>();
+  const teams = new Map<string, { id: string; name: string; headUserId?: string | null; headName: string; members: Array<Record<string, unknown>> }>();
   for (const row of rows) {
     const id = String(row.team_id);
     if (!teams.has(id)) {
       teams.set(id, { id, name: String(row.team_name), headName: row.head_name ? String(row.head_name) : '미지정', members: [] });
     }
+    teams.get(id)!.headUserId = row.head_user_id ? String(row.head_user_id) : null;
     if (row.user_id) {
       teams.get(id)!.members.push({
         id: String(row.user_id),
@@ -91,6 +138,7 @@ export async function listOrganizationSnapshot() {
   );
 
   return {
+    rootName: settings.rootName,
     teams: Array.from(teams.values()),
     unassigned: unassignedRows.map((row) => ({
       id: String(row.id),
@@ -134,7 +182,7 @@ export async function listLeaveStats() {
       LEFT JOIN teams t ON t.id = lr.team_id
       WHERE YEAR(lr.start_date) = YEAR(CURDATE())
       GROUP BY COALESCE(t.name, '팀 미지정')
-      ORDER BY request_count DESC
+      ORDER BY used_leave_days DESC, request_count DESC
     `,
   );
   const [recentRows] = await pool.query<RowDataPacket[]>(
@@ -219,4 +267,123 @@ export async function listApprovalDocuments(user: AuthUser) {
     rejectedSteps: Number(row.rejected_steps ?? 0),
     createdAt: toIso(row.created_at) ?? new Date().toISOString(),
   }));
+}
+
+export async function getApprovalDocumentDetail(user: AuthUser, id: string) {
+  const pool = getMysqlPool();
+  const params: unknown[] = [id];
+  const scope =
+    user.role === 'HEAD' || user.role === 'ADMIN'
+      ? ''
+      : "AND (lr.requester_id = ? OR EXISTS (SELECT 1 FROM approval_steps access_aps WHERE access_aps.target_type = 'LEAVE_REQUEST' AND access_aps.target_id = lr.id AND access_aps.approver_id = ?))";
+  if (scope) params.push(user.id, user.id);
+
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT lr.id, lr.request_type, lr.status, lr.start_date, lr.end_date, lr.reason, lr.created_at, lr.updated_at,
+        requester.name AS requester_name, requester.email AS requester_email, COALESCE(t.name, '팀 미지정') AS team_name
+      FROM leave_requests lr
+      JOIN users requester ON requester.id = lr.requester_id
+      LEFT JOIN teams t ON t.id = lr.team_id
+      WHERE lr.id = ?
+      ${scope}
+      LIMIT 1
+    `,
+    params,
+  );
+  const row = rows[0];
+  if (!row) return null;
+
+  const [stepRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT aps.id, aps.step_order, aps.status, aps.comment, aps.decided_at, aps.created_at,
+        approver.name AS approver_name, approver.email AS approver_email
+      FROM approval_steps aps
+      JOIN users approver ON approver.id = aps.approver_id
+      WHERE aps.target_type = 'LEAVE_REQUEST' AND aps.target_id = ?
+      ORDER BY aps.step_order ASC
+    `,
+    [id],
+  );
+
+  return {
+    id: String(row.id),
+    requestType: String(row.request_type),
+    status: String(row.status),
+    requesterName: String(row.requester_name),
+    requesterEmail: String(row.requester_email),
+    teamName: String(row.team_name),
+    startDate: toDateOnly(row.start_date),
+    endDate: toDateOnly(row.end_date),
+    reason: row.reason ? String(row.reason) : '-',
+    createdAt: toIso(row.created_at) ?? new Date().toISOString(),
+    updatedAt: toIso(row.updated_at) ?? new Date().toISOString(),
+    steps: stepRows.map((step) => ({
+      id: String(step.id),
+      order: Number(step.step_order ?? 1),
+      status: String(step.status),
+      comment: step.comment ? String(step.comment) : null,
+      decidedAt: toIso(step.decided_at),
+      createdAt: toIso(step.created_at) ?? new Date().toISOString(),
+      approverName: String(step.approver_name),
+      approverEmail: String(step.approver_email),
+    })),
+  };
+}
+
+export async function getDashboardErpSummary(user: AuthUser) {
+  const pool = getMysqlPool();
+  const approvalScope = user.role === 'HEAD' || user.role === 'ADMIN' ? '' : 'AND aps.approver_id = ?';
+  const approvalParams = user.role === 'HEAD' || user.role === 'ADMIN' ? [] : [user.id];
+  const [approvalRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COUNT(*) AS count
+      FROM approval_steps aps
+      WHERE aps.status = 'PENDING'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM approval_steps prev
+          WHERE prev.target_type = aps.target_type
+            AND prev.target_id = aps.target_id
+            AND prev.step_order < aps.step_order
+            AND prev.status <> 'APPROVED'
+        )
+        ${approvalScope}
+    `,
+    approvalParams,
+  );
+  const [notificationRows] = await pool.query<RowDataPacket[]>(
+    'SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND read_at IS NULL',
+    [user.id],
+  );
+  const [settlementRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS amount
+      FROM trip_expense_requests
+      WHERE status = 'APPROVED' AND settlement_status = 'PENDING'
+    `,
+  );
+  const [leaveRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COUNT(*) AS count
+      FROM leave_requests
+      WHERE YEAR(start_date) = YEAR(CURDATE())
+    `,
+  );
+  const [auditRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COUNT(*) AS count
+      FROM security_audit_logs
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    `,
+  );
+
+  return {
+    pendingApprovals: Number(approvalRows[0]?.count ?? 0),
+    unreadNotifications: Number(notificationRows[0]?.count ?? 0),
+    pendingSettlements: Number(settlementRows[0]?.count ?? 0),
+    pendingSettlementAmount: Number(settlementRows[0]?.amount ?? 0),
+    yearlyLeaveRequests: Number(leaveRows[0]?.count ?? 0),
+    recentAuditLogs: Number(auditRows[0]?.count ?? 0),
+  };
 }

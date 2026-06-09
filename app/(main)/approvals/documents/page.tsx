@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
 import { listApprovalDocuments } from '@/app/lib/db/erp';
@@ -49,7 +50,11 @@ export default async function ApprovalDocumentsPage() {
             <tbody className="divide-y divide-slate-100">
               {documents.map((doc) => (
                 <tr key={doc.id} className="hover:bg-slate-50/70">
-                  <td className="px-4 py-3 font-medium text-slate-900">{REQUEST_TYPE_LABEL[doc.requestType as RequestType] ?? doc.requestType}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    <Link href={`/approvals/documents/${encodeURIComponent(doc.id)}`} className="hover:underline">
+                      {REQUEST_TYPE_LABEL[doc.requestType as RequestType] ?? doc.requestType}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full border px-2 py-1 text-xs font-medium ${statusClass(doc.status)}`}>
                       {REQUEST_STATUS_LABEL[doc.status as RequestStatus] ?? doc.status}

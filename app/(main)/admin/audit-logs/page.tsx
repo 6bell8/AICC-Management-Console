@@ -6,7 +6,54 @@ import { listSecurityAuditLogs } from '@/app/lib/db/erp';
 const ACTION_LABEL: Record<string, string> = {
   PASSWORD_RESET: '비밀번호 초기화',
   PASSWORD_CHANGED: '비밀번호 변경',
+  TRIP_EXPENSE_APPROVED: '출장여비 결재 승인',
+  TRIP_EXPENSE_REJECTED: '출장여비 결재 반려',
+  TRIP_EXPENSE_SETTLED: '출장여비 정산 완료',
 };
+
+function formatKst(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function parseDetails(details: string) {
+  try {
+    return JSON.parse(details) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function formatDetails(action: string, details: string) {
+  const parsed = parseDetails(details);
+  if (action === 'TRIP_EXPENSE_APPROVED') {
+    return parsed.finalApproval
+      ? `최종 승인 · ${parsed.stepOrder ?? '-'}차 결재`
+      : `${parsed.stepOrder ?? '-'}차 승인 · 다음 결재 요청`;
+  }
+  if (action === 'TRIP_EXPENSE_REJECTED') {
+    return `반려 · ${parsed.stepOrder ?? '-'}차 결재${parsed.comment ? ` · ${parsed.comment}` : ''}`;
+  }
+  if (action === 'TRIP_EXPENSE_SETTLED') {
+    return [
+      `지급일 ${parsed.paymentDate ?? '-'}`,
+      parsed.totalAmount ? `${Number(parsed.totalAmount).toLocaleString()}원` : '',
+      parsed.paymentAccount ? `계좌 ${parsed.paymentAccount}` : '',
+      parsed.settlementMemo ? `메모 ${parsed.settlementMemo}` : '',
+    ].filter(Boolean).join(' · ');
+  }
+  if (action === 'PASSWORD_RESET') return '임시 비밀번호 발급 및 변경 강제';
+  if (action === 'PASSWORD_CHANGED') return parsed.forced ? '임시 비밀번호 변경 완료' : '비밀번호 변경 완료';
+  return details;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +74,7 @@ export default async function AuditLogsPage() {
       <div className="grid gap-3 md:grid-cols-3">
         <Metric label="전체 로그" value={logs.length} />
         <Metric label="비밀번호 초기화" value={logs.filter((log) => log.action === 'PASSWORD_RESET').length} />
-        <Metric label="비밀번호 변경" value={logs.filter((log) => log.action === 'PASSWORD_CHANGED').length} />
+        <Metric label="출장여비 결재" value={logs.filter((log) => log.action === 'TRIP_EXPENSE_APPROVED' || log.action === 'TRIP_EXPENSE_REJECTED').length} />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -45,7 +92,7 @@ export default async function AuditLogsPage() {
             <tbody className="divide-y divide-slate-100">
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/70">
-                  <td className="px-4 py-3 text-slate-600">{new Date(log.createdAt).toLocaleString('ko-KR')}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatKst(log.createdAt)}</td>
                   <td className="px-4 py-3">
                     <span className="rounded-full border border-sky-100 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">
                       {ACTION_LABEL[log.action] ?? log.action}
@@ -59,7 +106,7 @@ export default async function AuditLogsPage() {
                     <div className="font-medium text-slate-900">{log.targetName}</div>
                     <div className="text-xs text-slate-500">{log.targetEmail ?? '-'}</div>
                   </td>
-                  <td className="max-w-[260px] truncate px-4 py-3 text-slate-500" title={log.details}>{log.details}</td>
+                  <td className="max-w-[320px] truncate px-4 py-3 text-slate-500" title={log.details}>{formatDetails(log.action, log.details)}</td>
                 </tr>
               ))}
               {logs.length === 0 ? (

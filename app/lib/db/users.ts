@@ -110,6 +110,93 @@ export async function listUsers() {
   return rows.map(mapUser).map(withoutPassword);
 }
 
+export async function listUsersPage(input: {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: UserStatus | 'ALL';
+  role?: UserRole | 'ALL';
+  teamId?: string | 'ALL' | 'UNASSIGNED';
+}) {
+  const pool = getMysqlPool();
+  const page = Math.max(1, input.page);
+  const pageSize = Math.min(100, Math.max(1, input.pageSize));
+  const where: string[] = [];
+  const params: unknown[] = [];
+  const search = input.search?.trim();
+
+  if (search) {
+    where.push('(u.name LIKE ? OR u.email LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  if (input.status && input.status !== 'ALL') {
+    where.push('u.status = ?');
+    params.push(input.status);
+  }
+  if (input.role && input.role !== 'ALL') {
+    where.push('u.role = ?');
+    params.push(input.role);
+  }
+  if (input.teamId && input.teamId !== 'ALL') {
+    if (input.teamId === 'UNASSIGNED') {
+      where.push('ep.team_id IS NULL');
+    } else {
+      where.push('ep.team_id = ?');
+      params.push(input.teamId);
+    }
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const [countRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COUNT(*) AS total
+      FROM users u
+      LEFT JOIN employee_profiles ep ON ep.user_id = u.id
+      ${whereSql}
+    `,
+    params,
+  );
+  const total = Number(countRows[0]?.total ?? 0);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const offset = (safePage - 1) * pageSize;
+
+  const [rows] = await pool.query<UserRow[]>(
+    `
+      SELECT u.id, u.email, u.password_hash, u.force_password_change, u.name, u.role, u.status, u.approved_by, u.approved_at, u.created_at, u.updated_at
+      FROM users u
+      LEFT JOIN employee_profiles ep ON ep.user_id = u.id
+      ${whereSql}
+      ORDER BY FIELD(u.status, 'PENDING', 'APPROVED', 'REJECTED'), u.created_at DESC
+      LIMIT ? OFFSET ?
+    `,
+    [...params, pageSize, offset],
+  );
+
+  const [summaryRows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT
+        SUM(status = 'PENDING') AS pending_count,
+        SUM(status = 'APPROVED') AS approved_count,
+        SUM(role IN ('HEAD', 'ADMIN')) AS admin_count
+      FROM users
+    `,
+  );
+  const summary = summaryRows[0] ?? {};
+
+  return {
+    users: rows.map(mapUser).map(withoutPassword),
+    total,
+    page: safePage,
+    pageSize,
+    summary: {
+      pending: Number(summary.pending_count ?? 0),
+      approved: Number(summary.approved_count ?? 0),
+      admin: Number(summary.admin_count ?? 0),
+    },
+  };
+}
+
 export async function createSignupUser(input: { email: string; passwordHash: string; name: string }) {
   const id = randomUUID();
   const pool = getMysqlPool();

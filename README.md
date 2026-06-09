@@ -13,6 +13,7 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 - zod + react-hook-form
 - lucide-react
 - dnd-kit (칸반 Drag & Drop)
+- Web Worker (동적노드 러너)
 - (차트) Recharts 기반 대시보드 차트 컴포넌트
 
 ---
@@ -61,7 +62,6 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 
 - `api/dynnode/route.ts`
 - `api/dynnode/[id]/route.ts`
-
 
 - `api/notice/route.ts`
 - `api/notice/[id]/route.ts`
@@ -180,6 +180,9 @@ DB_USER
 DB_PASSWORD
 DB_NAME
 ```
+
+Railway 기본 변수명(`MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`,
+`MYSQLDATABASE`)도 호환됩니다.
 
 Railway MySQL을 사용할 경우 Railway의 public host/port 값을 사용합니다. `mysql.railway.internal`은 Railway 내부 서비스 전용이라 Vercel이나 로컬 PC에서는 사용하지 않습니다.
 

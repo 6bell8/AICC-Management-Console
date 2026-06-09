@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,6 +21,7 @@ type NavNode =
 
 const NAV: NavNode[] = [
   { type: 'link', label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { type: 'link', label: '조직도 / 팀 현황', href: '/admin/org', icon: <Building2 className="h-4 w-4" /> },
   { type: 'link', label: '결재함', href: '/approvals', icon: <ClipboardCheck className="h-4 w-4" />, badgeKey: 'pendingApprovals' },
   { type: 'link', label: '전자결재 문서함', href: '/approvals/documents', icon: <ClipboardCheck className="h-4 w-4" /> },
   { type: 'link', label: '알림', href: '/notifications', icon: <Bell className="h-4 w-4" />, badgeKey: 'unreadNotifications' },
@@ -33,12 +34,7 @@ const NAV: NavNode[] = [
       { label: '캠페인 모니터링', href: '/campaigns/monitoring' },
     ],
   },
-  {
-    type: 'link',
-    label: '사업 회선 관리',
-    href: '/business-lines',
-    icon: <Building2 className="h-4 w-4" />,
-  },
+
   {
     type: 'group',
     label: '인사관리',
@@ -68,6 +64,12 @@ const NAV: NavNode[] = [
       { label: '저작 가이드', href: '/board/author-guide' },
     ],
   },
+  {
+    type: 'link',
+    label: '사업 회선 관리',
+    href: '/business-lines',
+    icon: <Building2 className="h-4 w-4" />,
+  },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -93,7 +95,6 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
     ? [
         ...NAV,
         { type: 'link' as const, label: '계정 승인 관리', href: '/admin/users', icon: <ShieldCheck className="h-4 w-4" /> },
-        { type: 'link' as const, label: '조직도 / 팀 현황', href: '/admin/org', icon: <Building2 className="h-4 w-4" /> },
         { type: 'link' as const, label: '감사 로그', href: '/admin/audit-logs', icon: <ShieldCheck className="h-4 w-4" /> },
       ]
     : NAV;

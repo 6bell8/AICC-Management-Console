@@ -23,6 +23,9 @@ const createSchema = z.object({
 const updateSchema = z.object({
   id: z.string().min(1),
   action: z.literal('SETTLE'),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paymentAccount: z.string().max(200).optional(),
+  settlementMemo: z.string().max(2000).optional(),
 });
 
 export async function GET() {
@@ -58,7 +61,13 @@ export async function PATCH(req: Request) {
     const parsed = updateSchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ message: '출장여비 처리 정보를 확인해 주세요.' }, { status: 400 });
 
-    await settleTripExpenseRequest({ user, id: parsed.data.id });
+    await settleTripExpenseRequest({
+      user,
+      id: parsed.data.id,
+      paymentDate: parsed.data.paymentDate,
+      paymentAccount: parsed.data.paymentAccount,
+      settlementMemo: parsed.data.settlementMemo,
+    });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '출장여비 정산 처리에 실패했습니다.';

@@ -93,7 +93,7 @@ export default function NoticeListClient() {
 
       <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 
-      {/* Notice list tone */}
+      {/* ✅ DynNode와 동일 톤 */}
       <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
         {q.isPending ? (
           <ListSkeleton rows={8} />

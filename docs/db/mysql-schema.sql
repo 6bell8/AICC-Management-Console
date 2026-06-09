@@ -94,7 +94,6 @@ CREATE TABLE IF NOT EXISTS author_guides (
   FULLTEXT INDEX ftx_author_guides_title_content (title, content)
 ) ENGINE=InnoDB;
 
-
 CREATE TABLE IF NOT EXISTS dynnode_posts (
   id VARCHAR(80) NOT NULL,
   title VARCHAR(200) NOT NULL,
@@ -181,6 +180,19 @@ CREATE TABLE IF NOT EXISTS teams (
     FOREIGN KEY (head_user_id) REFERENCES users (id)
     ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS organization_settings (
+  id TINYINT NOT NULL DEFAULT 1,
+  root_name VARCHAR(100) NOT NULL DEFAULT 'AICC 본부',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  CONSTRAINT chk_organization_settings_singleton CHECK (id = 1)
+) ENGINE=InnoDB;
+
+INSERT INTO organization_settings (id, root_name)
+VALUES (1, 'AICC 본부')
+ON DUPLICATE KEY UPDATE root_name = root_name;
 
 CREATE TABLE IF NOT EXISTS user_team_memberships (
   user_id CHAR(36) NOT NULL,
@@ -372,6 +384,9 @@ CREATE TABLE IF NOT EXISTS trip_expense_requests (
   settlement_status ENUM('PENDING', 'PAID') NOT NULL DEFAULT 'PENDING',
   settled_by CHAR(36) NULL,
   settled_at DATETIME(3) NULL,
+  payment_date DATE NULL,
+  payment_account VARCHAR(200) NULL,
+  settlement_memo TEXT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -440,6 +455,51 @@ SET @trip_expense_requests_settled_at_sql = (
 PREPARE trip_expense_requests_settled_at_stmt FROM @trip_expense_requests_settled_at_sql;
 EXECUTE trip_expense_requests_settled_at_stmt;
 DEALLOCATE PREPARE trip_expense_requests_settled_at_stmt;
+
+SET @trip_expense_requests_payment_date_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN payment_date DATE NULL AFTER settled_at',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'payment_date'
+);
+PREPARE trip_expense_requests_payment_date_stmt FROM @trip_expense_requests_payment_date_sql;
+EXECUTE trip_expense_requests_payment_date_stmt;
+DEALLOCATE PREPARE trip_expense_requests_payment_date_stmt;
+
+SET @trip_expense_requests_payment_account_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN payment_account VARCHAR(200) NULL AFTER payment_date',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'payment_account'
+);
+PREPARE trip_expense_requests_payment_account_stmt FROM @trip_expense_requests_payment_account_sql;
+EXECUTE trip_expense_requests_payment_account_stmt;
+DEALLOCATE PREPARE trip_expense_requests_payment_account_stmt;
+
+SET @trip_expense_requests_settlement_memo_sql = (
+  SELECT IF(
+    COUNT(*) = 0,
+    'ALTER TABLE trip_expense_requests ADD COLUMN settlement_memo TEXT NULL AFTER payment_account',
+    'SELECT 1'
+  )
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'trip_expense_requests'
+    AND COLUMN_NAME = 'settlement_memo'
+);
+PREPARE trip_expense_requests_settlement_memo_stmt FROM @trip_expense_requests_settlement_memo_sql;
+EXECUTE trip_expense_requests_settlement_memo_stmt;
+DEALLOCATE PREPARE trip_expense_requests_settlement_memo_stmt;
 
 SET @trip_expense_requests_trip_scope_sql = (
   SELECT IF(

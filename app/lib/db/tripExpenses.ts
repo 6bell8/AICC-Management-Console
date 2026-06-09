@@ -3,6 +3,7 @@ import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 
 import type { AuthUser } from './users';
 import { getMysqlPool } from './mysql';
+import { createSecurityAuditLog } from './securityAudit';
 import type { EligibleBusinessTrip, TransportType, TripExpenseAttachment, TripExpenseRequest, TripScope } from '../types/tripExpense';
 
 type EligibleTripRow = RowDataPacket & {
@@ -35,7 +36,11 @@ type TripExpenseRow = RowDataPacket & {
   memo: string | null;
   status: TripExpenseRequest['status'];
   settlement_status: TripExpenseRequest['settlementStatus'];
+  settled_by_name: string | null;
   settled_at: Date | string | null;
+  payment_date: Date | string | null;
+  payment_account: string | null;
+  settlement_memo: string | null;
   approver_name: string | null;
   approval_step_id: string | null;
   created_at: Date | string;
@@ -97,7 +102,11 @@ function mapTripExpense(row: TripExpenseRow): TripExpenseRequest {
     memo: row.memo,
     status: row.status,
     settlementStatus: row.settlement_status ?? 'PENDING',
+    settledByName: row.settled_by_name,
     settledAt: toIso(row.settled_at),
+    paymentDate: row.payment_date == null ? null : toDateOnly(row.payment_date),
+    paymentAccount: row.payment_account,
+    settlementMemo: row.settlement_memo,
     approverName: row.approver_name,
     approvalStepId: row.approval_step_id,
     attachments: [],
@@ -182,7 +191,9 @@ export async function listTripExpenseRequests(user: AuthUser) {
         ter.team_id, t.name AS team_name, ter.origin, ter.destination, ter.trip_scope, ter.transport_type,
         ter.train_fare_amount, ter.car_depreciation_amount, ter.other_amount,
         ter.lodging_nights, ter.daily_allowance_amount, ter.lodging_amount, ter.total_amount,
-        ter.memo, ter.status, ter.settlement_status, ter.settled_at, approver.name AS approver_name, aps.id AS approval_step_id,
+        ter.memo, ter.status, ter.settlement_status, settled_user.name AS settled_by_name,
+        ter.settled_at, ter.payment_date, ter.payment_account, ter.settlement_memo,
+        approver.name AS approver_name, aps.id AS approval_step_id,
         ter.created_at, ter.updated_at
       FROM trip_expense_requests ter
       JOIN users requester ON requester.id = ter.requester_id
@@ -198,8 +209,9 @@ export async function listTripExpenseRequests(user: AuthUser) {
            AND prev.target_id = aps.target_id
            AND prev.step_order < aps.step_order
            AND prev.status <> 'APPROVED'
-       )
+      )
       LEFT JOIN users approver ON approver.id = aps.approver_id
+      LEFT JOIN users settled_user ON settled_user.id = ter.settled_by
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY ter.created_at DESC
     `,
@@ -227,7 +239,13 @@ export async function listTripExpenseRequests(user: AuthUser) {
   return items.map((item) => ({ ...item, attachments: attachmentsByRequest.get(item.id) ?? [] }));
 }
 
-export async function settleTripExpenseRequest(input: { user: AuthUser; id: string }) {
+export async function settleTripExpenseRequest(input: {
+  user: AuthUser;
+  id: string;
+  paymentDate: string;
+  paymentAccount?: string;
+  settlementMemo?: string;
+}) {
   if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN') {
     throw new Error('출장여비 정산 처리는 관리자 이상만 가능합니다.');
   }
@@ -235,7 +253,7 @@ export async function settleTripExpenseRequest(input: { user: AuthUser; id: stri
   const pool = getMysqlPool();
   const [rows] = await pool.query<RowDataPacket[]>(
     `
-      SELECT id, status, settlement_status
+      SELECT id, requester_id, status, settlement_status, total_amount
       FROM trip_expense_requests
       WHERE id = ?
       LIMIT 1
@@ -251,11 +269,36 @@ export async function settleTripExpenseRequest(input: { user: AuthUser; id: stri
       UPDATE trip_expense_requests
       SET settlement_status = 'PAID',
           settled_by = ?,
-          settled_at = CURRENT_TIMESTAMP(3)
+          settled_at = CURRENT_TIMESTAMP(3),
+          payment_date = ?,
+          payment_account = ?,
+          settlement_memo = ?
       WHERE id = ?
     `,
-    [input.user.id, input.id],
+    [input.user.id, input.paymentDate, input.paymentAccount?.trim() || null, input.settlementMemo?.trim() || null, input.id],
   );
+
+  await createSecurityAuditLog({
+    actorId: input.user.id,
+    targetUserId: String(current.requester_id),
+    action: 'TRIP_EXPENSE_SETTLED',
+    details: {
+      tripExpenseRequestId: input.id,
+      totalAmount: Number(current.total_amount ?? 0),
+      paymentDate: input.paymentDate,
+      paymentAccount: input.paymentAccount?.trim() || null,
+      settlementMemo: input.settlementMemo?.trim() || null,
+    },
+  });
+
+  await createNotification({
+    userId: String(current.requester_id),
+    type: 'SYSTEM',
+    title: '출장여비 정산 완료',
+    message: `출장여비 ${Number(current.total_amount ?? 0).toLocaleString()}원이 정산 완료되었습니다.`,
+    targetType: 'TRIP_EXPENSE',
+    targetId: input.id,
+  });
 }
 
 async function findHrFinalApproverId(connection: PoolConnection) {
