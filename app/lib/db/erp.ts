@@ -248,7 +248,6 @@ export async function listApprovalDocuments(user: AuthUser) {
       ${scope}
       GROUP BY lr.id, lr.request_type, lr.status, lr.start_date, lr.end_date, lr.reason, lr.created_at, requester.name, t.name
       ORDER BY lr.created_at DESC
-      LIMIT 80
     `,
     params,
   );

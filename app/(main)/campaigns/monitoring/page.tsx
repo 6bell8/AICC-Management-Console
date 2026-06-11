@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DashboardCharts from '../../dashboard/DashboardCharts'; // 경로는 실제 위치에 맞게 조정
 import { Button } from '@/app/components/ui/button';
+import { Skeleton } from '@/app/components/ui/skeleton';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 type SummaryRes = {
@@ -30,6 +31,23 @@ type RunItem = {
   latencyAvgMs: number;
   latencyP95Ms: number;
 };
+
+function RunsTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <tr key={index} className="border-b border-slate-100 last:border-b-0">
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-40" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-16" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-24" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-28" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-8 w-24" /></td>
+        </tr>
+      ))}
+    </>
+  );
+}
 
 export default function MonitoringPage() {
   const qc = useQueryClient();
@@ -138,6 +156,7 @@ export default function MonitoringPage() {
               </tr>
             </thead>
             <tbody>
+              {runsQ.isLoading ? <RunsTableSkeleton /> : null}
               {runs.map((r) => (
                 <tr key={r.runId} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60">
                   <td className="py-2 pr-3">
@@ -161,8 +180,6 @@ export default function MonitoringPage() {
               ))}
             </tbody>
           </table>
-
-          {runsQ.isLoading ? <div className="py-6 text-center text-sm text-slate-500">불러오는 중…</div> : null}
         </div>
       </section>
     </div>

@@ -102,11 +102,7 @@ export default function ApprovalsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">결재함</h1>
-          <p className="text-sm text-muted-foreground">팀원이 올린 연차, 반차, 출장, 출장여비 신청을 승인하거나 반려합니다.</p>
         </div>
-        <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
-          {query.isFetching ? '갱신 중...' : '새로고침'}
-        </Button>
       </div>
 
       {decisionMutation.isError ? (

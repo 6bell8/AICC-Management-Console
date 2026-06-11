@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthUser, UserRole, UserStatus } from '@/app/lib/db/users';
 import { Button } from '@/app/components/ui/button';
+import { Skeleton } from '@/app/components/ui/skeleton';
 import {
   EMPLOYEE_POSITION_LABEL,
   EMPLOYEE_POSITIONS,
@@ -27,6 +28,22 @@ function statusBadge(status: UserStatus) {
   if (status === 'APPROVED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'REJECTED') return 'border-rose-200 bg-rose-50 text-rose-700';
   return 'border-amber-200 bg-amber-50 text-amber-700';
+}
+
+function UserTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, rowIndex) => (
+        <tr key={rowIndex}>
+          {Array.from({ length: 12 }).map((_, colIndex) => (
+            <td key={colIndex} className="px-4 py-3">
+              <Skeleton className={colIndex === 1 || colIndex === 11 ? 'h-4 w-full' : 'h-4 w-24'} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
 }
 
 export default function UsersAdminClient({ currentUser }: Props) {
@@ -256,9 +273,6 @@ export default function UsersAdminClient({ currentUser }: Props) {
           <h1 className="text-xl font-semibold">계정 승인 관리</h1>
           <p className="mt-1 text-sm text-slate-500">가입 신청 승인, 반려, 역할 변경을 관리합니다.</p>
         </div>
-        <Button variant="outline" onClick={loadUsers} disabled={loading || Boolean(pendingId)}>
-          {loading ? '불러오는 중...' : '새로고침'}
-        </Button>
       </div>
 
       <div className="hidden">
@@ -422,11 +436,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr>
-                  <td className="px-4 py-8 text-center text-slate-500" colSpan={12}>
-                    불러오는 중...
-                  </td>
-                </tr>
+                <UserTableSkeleton />
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td className="px-4 py-8 text-center text-slate-500" colSpan={12}>

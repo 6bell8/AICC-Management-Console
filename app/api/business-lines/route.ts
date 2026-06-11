@@ -14,7 +14,10 @@ const lineSchema = z.object({
   serviceType: z.enum(BUSINESS_LINE_SERVICE_TYPES),
   botName: z.string().min(1),
   botCode: z.string().min(1),
-  requester: z.string().min(1),
+  requester: z.string().trim().min(1).max(100).refine(
+    (value) => !/^[가-힣]{2,4}$/.test(value),
+    '실명 대신 요청부서 또는 식별코드를 입력해 주세요.',
+  ),
   requestedAt: z.string().min(1),
   endedAt: z.string().nullable().optional().default(null),
   regiStatus: z.enum(BUSINESS_LINE_STATUSES),

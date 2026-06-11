@@ -12,7 +12,7 @@ import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="divide-y divide-slate-900/20">
+    <div className="divide-y divide-slate-100">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -91,16 +91,16 @@ export default function NoticeListClient() {
 
       {!canWrite ? <ReadOnlyNotice /> : null}
 
-      <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
+      <div className="h-4">{q.isFetching ? <Skeleton className="h-4 w-24" /> : null}</div>
 
       {/* ✅ DynNode와 동일 톤 */}
-      <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         {q.isPending ? (
           <ListSkeleton rows={8} />
         ) : items.length === 0 ? (
           <div className="p-4 text-sm text-slate-900/60">공지사항이 없습니다.</div>
         ) : (
-          <div className="divide-y divide-slate-900/20">
+          <div className="divide-y divide-slate-100">
             {items.map((n) => (
               <Link key={n.id} href={`/board/notice/${encodeURIComponent(n.id)}`} className="block p-4 transition-colors hover:bg-slate-900/5">
                 <div className="flex items-center justify-between gap-3">

@@ -186,7 +186,7 @@ export default function LeavePage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">근태신청 관리 현황</h1>
+          <h1 className="text-xl font-semibold">근태관리</h1>
           <p className="text-sm text-muted-foreground">월별 캘린더에서 날짜를 선택해 근태 신청을 등록합니다.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -196,9 +196,6 @@ export default function LeavePage() {
             onChange={(e) => setMonth(e.target.value || getMonthValue())}
             className="w-[152px] border-slate-200 bg-white/90 pr-1 font-semibold text-slate-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-visible:border-sky-300 focus-visible:ring-sky-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
           />
-          <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
-            {query.isFetching ? '갱신 중...' : '새로고침'}
-          </Button>
         </div>
       </div>
 

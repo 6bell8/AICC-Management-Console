@@ -9,7 +9,6 @@ import { createCampaign, getCampaigns, patchCampaign } from '../../lib/api/campa
 import type { Campaign, CampaignStatus, CampaignUpdateFormValues } from '../../lib/types/campaign';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { RefreshCw, Loader2 } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -310,18 +309,6 @@ export default function CampaignsClient() {
             </SimpleSelect>
 
             <Button
-              className="w-16"
-              variant="outline"
-              size="icon"
-              onClick={() => query.refetch()}
-              disabled={query.isFetching}
-              aria-label="새로고침"
-              title="새로고침"
-            >
-              {query.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 text-blue-600/80" />}
-            </Button>
-
-            <Button
               variant="outline"
               onClick={() => {
                 setQInput('');
@@ -349,7 +336,7 @@ export default function CampaignsClient() {
             <div className="text-sm text-muted-foreground">표시할 캠페인이 없습니다.</div>
           ) : (
             <>
-              <div className="divide-y divide-slate-900/20 overflow-hidden rounded-md border border-slate-900/25">
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-md border border-slate-200">
                 {items.map((c) => {
                   const nextStatus = getNextStatus(c.status);
                   const rowPending = statusMutation.isPending && statusMutation.variables?.id === c.id;

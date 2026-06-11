@@ -8,7 +8,7 @@ import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
-import type { EligibleBusinessTrip, TransportType, TripExpenseRequest, TripScope } from '@/app/lib/types/tripExpense';
+import type { EligibleBusinessTrip, TransportType, TripExpenseRequest, TripExpenseStatus, TripScope } from '@/app/lib/types/tripExpense';
 
 type TripExpenseResponse = {
   eligibleTrips: EligibleBusinessTrip[];
@@ -26,6 +26,20 @@ const TRANSPORT_LABEL: Record<TransportType, string> = {
 const SCOPE_LABEL: Record<TripScope, string> = {
   IN_CITY: '시내 출장',
   OUT_CITY: '시외 출장',
+};
+
+const STATUS_LABEL: Record<TripExpenseStatus, string> = {
+  PENDING: '결재 대기',
+  APPROVED: '승인',
+  REJECTED: '반려',
+  CANCELLED: '취소',
+};
+
+const STATUS_BADGE_CLASS: Record<TripExpenseStatus, string> = {
+  PENDING: 'border-amber-200 bg-amber-50 text-amber-800',
+  APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+  CANCELLED: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
 const DAILY_ALLOWANCE: Record<TripScope, number> = {
@@ -48,6 +62,14 @@ function amount(value: string) {
 
 function won(value: number) {
   return value.toLocaleString() + '원';
+}
+
+function StatusBadge({ status }: { status: TripExpenseStatus }) {
+  return (
+    <span className={['inline-flex min-w-16 justify-center rounded-full border px-2.5 py-1 text-xs font-medium', STATUS_BADGE_CLASS[status]].join(' ')}>
+      {STATUS_LABEL[status]}
+    </span>
+  );
 }
 
 function fileKey(file: File) {
@@ -448,7 +470,9 @@ export default function TripExpensesPage() {
                         '-'
                       )}
                     </td>
-                    <td className="px-3 py-2">{item.status}</td>
+                    <td className="px-3 py-2">
+                      <StatusBadge status={item.status} />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import DashboardCharts from './DashboardCharts';
 import { Badge } from '../../components/ui/badge';
+import { Skeleton } from '../../components/ui/skeleton';
 import { getCampaigns } from '../../lib/api/campaigns';
 
 import { getStatusPalette, normalizeStatusKey } from '../../components/ui/status-palette';
@@ -45,6 +46,21 @@ function statusKeyToBadgeVariant(key: ReturnType<typeof normalizeStatusKey>): 'r
 function safeLabel(x: unknown, fallback: string) {
   const s = typeof x === 'string' ? x.trim() : '';
   return s ? s : fallback;
+}
+
+function RecentTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <tr key={index} className="border-b border-slate-100 last:border-b-0">
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-40" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-28" /></td>
+          <td className="py-2 pr-3"><Skeleton className="h-4 w-32" /></td>
+        </tr>
+      ))}
+    </>
+  );
 }
 
 function toDateKey(d: Date) {
@@ -247,6 +263,7 @@ export default function DashboardClient() {
             </thead>
 
             <tbody>
+              {loading ? <RecentTableSkeleton /> : null}
               {!loading && recent.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-10 text-center text-sm text-slate-500">
@@ -255,7 +272,7 @@ export default function DashboardClient() {
                 </tr>
               ) : null}
 
-              {recent.map((r) => {
+              {!loading && recent.map((r) => {
                 const p = getStatusPalette(r.status);
                 const variant = statusKeyToBadgeVariant(p.key);
 
@@ -279,8 +296,6 @@ export default function DashboardClient() {
               })}
             </tbody>
           </table>
-
-          {loading ? <div className="py-6 text-center text-sm text-slate-500">불러오는 중…</div> : null}
         </div>
       </section>
     </div>

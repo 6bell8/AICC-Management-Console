@@ -582,6 +582,44 @@ CREATE TABLE IF NOT EXISTS trip_expense_attachments (
   CONSTRAINT chk_trip_expense_attachments_file_size CHECK (file_size >= 0)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS meeting_resources (
+  id CHAR(36) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  type ENUM('MEETING_ROOM', 'TRAINING_ROOM') NOT NULL DEFAULT 'MEETING_ROOM',
+  location VARCHAR(120) NULL,
+  capacity INT NOT NULL DEFAULT 1,
+  description TEXT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_meeting_resources_type_active (type, active),
+  CONSTRAINT chk_meeting_resources_capacity CHECK (capacity > 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS meeting_reservations (
+  id CHAR(36) NOT NULL,
+  resource_id CHAR(36) NOT NULL,
+  requester_id CHAR(36) NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  purpose TEXT NULL,
+  starts_at DATETIME(3) NOT NULL,
+  ends_at DATETIME(3) NOT NULL,
+  status ENUM('PENDING', 'APPROVED', 'CANCELLED') NOT NULL DEFAULT 'APPROVED',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_meeting_reservations_resource_time (resource_id, starts_at, ends_at),
+  INDEX idx_meeting_reservations_requester_created (requester_id, created_at),
+  CONSTRAINT fk_meeting_reservations_resource
+    FOREIGN KEY (resource_id) REFERENCES meeting_resources (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_meeting_reservations_requester
+    FOREIGN KEY (requester_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT chk_meeting_reservations_time CHECK (ends_at > starts_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS notifications (
   id CHAR(36) NOT NULL,
   user_id CHAR(36) NOT NULL,

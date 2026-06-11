@@ -205,7 +205,7 @@ export default function OrgManagementClient({ initialData, currentUser }: Props)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setMode('view')} className={mode === 'view' ? activeDarkButton : idleButton}>
+          <button type="button" onClick={() => setMode('view')} className={mode === 'view' ? activeGreenButton  : idleButton}>
             조직도 보기
           </button>
           {canEdit ? (
@@ -213,9 +213,6 @@ export default function OrgManagementClient({ initialData, currentUser }: Props)
               편집 모드
             </button>
           ) : null}
-          <button type="button" onClick={reload} className={idleButton}>
-            새로고침
-          </button>
         </div>
       </div>
 
@@ -297,7 +294,7 @@ export default function OrgManagementClient({ initialData, currentUser }: Props)
 }
 
 const idleButton = 'rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50';
-const activeDarkButton = 'rounded-md border border-slate-300 bg-slate-900 px-3 py-2 text-sm font-medium text-white transition';
+const activeGreenButton  =  'rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100';
 const activeBlueButton = 'rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition';
 const inputClass = 'mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100';
 

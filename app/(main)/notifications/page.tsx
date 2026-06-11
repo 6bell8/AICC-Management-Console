@@ -60,9 +60,6 @@ export default function NotificationsPage() {
           <Button variant="outline" onClick={() => readMutation.mutate({ all: true })} disabled={unreadCount === 0 || readMutation.isPending}>
             모두 읽음
           </Button>
-          <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
-            {query.isFetching ? '갱신 중...' : '새로고침'}
-          </Button>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
-import { Suspense } from 'react';
+﻿import { Suspense } from 'react';
+import { PageLoadingSkeleton } from '@/app/components/ui/page-loading-skeleton';
 import LoginClient from './LoginClient';
 
 export const dynamic = 'force-dynamic';
@@ -6,7 +7,7 @@ export const revalidate = 0;
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-500">불러오는 중...</div>}>
+    <Suspense fallback={<PageLoadingSkeleton />}>
       <LoginClient />
     </Suspense>
   );

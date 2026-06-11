@@ -17,7 +17,7 @@ import type { AuthorGuideListResponse } from '@/app/lib/api/authorGuide';
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="divide-y divide-slate-900/20">
+    <div className="divide-y divide-slate-100">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -129,22 +129,27 @@ export default function AuthorGuideListClient() {
 
       {/* ✅ 검색 UI */}
       <div className="flex items-center gap-2">
-        <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="제목/내용 검색" />
-        <Button variant="outline" disabled={!qInput} onClick={() => setQInput('')}>
+        <Input
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
+          placeholder="제목/내용 검색"
+          className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+        />
+        <Button className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50" variant="outline" disabled={!qInput} onClick={() => setQInput('')}>
           초기화
         </Button>
       </div>
 
-      <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
+      <div className="h-4">{q.isFetching ? <Skeleton className="h-4 w-24" /> : null}</div>
 
       {/* ✅ DynNode/Notice와 동일 톤 + 직선 구분선 */}
-      <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         {q.isPending ? (
           <ListSkeleton rows={8} />
         ) : items.length === 0 ? (
           <div className="p-4 text-sm text-slate-900/60">저작가이드가 없습니다.</div>
         ) : (
-          <div className="divide-y divide-slate-900/20">
+          <div className="divide-y divide-slate-100">
             {items.map((n) => (
               <Link key={n.id} href={`/board/author-guide/${encodeURIComponent(n.id)}`} className="block p-4 transition-colors hover:bg-slate-900/5">
                 <div className="flex items-center justify-between gap-3">

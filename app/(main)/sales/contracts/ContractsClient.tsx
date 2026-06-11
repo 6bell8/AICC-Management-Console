@@ -382,17 +382,6 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
             + 신규 계약
           </Button>
 
-          {/* ✅ 필요하면 수동 새로고침 */}
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => q.refetch()}
-            disabled={q.isFetching || Boolean(pendingAction)}
-            className="border-stone-200 bg-white/60"
-            title="새로고침"
-          >
-            {q.isFetching ? '갱신 중…' : '새로고침'}
-          </Button>
         </div>
       </div>
 

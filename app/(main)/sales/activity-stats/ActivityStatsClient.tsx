@@ -181,9 +181,6 @@ export default function ActivityStatsClient() {
           <SegmentButton active={granularity === 'weekly'} onClick={() => setGranularity('weekly')}>
             주간
           </SegmentButton>
-          <Button variant="outline" type="button" onClick={() => query.refetch()} disabled={query.isFetching}>
-            {query.isFetching ? '갱신 중...' : '새로고침'}
-          </Button>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Download, Plus, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
+import { Skeleton } from '@/app/components/ui/skeleton';
 import { deleteBusinessLine, getBusinessLines, saveBusinessLine } from '@/app/lib/api/businessLines';
 import type { BusinessLine, BusinessLineServiceType, BusinessLineStatus } from '@/app/lib/types/businessLine';
 import { BUSINESS_LINE_SERVICE_TYPES, BUSINESS_LINE_STATUSES } from '@/app/lib/types/businessLine';
@@ -40,6 +41,22 @@ function statusClass(status: BusinessLineStatus) {
 function csvEscape(value: unknown) {
   const text = String(value ?? '');
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+function BusinessLineTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, rowIndex) => (
+        <tr key={rowIndex}>
+          {Array.from({ length: 12 }).map((_, colIndex) => (
+            <td key={colIndex} className="px-4 py-3">
+              <Skeleton className={colIndex === 4 || colIndex === 10 ? 'h-4 w-full' : 'h-4 w-24'} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
 }
 
 export default function BusinessLinesClient() {
@@ -227,7 +244,7 @@ export default function BusinessLinesClient() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {query.isLoading ? (
-                <tr><td colSpan={12} className="px-4 py-10 text-center text-slate-500">불러오는 중...</td></tr>
+                <BusinessLineTableSkeleton />
               ) : rows.length === 0 ? (
                 <tr><td colSpan={12} className="px-4 py-10 text-center text-slate-500">등록된 회선이 없습니다.</td></tr>
               ) : rows.map((row, index) => (
@@ -260,12 +277,12 @@ export default function BusinessLinesClient() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <button type="button" disabled={page <= 1} onClick={() => setPage(1)} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-300">First</button>
-        <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-300">{'<'}</button>
-        <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm">{page}</span>
-        <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-300">{'>'}</button>
-        <button type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)} className="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-300">Last</button>
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white p-3">
+        <button type="button" disabled={page <= 1} onClick={() => setPage(1)} className={pageButtonClass}>First</button>
+        <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className={pageButtonClass}>{'<'}</button>
+        <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm">{page}</span>
+        <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className={pageButtonClass}>{'>'}</button>
+        <button type="button" disabled={page >= totalPages} onClick={() => setPage(totalPages)} className={pageButtonClass}>Last</button>
       </div>
 
       {editing && (
@@ -280,6 +297,8 @@ export default function BusinessLinesClient() {
     </div>
   );
 }
+
+const pageButtonClass = 'h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-300';
 
 function Metric({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'dark' | 'muted' }) {
   const valueClass = tone === 'dark' ? 'text-slate-900' : tone === 'muted' ? 'text-slate-600' : 'text-slate-800';
