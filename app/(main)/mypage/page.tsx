@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
 import { getPersonalDashboard } from '@/app/lib/db/personalDashboard';
+import { getEmployeeProfileDetails } from '@/app/lib/db/profileDetails';
+import ProfileDetailsForm from './ProfileDetailsForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +20,13 @@ const POSITION_LABEL: Record<string, string> = {
 const EMPLOYMENT_LABEL: Record<string, string> = {
   P: '정규직',
   E: '계약직',
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  HEAD: '총괄 관리자',
+  ADMIN: '관리자',
+  OPERATOR: '운영 담당자',
+  VIEWER: '조회 사용자',
 };
 
 const REQUEST_TYPE_LABEL: Record<string, string> = {
@@ -49,10 +58,15 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   REVOKED: 'border-slate-200 bg-slate-50 text-slate-500',
 };
 
+const SETTLEMENT_STATUS_LABEL: Record<string, string> = {
+  PENDING: '정산 대기',
+  PAID: '정산 완료',
+};
+
 export default async function MyPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/mypage');
-  const data = await getPersonalDashboard(user);
+  const [data, profileDetails] = await Promise.all([getPersonalDashboard(user), getEmployeeProfileDetails(user.id)]);
 
   return (
     <div className="space-y-5">
@@ -75,7 +89,7 @@ export default async function MyPage() {
           <dl className="space-y-2">
             <Info label="이름" value={data.user.name} />
             <Info label="이메일" value={data.user.email} />
-            <Info label="역할" value={data.user.role} />
+            <Info label="역할" value={ROLE_LABEL[data.user.role] ?? data.user.role} />
             <Info label="계정 상태" value={<StatusBadge status={data.user.status} />} />
           </dl>
         </div>
@@ -110,6 +124,8 @@ export default async function MyPage() {
         </div>
       </section>
 
+      <ProfileDetailsForm profile={profileDetails} fallbackName={data.user.name} />
+
       <section className="grid gap-4 xl:grid-cols-2">
         <History title="최근 근태/출장 신청">
           {data.recentLeaveRequests.map((item) => (
@@ -128,7 +144,7 @@ export default async function MyPage() {
             <div key={item.id} className="flex items-center justify-between border-b border-slate-100 px-3 py-3 last:border-b-0">
               <div>
                 <div className="text-sm font-medium text-slate-900">{item.origin || '-'} - {item.destination || '-'}</div>
-                <div className="text-xs text-slate-500">{item.totalAmount.toLocaleString()}원 · {item.settlementStatus}</div>
+                <div className="text-xs text-slate-500">{item.totalAmount.toLocaleString()}원 · {settlementStatusLabel(item.settlementStatus)}</div>
               </div>
               <StatusBadge status={item.status} />
             </div>
@@ -169,6 +185,11 @@ function History({ title, children }: { title: string; children: ReactNode }) {
 
 function Empty({ text }: { text: string }) {
   return <div className="px-3 py-8 text-center text-sm text-slate-500">{text}</div>;
+}
+
+function settlementStatusLabel(status: string) {
+  const key = status.toUpperCase();
+  return SETTLEMENT_STATUS_LABEL[key] ?? status;
 }
 
 function StatusBadge({ status }: { status: string }) {

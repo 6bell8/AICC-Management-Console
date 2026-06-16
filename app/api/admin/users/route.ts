@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
+import { isGlobalAdmin } from '@/app/lib/auth/authorization';
 import { deleteUser, listUsers, listUsersPage, resetUserPassword, updateUserControl, USER_ROLES, USER_STATUSES } from '@/app/lib/db/users';
 import { createSecurityAuditLog } from '@/app/lib/db/securityAudit';
 
@@ -18,7 +19,7 @@ const updateSchema = z.object({
 const RESET_PASSWORD = 'new123!@';
 
 function canControl(user: Awaited<ReturnType<typeof getCurrentUser>>) {
-  return user?.role === 'HEAD' || user?.role === 'ADMIN';
+  return isGlobalAdmin(user);
 }
 
 function canChangeRole(user: Awaited<ReturnType<typeof getCurrentUser>>, role?: string) {

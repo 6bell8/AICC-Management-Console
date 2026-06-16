@@ -48,3 +48,9 @@ backup.sql
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+UsersUserAppDataRoamingnpm/
+node_modules/
+UsersUserAppDataRoamingnpm/
+node_modules/
+*.zip
+*.zip

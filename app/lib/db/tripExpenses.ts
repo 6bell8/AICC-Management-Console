@@ -1,9 +1,10 @@
-import { randomUUID } from 'crypto';
+﻿import { randomUUID } from 'crypto';
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 
 import type { AuthUser } from './users';
 import { getMysqlPool } from './mysql';
 import { createSecurityAuditLog } from './securityAudit';
+import { canSettleTripExpenses } from '../auth/authorization';
 import type { EligibleBusinessTrip, TransportType, TripExpenseAttachment, TripExpenseRequest, TripScope } from '../types/tripExpense';
 
 type EligibleTripRow = RowDataPacket & {
@@ -170,8 +171,9 @@ export async function listTripExpenseRequests(user: AuthUser) {
   const pool = getMysqlPool();
   const params: unknown[] = [];
   const where: string[] = [];
+  const canSettle = await canSettleTripExpenses(user);
 
-  if (user.role !== 'HEAD' && user.role !== 'ADMIN') {
+  if (!canSettle) {
     where.push(
       `(ter.requester_id = ? OR EXISTS (
         SELECT 1
@@ -246,8 +248,8 @@ export async function settleTripExpenseRequest(input: {
   paymentAccount?: string;
   settlementMemo?: string;
 }) {
-  if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN') {
-    throw new Error('출장여비 정산 처리는 관리자 이상만 가능합니다.');
+  if (!(await canSettleTripExpenses(input.user))) {
+    throw new Error('출장여비 정산은 관리자 또는 인사팀 팀장만 처리할 수 있습니다.');
   }
 
   const pool = getMysqlPool();
@@ -455,7 +457,7 @@ export async function createTripExpenseRequest(input: {
 }
 
 export async function canAccessTripExpenseRequest(user: AuthUser, tripExpenseRequestId: string) {
-  if (user.role === 'HEAD' || user.role === 'ADMIN') return true;
+  if (await canSettleTripExpenses(user)) return true;
 
   const pool = getMysqlPool();
   const [rows] = await pool.query<RowDataPacket[]>(
@@ -518,8 +520,9 @@ export async function addTripExpenseAttachment(input: {
 export async function getTripExpenseAttachmentForUser(user: AuthUser, attachmentId: string) {
   const pool = getMysqlPool();
   const params: unknown[] = [attachmentId];
+  const canSettle = await canSettleTripExpenses(user);
   const accessWhere =
-    user.role === 'HEAD' || user.role === 'ADMIN'
+    canSettle
       ? ''
       : 'AND (ter.requester_id = ? OR aps.approver_id = ?)';
 

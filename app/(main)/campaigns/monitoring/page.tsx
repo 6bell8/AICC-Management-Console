@@ -140,7 +140,7 @@ export default function MonitoringPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">최근 실행</div>
-          {runsQ.isFetching ? <span className="text-xs text-slate-500">업데이트 중…</span> : null}
+          {runsQ.isFetching ? <Skeleton className="h-4 w-20" /> : null}
         </div>
 
         <div className="mt-3 overflow-x-auto">
@@ -190,7 +190,7 @@ function KpiCard({ title, value, loading }: { title: string; value?: number; loa
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="text-sm text-slate-600">{title}</div>
-      <div className="mt-2 text-2xl font-semibold">{loading ? '—' : (value ?? 0)}</div>
+      {loading ? <Skeleton className="mt-2 h-8 w-16" /> : <div className="mt-2 text-2xl font-semibold">{value ?? 0}</div>}
     </div>
   );
 }

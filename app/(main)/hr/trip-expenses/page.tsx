@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, FileText, Upload, X } from 'lucide-react';
 
@@ -50,6 +51,7 @@ const DAILY_ALLOWANCE: Record<TripScope, number> = {
 const LODGING_AMOUNT_PER_NIGHT = 150_000;
 const MAX_ATTACHMENT_COUNT = 5;
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const PAGE_SIZE_OPTIONS = [10, 20, 40] as const;
 const fieldClass =
   'border-slate-100 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-200 focus-visible:border-sky-200 focus-visible:ring-sky-100';
 const selectClass =
@@ -69,6 +71,45 @@ function StatusBadge({ status }: { status: TripExpenseStatus }) {
     <span className={['inline-flex min-w-16 justify-center rounded-full border px-2.5 py-1 text-xs font-medium', STATUS_BADGE_CLASS[status]].join(' ')}>
       {STATUS_LABEL[status]}
     </span>
+  );
+}
+
+function getCompactPages(page: number, totalPages: number): Array<number | 'dots'> {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  const pages = new Set([1, totalPages, page - 1, page, page + 1].filter((value) => value >= 1 && value <= totalPages));
+  const result: Array<number | 'dots'> = [];
+  let previous = 0;
+  for (const current of Array.from(pages).sort((a, b) => a - b)) {
+    if (previous && current - previous > 1) result.push('dots');
+    result.push(current);
+    previous = current;
+  }
+  return result;
+}
+
+function PageButton({
+  children,
+  active = false,
+  disabled = false,
+  onClick,
+}: {
+  children: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        'soft-interactive min-w-9 rounded-md border px-2.5 py-1.5 text-sm font-semibold disabled:pointer-events-none disabled:opacity-40',
+        active ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-600',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -101,6 +142,8 @@ export default function TripExpensesPage() {
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [paymentAccount, setPaymentAccount] = useState('');
   const [settlementMemo, setSettlementMemo] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
 
   const query = useQuery<TripExpenseResponse>({
     queryKey: ['hr', 'trip-expenses'],
@@ -191,6 +234,18 @@ export default function TripExpensesPage() {
   });
 
   const items = query.data?.items ?? [];
+  const historyTotalPages = Math.max(1, Math.ceil(items.length / historyPageSize));
+  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+  const historyStart = items.length === 0 ? 0 : (safeHistoryPage - 1) * historyPageSize + 1;
+  const historyEnd = Math.min(safeHistoryPage * historyPageSize, items.length);
+  const pagedItems = useMemo(() => {
+    const start = (safeHistoryPage - 1) * historyPageSize;
+    return items.slice(start, start + historyPageSize);
+  }, [historyPageSize, items, safeHistoryPage]);
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) setHistoryPage(historyTotalPages);
+  }, [historyPage, historyTotalPages]);
 
   function addFiles(nextFiles: FileList | null) {
     if (!nextFiles?.length) return;
@@ -424,7 +479,32 @@ export default function TripExpensesPage() {
 
       <Card className="border-slate-200 bg-white">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">출장여비 신청 내역</CardTitle>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <CardTitle className="text-base">출장여비 신청 내역</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                총 {items.length.toLocaleString()}건 중 {historyStart.toLocaleString()}-{historyEnd.toLocaleString()}건
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    setHistoryPageSize(size);
+                    setHistoryPage(1);
+                  }}
+                  className={[
+                    'soft-interactive rounded-md border px-3 py-1.5 text-xs font-semibold',
+                    historyPageSize === size ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-slate-200 bg-white text-slate-500',
+                  ].join(' ')}
+                >
+                  {size}개
+                </button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto rounded-lg border border-slate-100">
@@ -442,7 +522,7 @@ export default function TripExpensesPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {pagedItems.map((item) => (
                   <tr key={item.id} className="border-t border-slate-100">
                     <td className="px-3 py-2">{item.requesterName}</td>
                     <td className="px-3 py-2">
@@ -515,6 +595,36 @@ export default function TripExpensesPage() {
               </tbody>
             </table>
           </div>
+          {items.length > historyPageSize ? (
+            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-500">
+                {safeHistoryPage} / {historyTotalPages} 페이지
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <PageButton disabled={safeHistoryPage <= 1} onClick={() => setHistoryPage(1)}>
+                  First
+                </PageButton>
+                <PageButton disabled={safeHistoryPage <= 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}>
+                  이전
+                </PageButton>
+                {getCompactPages(safeHistoryPage, historyTotalPages).map((page, index) =>
+                  page === 'dots' ? (
+                    <span key={`dots-${index}`} className="px-2 py-1 text-sm text-slate-400">...</span>
+                  ) : (
+                    <PageButton key={page} active={page === safeHistoryPage} onClick={() => setHistoryPage(page)}>
+                      {page}
+                    </PageButton>
+                  ),
+                )}
+                <PageButton disabled={safeHistoryPage >= historyTotalPages} onClick={() => setHistoryPage((page) => Math.min(historyTotalPages, page + 1))}>
+                  다음
+                </PageButton>
+                <PageButton disabled={safeHistoryPage >= historyTotalPages} onClick={() => setHistoryPage(historyTotalPages)}>
+                  Last
+                </PageButton>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

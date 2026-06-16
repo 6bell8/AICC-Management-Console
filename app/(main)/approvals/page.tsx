@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Skeleton } from '@/app/components/ui/skeleton';
 import { REQUEST_TYPE_LABEL, type ApprovalItem } from '@/app/lib/types/hr';
 
 type ApprovalResponse = {
@@ -37,6 +38,22 @@ function stageBadgeClass(item: ApprovalItem) {
   if (item.requestType === 'TRIP_EXPENSE' && item.approvalStepOrder >= 2) return 'border-sky-200 bg-sky-50 text-sky-700';
   if (item.requestType === 'TRIP_EXPENSE') return 'border-amber-200 bg-amber-50 text-amber-800';
   return 'border-slate-200 bg-slate-50 text-slate-700';
+}
+
+function ApprovalTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, rowIndex) => (
+        <tr key={rowIndex} className="border-b border-slate-100 last:border-b-0">
+          {Array.from({ length: 7 }).map((__, colIndex) => (
+            <td key={colIndex} className="py-2 pr-3">
+              <Skeleton className={colIndex === 3 ? 'h-6 w-28 rounded-full' : colIndex === 6 ? 'ml-auto h-8 w-28' : 'h-4 w-24'} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
 }
 
 export default function ApprovalsPage() {
@@ -102,7 +119,11 @@ export default function ApprovalsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">결재함</h1>
+          <p className="text-sm text-muted-foreground">대기 중인 근태, 출장, 출장여비 결재를 처리합니다.</p>
         </div>
+        <Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}>
+          {query.isFetching ? <Skeleton className="h-4 w-14" /> : '새로고침'}
+        </Button>
       </div>
 
       {decisionMutation.isError ? (
@@ -118,8 +139,8 @@ export default function ApprovalsPage() {
           ].join(' ')}
         >
           {decisionMutation.data.calendarSync.status === 'SYNCED'
-            ? `Notion calendar sync ${decisionMutation.data.calendarSync.mode === 'mock' ? 'mock ' : ''}completed.`
-            : `Notion calendar sync failed: ${decisionMutation.data.calendarSync.error ?? 'unknown error'}`}
+            ? `Notion 캘린더 동기화가 ${decisionMutation.data.calendarSync.mode === 'mock' ? '모의 모드로 ' : ''}완료되었습니다.`
+            : `Notion 캘린더 동기화 실패: ${decisionMutation.data.calendarSync.error ?? '알 수 없는 오류'}`}
         </div>
       ) : null}
 
@@ -142,6 +163,7 @@ export default function ApprovalsPage() {
                 </tr>
               </thead>
               <tbody>
+                {query.isLoading ? <ApprovalTableSkeleton /> : null}
                 {items.map((item) => {
                   const pending = decisionMutation.isPending && decisionMutation.variables?.stepId === item.approvalStepId;
                   return (
@@ -181,7 +203,7 @@ export default function ApprovalsPage() {
                     </tr>
                   );
                 })}
-                {items.length === 0 ? (
+                {!query.isLoading && items.length === 0 ? (
                   <tr>
                     <td className="py-6 text-center text-sm text-slate-500" colSpan={7}>
                       대기 중인 결재가 없습니다.

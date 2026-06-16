@@ -28,7 +28,6 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 
 ### Dashboard
 - `/dashboard` : 대시보드(KPI + 추이/상태 분포 차트 + 최근 변경 리스트)
-- `/mypage` : 개인 대시보드(개인 일정/승인/예약 요약)
 
 ### Campaigns
 - `/campaigns` : 캠페인 목록(검색/필터/페이지네이션/상태 토글 액션)
@@ -53,10 +52,6 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 - `/sales/activity-stats` : 영업 지표(카드/차트/요약)
 - `/sales/contracts` : 영업현황관리(칸반 + 카드 클릭 시 Dialog/Modal 편집 + 가격책정/자동합계)
 
-### Operations
-- `/operations` : 운영 현황 요약
-- `/reservations` : 회의실/자원 예약 현황과 신청
-
 ---
 
 ## API (Route Handlers)
@@ -75,8 +70,6 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 - `api/monitoring/summary/route.ts`
 - `api/monitoring/run/[runId]/route.ts`
 - `api/monitoring/campaigns/[id]/stop/route.ts`  ← 캠페인 중지 액션 엔드포인트
-
-- `api/room-reservations/route.ts`  ← 회의실/자원 예약 관리
 
 DB 상태 확인:
 - `api/health/db/route.ts`
@@ -117,9 +110,6 @@ aicc-console
 │  │  │  ├─ DashboardClient.tsx
 │  │  │  └─ page.tsx
 │  │  ├─ monitoring
-│  │  ├─ mypage
-│  │  ├─ operations
-│  │  ├─ reservations
 │  │  └─ sales
 │  │     ├─ activity-stats
 │  │     ├─ contracts
@@ -137,7 +127,6 @@ aicc-console
 │
 ├─ data
 │  ├─ authorGuide.json
-│  ├─ business-lines.json
 │  ├─ campaigns.json
 │  ├─ contracts.json
 │  ├─ dynnode.json
@@ -191,9 +180,6 @@ DB_USER
 DB_PASSWORD
 DB_NAME
 ```
-
-Railway 기본 변수명(`MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`,
-`MYSQLDATABASE`)도 호환됩니다.
 
 Railway MySQL을 사용할 경우 Railway의 public host/port 값을 사용합니다. `mysql.railway.internal`은 Railway 내부 서비스 전용이라 Vercel이나 로컬 PC에서는 사용하지 않습니다.
 

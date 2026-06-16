@@ -297,10 +297,15 @@ export default function CampaignsClient() {
           </CardDescription>
 
           <div className="flex flex-col md:flex-row gap-2">
-            <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="캠페인명 또는 ID 검색" />
+            <Input
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
+              placeholder="캠페인명 또는 ID 검색"
+              className="border-slate-200 bg-white text-slate-900 shadow-sm outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-200 focus-visible:border-sky-200 focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-0"
+            />
 
             {/* tone은 컴포넌트 구현에 따라 유지 */}
-            <SimpleSelect value={status} tone={status} onChange={(e) => setStatus(e.target.value as any)} className="md:w-48">
+            <SimpleSelect value={status} tone={status} onChange={(e) => setStatus(e.target.value as any)} className="border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:border-sky-200 focus-visible:border-sky-200 focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-0 md:w-48">
               <option value="ALL">전체</option>
               <option value="DRAFT">{statusLabel('DRAFT')}</option>
               <option value="RUNNING">{statusLabel('RUNNING')}</option>

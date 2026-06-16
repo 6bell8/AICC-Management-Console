@@ -244,6 +244,22 @@ PREPARE employee_profiles_employment_type_stmt FROM @employee_profiles_employmen
 EXECUTE employee_profiles_employment_type_stmt;
 DEALLOCATE PREPARE employee_profiles_employment_type_stmt;
 
+CREATE TABLE IF NOT EXISTS employee_profile_details (
+  user_id CHAR(36) NOT NULL,
+  display_name VARCHAR(100) NULL,
+  address VARCHAR(255) NULL,
+  education TEXT NULL,
+  awards TEXT NULL,
+  certifications TEXT NULL,
+  photo_url MEDIUMTEXT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (user_id),
+  CONSTRAINT fk_employee_profile_details_user_id
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS leave_policies (
   id CHAR(36) NOT NULL,
   position VARCHAR(50) NOT NULL,

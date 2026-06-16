@@ -12,11 +12,11 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardCheck,
+  FileText,
   LayoutDashboard,
   LogOut,
   Megaphone,
   Settings,
-  ShieldCheck,
   Target,
   UserRound,
 } from 'lucide-react';
@@ -36,12 +36,19 @@ type NavNode =
   | { type: 'link'; label: string; href: string; icon?: ReactNode; badgeKey?: 'pendingApprovals' | 'unreadNotifications' }
   | { type: 'group'; label: string; icon?: ReactNode; items: NavItem[] };
 
+const ROLE_LABEL: Record<string, string> = {
+  HEAD: '총괄 관리자',
+  ADMIN: '관리자',
+  OPERATOR: '운영 담당자',
+  VIEWER: '조회 사용자',
+};
+
 const NAV: NavNode[] = [
   { type: 'link', label: '대시보드', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { type: 'link', label: '마이페이지', href: '/mypage', icon: <UserRound className="h-4 w-4" /> },
   { type: 'link', label: '조직도 / 팀 현황', href: '/admin/org', icon: <Building2 className="h-4 w-4" /> },
   { type: 'link', label: '결재함', href: '/approvals', icon: <ClipboardCheck className="h-4 w-4" />, badgeKey: 'pendingApprovals' },
-  { type: 'link', label: '전자결재 문서함', href: '/approvals/documents', icon: <ClipboardCheck className="h-4 w-4" /> },
+  { type: 'link', label: '전자결재 문서함', href: '/approvals/documents', icon: <FileText className="h-4 w-4" /> },
   {
     type: 'group',
     label: '캠페인',
@@ -77,7 +84,7 @@ const NAV: NavNode[] = [
     items: [
       { label: '공지사항', href: '/board/notice' },
       { label: '동적노드 가이드', href: '/board/dynnode' },
-      { label: '저작 가이드', href: '/board/author-guide' },
+      { label: '작가 가이드', href: '/board/author-guide' },
     ],
   },
   { type: 'link', label: '공간 예약', href: '/reservations', icon: <CalendarClock className="h-4 w-4" /> },
@@ -91,6 +98,7 @@ const ADMIN_NAV: NavNode[] = [
     label: '시스템 관리',
     icon: <Settings className="h-4 w-4" />,
     items: [
+      { label: '설정 센터', href: '/admin/settings' },
       { label: '계정 승인 관리', href: '/admin/users' },
       { label: '감사 로그', href: '/admin/audit-logs' },
     ],
@@ -147,7 +155,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
             href="/notifications"
             className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-700/80 bg-slate-800/70 text-slate-200 transition-colors hover:border-slate-600 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             aria-label={`알림함으로 이동${counts.unreadNotifications > 0 ? `, 읽지 않은 알림 ${counts.unreadNotifications}건` : ''}`}
-            title="알림함"
+            title="알림"
           >
             <Bell className="h-4 w-4" />
             {counts.unreadNotifications > 0 ? (
@@ -159,7 +167,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
         </div>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+      <nav className="sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         <div className="space-y-2">
           {nav.map((node) => {
             if (node.type === 'link') {
@@ -229,7 +237,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
       <div className="border-t border-slate-800 p-3">
         <div className="mb-2 rounded-md bg-slate-800/70 px-3 py-2">
           <div className="truncate text-xs font-medium text-white">{initialUser.name}</div>
-          <div className="text-[11px] text-slate-300">{initialUser.role}</div>
+          <div className="text-[11px] text-slate-300">{ROLE_LABEL[initialUser.role] ?? initialUser.role}</div>
         </div>
         <button
           type="button"

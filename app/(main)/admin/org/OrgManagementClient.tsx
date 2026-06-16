@@ -201,7 +201,7 @@ export default function OrgManagementClient({ initialData, currentUser }: Props)
         <div>
           <h1 className="text-xl font-semibold text-slate-950">조직도 / 팀 현황</h1>
           <p className="mt-1 text-sm text-slate-500">
-            본부를 기준으로 단, 팀, 구성원을 확인합니다.{canEdit ? ' HEAD 계정은 편집 모드에서 조직을 관리할 수 있습니다.' : ''}
+            본부를 기준으로 단, 팀, 구성원을 확인합니다.{canEdit ? ' 관리자 계정은 편집 모드에서 조직을 관리할 수 있습니다.' : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -284,7 +284,7 @@ export default function OrgManagementClient({ initialData, currentUser }: Props)
       ) : null}
 
       {rootModalOpen ? (
-        <Modal title="ROOT명 수정" description="고객사명이나 본부명에 맞춰 조직도 최상위 이름을 변경합니다." onClose={() => setRootModalOpen(false)}>
+        <Modal title="본부명 수정" description="고객사명이나 본부명에 맞춰 조직도 최상위 이름을 변경합니다." onClose={() => setRootModalOpen(false)}>
           <input value={rootNameDraft} onChange={(event) => setRootNameDraft(event.target.value)} className={inputClass} placeholder="예: AICC 본부" />
           <ModalActions onCancel={() => setRootModalOpen(false)} onSave={saveRootName} disabled={pendingId === 'root'} />
         </Modal>
@@ -320,7 +320,7 @@ function OrgTree({
       <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium text-slate-500">ROOT</div>
+            <div className="text-sm font-medium text-slate-500">KTcs</div>
             <h2 className="mt-1 text-2xl font-semibold text-slate-950">{rootName}</h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -329,7 +329,7 @@ function OrgTree({
             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700">미지정 {data.unassigned.length}</span>
             {canEdit ? (
               <button type="button" onClick={onEditRoot} className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 font-medium text-blue-700 hover:bg-blue-100">
-                ROOT명 수정
+                본부명 수정
               </button>
             ) : null}
             {canEdit ? (

@@ -135,18 +135,28 @@ export default function AuthorGuideDetailPage() {
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-slate-200" />
 
       {!canWrite ? <ReadOnlyNotice /> : null}
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">제목</div>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={writeDisabled} />
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          disabled={writeDisabled}
+          className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+        />
       </div>
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px]" disabled={writeDisabled} />
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[220px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+          disabled={writeDisabled}
+        />
       </div>
 
       <div className="flex items-center gap-3">

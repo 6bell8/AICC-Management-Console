@@ -5,6 +5,7 @@ import { getMysqlPool } from './mysql';
 type SecurityAuditAction =
   | 'PASSWORD_RESET'
   | 'PASSWORD_CHANGED'
+  | 'SETTINGS_UPDATED'
   | 'TRIP_EXPENSE_APPROVED'
   | 'TRIP_EXPENSE_REJECTED'
   | 'TRIP_EXPENSE_SETTLED';

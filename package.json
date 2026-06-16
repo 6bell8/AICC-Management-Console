@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "check:encoding": "node scripts/check-encoding.cjs",
     "db:check": "node scripts/db/check.cjs",
     "db:schema": "node scripts/db/schema.cjs",
     "db:seed:campaigns": "node scripts/db/seed-campaigns.cjs",

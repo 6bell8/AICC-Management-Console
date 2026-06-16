@@ -22,10 +22,8 @@ AUTH_GUEST_NAME=Portfolio Guest
 ```
 
 The legacy `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and
-`MYSQL_DATABASE` variables are still supported for existing local setups.
-Railway's default `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, and
-`MYSQLDATABASE` names are also supported. New manually managed environments
-should use the `DB_*` names above.
+`MYSQL_DATABASE` variables are still supported for existing local setups, but
+new environments should use the `DB_*` names above.
 
 If `AUTH_HEAD_EMAIL` and `AUTH_HEAD_PASSWORD` are set, `npm run db:setup` seeds
 the HEAD administrator account. This account controls approval, rejection, role
@@ -45,8 +43,6 @@ DB_NAME
 
 When using Railway MySQL, map Railway's `HOST`, `PORT`, `USER`, `PASSWORD`, and
 `DATABASE` values to the `DB_*` variables above.
-If Railway injects `MYSQLHOST`, `MYSQLPORT`, `MYSQLUSER`, `MYSQLPASSWORD`, and
-`MYSQLDATABASE` directly, the app can read those names without remapping.
 
 For Vercel or local machines outside Railway, use Railway's public TCP proxy
 host and port. Do not use `mysql.railway.internal` outside Railway services.

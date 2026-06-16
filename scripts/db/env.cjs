@@ -39,12 +39,12 @@ function loadLocalEnv(rootDir) {
   loadEnvFile(path.join(rootDir, '.env'));
 }
 
-function getEnv(primaryName, legacyName, railwayName) {
-  return process.env[primaryName] || process.env[legacyName] || (railwayName ? process.env[railwayName] : undefined);
+function getEnv(primaryName, legacyName) {
+  return process.env[primaryName] || process.env[legacyName];
 }
 
-function requiredEnv(primaryName, legacyName, railwayName) {
-  const value = getEnv(primaryName, legacyName, railwayName);
+function requiredEnv(primaryName, legacyName) {
+  const value = getEnv(primaryName, legacyName);
   if (value == null || value === '') {
     throw new Error(`${primaryName} is required for MySQL connection`);
   }
@@ -52,13 +52,13 @@ function requiredEnv(primaryName, legacyName, railwayName) {
 }
 
 function getMysqlConfig(options = {}) {
-  const database = requiredEnv('DB_NAME', 'MYSQL_DATABASE', 'MYSQLDATABASE');
+  const database = requiredEnv('DB_NAME', 'MYSQL_DATABASE');
 
   return {
-    host: requiredEnv('DB_HOST', 'MYSQL_HOST', 'MYSQLHOST'),
-    port: Number(getEnv('DB_PORT', 'MYSQL_PORT', 'MYSQLPORT') || 3306),
-    user: requiredEnv('DB_USER', 'MYSQL_USER', 'MYSQLUSER'),
-    password: getEnv('DB_PASSWORD', 'MYSQL_PASSWORD', 'MYSQLPASSWORD') || '',
+    host: requiredEnv('DB_HOST', 'MYSQL_HOST'),
+    port: Number(getEnv('DB_PORT', 'MYSQL_PORT') || 3306),
+    user: requiredEnv('DB_USER', 'MYSQL_USER'),
+    password: getEnv('DB_PASSWORD', 'MYSQL_PASSWORD') || '',
     database: options.includeDatabase === false ? undefined : database,
     multipleStatements: options.multipleStatements === true,
   };

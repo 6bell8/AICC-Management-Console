@@ -203,12 +203,17 @@ export default function CampaignListClient({
       <div className="flex flex-col md:flex-row gap-2 md:items-end">
         <div className="flex-1 space-y-2">
           <label className="text-sm font-medium">검색</label>
-          <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="이름 / ID / 설명으로 검색" />
+          <Input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            placeholder="이름 / ID / 설명으로 검색"
+            className="border-slate-200 bg-white text-slate-900 shadow-sm outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-200 focus-visible:border-sky-200 focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-0"
+          />
         </div>
 
         <div className="w-full md:w-48 space-y-2">
           <label className="text-sm font-medium">상태</label>
-          <SimpleSelect value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
+          <SimpleSelect value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} className="border-slate-200 bg-white shadow-sm hover:border-slate-300 focus:border-sky-200 focus-visible:border-sky-200 focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-0">
             <option value="ALL">전체</option>
             <option value="DRAFT">초안</option>
             <option value="RUNNING">운영중</option>

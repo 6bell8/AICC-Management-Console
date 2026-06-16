@@ -70,6 +70,11 @@
   to   { opacity: 0; transform: translateX(16px); }
 }
 
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(300%); }
+}
+
 /* data-state 기반으로 애니메이션 적용 */
 [data-toast][data-state="open"] {
   animation: toastInRight 180ms ease-out both;
@@ -190,4 +195,165 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@keyframes heatmap-flow {
+  0% { transform: translateX(-120%) rotate(12deg); opacity: 0; }
+  28% { opacity: 0.55; }
+  100% { transform: translateX(240%) rotate(12deg); opacity: 0; }
+}
+
+.activity-heatmap-cell {
+  position: relative;
+  overflow: hidden;
+  transform: translateZ(0);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    filter 180ms ease;
+}
+
+.activity-heatmap-cell:hover {
+  z-index: 10;
+  transform: translateY(-3px) scale(1.035);
+  border-color: rgb(186 230 253);
+  box-shadow: 0 12px 28px rgb(14 165 233 / 0.16);
+  filter: saturate(1.06);
+}
+
+.activity-heatmap-cell-active::after {
+  content: "";
+  position: absolute;
+  inset: -28% auto -28% -45%;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.58), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.activity-heatmap-cell-active:hover::after {
+  animation: heatmap-flow 900ms ease-out;
+}
+
+.soft-panel {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255);
+}
+
+.soft-interactive {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.soft-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.08);
+}
+
+.soft-flow-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.soft-flow-hover::after {
+  content: "";
+  position: absolute;
+  inset: -35% auto -35% -45%;
+  width: 36%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.56), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.soft-flow-hover:hover::after {
+  animation: heatmap-flow 950ms ease-out;
+}
+
+.soft-icon-button {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(255 255 255);
+  color: rgb(100 116 139);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.soft-icon-button:hover {
+  transform: translateY(-1px);
+  background: rgb(248 250 252);
+  color: rgb(15 23 42);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.08);
+}
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71 85 105) rgb(15 23 42);
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: rgb(15 23 42);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid rgb(15 23 42);
+  background: rgb(71 85 105);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139);
+}
+
+.profile-input,
+.profile-textarea {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(255 255 255);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: rgb(15 23 42);
+  outline: none;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.profile-input::placeholder,
+.profile-textarea::placeholder {
+  color: rgb(148 163 184);
+}
+
+.profile-input:focus,
+.profile-textarea:focus {
+  border-color: rgb(186 230 253);
+  box-shadow: 0 0 0 3px rgb(224 242 254 / 0.9);
+}
+
+.profile-textarea {
+  min-height: 7rem;
+  resize: vertical;
+  line-height: 1.6;
 }

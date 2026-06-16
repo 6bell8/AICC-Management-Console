@@ -330,10 +330,49 @@ export async function getApprovalDocumentDetail(user: AuthUser, id: string) {
   };
 }
 
-export async function getDashboardErpSummary(user: AuthUser) {
+type DashboardTeamScope = {
+  teamIds?: string[];
+};
+
+function buildTeamTargetScope(alias: string, teamIds?: string[]) {
+  if (!teamIds?.length) return { sql: '', params: [] as unknown[] };
+  const placeholders = teamIds.map(() => '?').join(', ');
+  return {
+    sql: `
+      AND EXISTS (
+        SELECT 1
+        FROM leave_requests scoped_lr
+        WHERE ${alias}.target_type = 'LEAVE_REQUEST'
+          AND scoped_lr.id = ${alias}.target_id
+          AND scoped_lr.team_id IN (${placeholders})
+        UNION ALL
+        SELECT 1
+        FROM trip_expense_requests scoped_ter
+        WHERE ${alias}.target_type = 'TRIP_EXPENSE'
+          AND scoped_ter.id = ${alias}.target_id
+          AND scoped_ter.team_id IN (${placeholders})
+      )
+    `,
+    params: [...teamIds, ...teamIds],
+  };
+}
+
+function buildTeamColumnScope(column: string, teamIds?: string[]) {
+  if (!teamIds?.length) return { sql: '', params: [] as unknown[] };
+  const placeholders = teamIds.map(() => '?').join(', ');
+  return {
+    sql: `AND ${column} IN (${placeholders})`,
+    params: teamIds,
+  };
+}
+
+export async function getDashboardErpSummary(user: AuthUser, scope: DashboardTeamScope = {}) {
   const pool = getMysqlPool();
   const approvalScope = user.role === 'HEAD' || user.role === 'ADMIN' ? '' : 'AND aps.approver_id = ?';
   const approvalParams = user.role === 'HEAD' || user.role === 'ADMIN' ? [] : [user.id];
+  const approvalTeamScope = buildTeamTargetScope('aps', scope.teamIds);
+  const settlementTeamScope = buildTeamColumnScope('team_id', scope.teamIds);
+  const leaveTeamScope = buildTeamColumnScope('team_id', scope.teamIds);
   const [approvalRows] = await pool.query<RowDataPacket[]>(
     `
       SELECT COUNT(*) AS count
@@ -348,8 +387,9 @@ export async function getDashboardErpSummary(user: AuthUser) {
             AND prev.status <> 'APPROVED'
         )
         ${approvalScope}
+        ${approvalTeamScope.sql}
     `,
-    approvalParams,
+    [...approvalParams, ...approvalTeamScope.params],
   );
   const [notificationRows] = await pool.query<RowDataPacket[]>(
     'SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND read_at IS NULL',
@@ -360,14 +400,18 @@ export async function getDashboardErpSummary(user: AuthUser) {
       SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS amount
       FROM trip_expense_requests
       WHERE status = 'APPROVED' AND settlement_status = 'PENDING'
+        ${settlementTeamScope.sql}
     `,
+    settlementTeamScope.params,
   );
   const [leaveRows] = await pool.query<RowDataPacket[]>(
     `
       SELECT COUNT(*) AS count
       FROM leave_requests
       WHERE YEAR(start_date) = YEAR(CURDATE())
+        ${leaveTeamScope.sql}
     `,
+    leaveTeamScope.params,
   );
   const [auditRows] = await pool.query<RowDataPacket[]>(
     `
@@ -385,4 +429,61 @@ export async function getDashboardErpSummary(user: AuthUser) {
     yearlyLeaveRequests: Number(leaveRows[0]?.count ?? 0),
     recentAuditLogs: Number(auditRows[0]?.count ?? 0),
   };
+}
+
+export async function getDashboardActivityHeatmap(scope: DashboardTeamScope = {}) {
+  const pool = getMysqlPool();
+  const leaveTeamScope = buildTeamColumnScope('team_id', scope.teamIds);
+  const approvalTeamScope = buildTeamTargetScope('aps', scope.teamIds);
+  const expenseTeamScope = buildTeamColumnScope('team_id', scope.teamIds);
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT activity_date, activity_type, SUM(activity_count) AS count
+      FROM (
+        SELECT DATE(start_date) AS activity_date, 'leave' AS activity_type, COUNT(*) AS activity_count
+        FROM leave_requests
+        WHERE start_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND start_date < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+          ${leaveTeamScope.sql}
+        GROUP BY DATE(start_date)
+
+        UNION ALL
+
+        SELECT DATE(created_at) AS activity_date, 'approval' AS activity_type, COUNT(*) AS activity_count
+        FROM approval_steps aps
+        WHERE aps.created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND aps.created_at < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+          ${approvalTeamScope.sql}
+        GROUP BY DATE(aps.created_at)
+
+        UNION ALL
+
+        SELECT DATE(starts_at) AS activity_date, 'reservation' AS activity_type, COUNT(*) AS activity_count
+        FROM meeting_reservations
+        WHERE starts_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND starts_at < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+          AND status <> 'CANCELLED'
+          AND ${scope.teamIds?.length ? '1 = 0' : '1 = 1'}
+        GROUP BY DATE(starts_at)
+
+        UNION ALL
+
+        SELECT DATE(created_at) AS activity_date, 'expense' AS activity_type, COUNT(*) AS activity_count
+        FROM trip_expense_requests
+        WHERE created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND created_at < DATE_ADD(LAST_DAY(CURDATE()), INTERVAL 1 DAY)
+          ${expenseTeamScope.sql}
+        GROUP BY DATE(created_at)
+      ) activities
+      GROUP BY activity_date, activity_type
+      ORDER BY activity_date ASC, activity_type ASC
+    `,
+    [...leaveTeamScope.params, ...approvalTeamScope.params, ...expenseTeamScope.params],
+  );
+
+  return rows.map((row) => ({
+    date: toDateOnly(row.activity_date) ?? '',
+    type: String(row.activity_type),
+    count: Number(row.count ?? 0),
+  }));
 }
