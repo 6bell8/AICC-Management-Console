@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Award, Camera, ChevronDown, GraduationCap, Home, IdCard, Plus, Save, X } from 'lucide-react';
+import { Award, BriefcaseBusiness, Camera, ChevronDown, FileBadge, GraduationCap, Home, IdCard, Plus, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 
 import type { EmployeeProfileDetails } from '@/app/lib/db/profileDetails';
@@ -25,14 +25,14 @@ const DETAIL_TABS: Array<{ key: DetailKey; label: string; icon: ReactNode; place
     label: '수상',
     icon: <Award className="h-4 w-4" />,
     placeholder: '예: 2024 사내 우수 프로젝트상',
-    guide: '수상 연도와 수상명을 간단히 입력하면 증명서에 보기 좋습니다.',
+    guide: '수상 연도와 수상명을 간단히 입력하면 증빙용 이력으로 보기 좋습니다.',
   },
   {
     key: 'certifications',
     label: '자격증',
     icon: <IdCard className="h-4 w-4" />,
     placeholder: '예: 정보처리기사, SQLD',
-    guide: '자격증명 또는 발급기관을 필요하면 함께 입력해 주세요.',
+    guide: '자격증명 또는 발급기관이 필요하면 함께 입력해 주세요.',
   },
 ];
 
@@ -53,7 +53,9 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
   const [drafts, setDrafts] = useState<Record<DetailKey, string>>({ education: '', awards: '', certifications: '' });
   const [form, setForm] = useState<ProfileFormState>({
     displayName: profile.displayName,
+    residentNumberMasked: profile.residentNumberMasked,
     address: profile.address,
+    certificatePurpose: profile.certificatePurpose,
     education: profile.education,
     awards: profile.awards,
     certifications: profile.certifications,
@@ -63,7 +65,16 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
   const [message, setMessage] = useState('');
 
   const displayName = useMemo(() => form.displayName.trim() || fallbackName, [fallbackName, form.displayName]);
-  const filledCount = [form.address, form.education, form.awards, form.certifications, form.photoUrl].filter((value) => value.trim()).length;
+  const filledCount = [
+    form.displayName,
+    form.residentNumberMasked,
+    form.address,
+    form.certificatePurpose,
+    form.education,
+    form.awards,
+    form.certifications,
+    form.photoUrl,
+  ].filter((value) => value.trim()).length;
   const activeTab = DETAIL_TABS.find((tab) => tab.key === activeDetail) ?? DETAIL_TABS[0];
   const activeItems = splitItems(form[activeDetail]);
 
@@ -146,17 +157,17 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
           </span>
           <span className="min-w-0">
             <span className="block text-base font-semibold text-slate-950">프로필 상세 정보</span>
-            <span className="mt-1 block truncate text-sm text-slate-500">주소, 학력, 수상, 자격증, 프로필 사진 관리</span>
+            <span className="mt-1 block truncate text-sm text-slate-500">재직증명서 기재 항목, 사진, 학력, 수상, 자격증 관리</span>
           </span>
         </button>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">입력 {filledCount}/5</span>
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">입력 {filledCount}/8</span>
           <Link
             href="/mypage/certificate"
             className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
           >
-            <IdCard className="h-4 w-4" />
+            <FileBadge className="h-4 w-4" />
             재직증명서
           </Link>
         </div>
@@ -182,14 +193,39 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
               </label>
             </div>
 
-            <div className="grid gap-3">
-              <div className="grid gap-3 lg:grid-cols-2">
-                <Field label="표시 이름" icon={<IdCard className="h-4 w-4" />}>
-                  <input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} placeholder={fallbackName} className="profile-input" />
-                </Field>
-                <Field label="주소" icon={<Home className="h-4 w-4" />}>
-                  <input value={form.address} onChange={(event) => updateField('address', event.target.value)} placeholder="주소를 입력해 주세요." className="profile-input" />
-                </Field>
+            <div className="grid gap-4">
+              <div className="rounded-lg border border-sky-100 bg-sky-50/40 p-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <FileBadge className="h-4 w-4 text-sky-600" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-950">재직증명서 기재 항목</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">성명, 소속, 계약형태, 직위, 직책, 재직기간은 승인된 계정/인사 정보에서 자동 반영됩니다.</p>
+                  </div>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <Field label="성명" icon={<IdCard className="h-4 w-4" />}>
+                    <input value={fallbackName} readOnly className="profile-input bg-slate-50 text-slate-500" />
+                  </Field>
+                  <Field label="주민등록번호(표시용)" icon={<IdCard className="h-4 w-4" />}>
+                    <input
+                      value={form.residentNumberMasked}
+                      onChange={(event) => updateField('residentNumberMasked', event.target.value)}
+                      placeholder="예: 900101-1******"
+                      className="profile-input"
+                    />
+                  </Field>
+                  <Field label="주소" icon={<Home className="h-4 w-4" />}>
+                    <input value={form.address} onChange={(event) => updateField('address', event.target.value)} placeholder="주소를 입력해 주세요." className="profile-input" />
+                  </Field>
+                  <Field label="용도" icon={<BriefcaseBusiness className="h-4 w-4" />}>
+                    <input
+                      value={form.certificatePurpose}
+                      onChange={(event) => updateField('certificatePurpose', event.target.value)}
+                      placeholder="예: 금융권 제출, 회사 제출"
+                      className="profile-input"
+                    />
+                  </Field>
+                </div>
               </div>
 
               <Field label="사진 URL" icon={<Camera className="h-4 w-4" />}>
@@ -252,7 +288,7 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
                       ))}
                     </div>
                   ) : (
-                    <div className="px-2 py-2 text-xs text-slate-400">아직 추가된 항목이 없습니다. 한 줄 입력 후 추가를 눌러주세요.</div>
+                    <div className="px-2 py-2 text-xs text-slate-400">아직 추가한 항목이 없습니다. 한 줄 입력 후 추가를 눌러주세요.</div>
                   )}
                 </div>
               </div>
@@ -260,7 +296,7 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
           </div>
 
           <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500">항목은 줄 단위로 저장되어 재직증명서에 순서대로 표시됩니다.</p>
+            <p className="text-xs text-slate-500">재직증명서 기재 항목은 증명서 출력 화면에 우선 반영됩니다.</p>
             <button
               type="button"
               onClick={saveProfile}

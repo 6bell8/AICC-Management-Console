@@ -3,6 +3,14 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { getMysqlPool } from './mysql';
 import type { AuthUser } from './users';
 
+export type OrganizationSettings = {
+  rootName: string;
+  sealImageUrl: string;
+  sealFileName: string;
+  sealStorageKey: string;
+  sealUpdatedAt: string | null;
+};
+
 function toIso(value: Date | string | null) {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -27,11 +35,32 @@ async function ensureOrganizationSettingsTable() {
       CONSTRAINT chk_organization_settings_singleton CHECK (id = 1)
     ) ENGINE=InnoDB
   `);
+  await ensureOrganizationSettingsColumn('seal_image_url', 'MEDIUMTEXT NULL AFTER root_name');
+  await ensureOrganizationSettingsColumn('seal_file_name', 'VARCHAR(255) NULL AFTER seal_image_url');
+  await ensureOrganizationSettingsColumn('seal_storage_key', 'VARCHAR(255) NULL AFTER seal_file_name');
+  await ensureOrganizationSettingsColumn('seal_updated_at', 'DATETIME(3) NULL AFTER seal_storage_key');
   await pool.execute(`
     INSERT INTO organization_settings (id, root_name)
     VALUES (1, 'AICC 본부')
     ON DUPLICATE KEY UPDATE root_name = root_name
   `);
+}
+
+async function ensureOrganizationSettingsColumn(columnName: string, definition: string) {
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'organization_settings'
+        AND COLUMN_NAME = ?
+      LIMIT 1
+    `,
+    [columnName],
+  );
+  if (rows.length > 0) return;
+  await pool.execute(`ALTER TABLE organization_settings ADD COLUMN ${columnName} ${definition}`);
 }
 
 export async function getOrganizationSettings() {
@@ -58,6 +87,61 @@ export async function updateOrganizationRootName(rootName: string) {
     [nextName],
   );
   return getOrganizationSettings();
+}
+
+export async function getOrganizationSeal() {
+  await ensureOrganizationSettingsTable();
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    'SELECT seal_image_url, seal_file_name, seal_storage_key, seal_updated_at FROM organization_settings WHERE id = 1 LIMIT 1',
+  );
+  const row = rows[0];
+  return {
+    sealImageUrl: row?.seal_image_url ? String(row.seal_image_url) : '',
+    sealFileName: row?.seal_file_name ? String(row.seal_file_name) : '',
+    sealStorageKey: row?.seal_storage_key ? String(row.seal_storage_key) : '',
+    sealUpdatedAt: toIso(row?.seal_updated_at ?? null),
+  };
+}
+
+export async function updateOrganizationSeal(input: { imageUrl: string; fileName: string; storageKey?: string | null }) {
+  const imageUrl = input.imageUrl.trim();
+  const fileName = input.fileName.trim();
+  if (!imageUrl) throw new Error('전자직인 이미지를 선택해 주세요.');
+  if (!fileName) throw new Error('전자직인 파일명을 확인해 주세요.');
+  if (imageUrl.length > 1_200_000) throw new Error('전자직인 이미지는 900KB 이하 PNG 파일을 권장합니다.');
+
+  await ensureOrganizationSettingsTable();
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      INSERT INTO organization_settings (id, root_name, seal_image_url, seal_file_name, seal_storage_key, seal_updated_at)
+      VALUES (1, 'AICC 본부', ?, ?, ?, NOW(3))
+      ON DUPLICATE KEY UPDATE
+        seal_image_url = VALUES(seal_image_url),
+        seal_file_name = VALUES(seal_file_name),
+        seal_storage_key = VALUES(seal_storage_key),
+        seal_updated_at = VALUES(seal_updated_at)
+    `,
+    [imageUrl, fileName, input.storageKey?.trim() || null],
+  );
+  return getOrganizationSeal();
+}
+
+export async function deleteOrganizationSeal() {
+  await ensureOrganizationSettingsTable();
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      UPDATE organization_settings
+      SET seal_image_url = NULL,
+        seal_file_name = NULL,
+        seal_storage_key = NULL,
+        seal_updated_at = NULL
+      WHERE id = 1
+    `,
+  );
+  return getOrganizationSeal();
 }
 
 export async function listSecurityAuditLogs() {

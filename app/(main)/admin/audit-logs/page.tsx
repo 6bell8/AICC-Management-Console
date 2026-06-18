@@ -9,6 +9,10 @@ const ACTION_LABEL: Record<string, string> = {
   TRIP_EXPENSE_APPROVED: '출장여비 결재 승인',
   TRIP_EXPENSE_REJECTED: '출장여비 결재 반려',
   TRIP_EXPENSE_SETTLED: '출장여비 정산 완료',
+  ASSET_FILE_DOWNLOADED: '운영 자산 파일 다운로드',
+  ASSET_FILE_UPLOADED: '운영 자산 파일 업로드',
+  ASSET_FILE_DELETED: '운영 자산 파일 삭제',
+  COMPLIANCE_DOCUMENT_DOWNLOADED: '법규 문서 다운로드',
 };
 
 function formatKst(value: string) {
@@ -52,6 +56,10 @@ function formatDetails(action: string, details: string) {
   }
   if (action === 'PASSWORD_RESET') return '임시 비밀번호 발급 및 변경 강제';
   if (action === 'PASSWORD_CHANGED') return parsed.forced ? '임시 비밀번호 변경 완료' : '비밀번호 변경 완료';
+  if (action === 'ASSET_FILE_DOWNLOADED') return `${parsed.assetName ?? '운영 자산'} · ${parsed.fileName ?? '파일'} 다운로드`;
+  if (action === 'ASSET_FILE_UPLOADED') return `${parsed.assetName ?? '운영 자산'} · ${parsed.fileName ?? '파일'} 업로드`;
+  if (action === 'ASSET_FILE_DELETED') return `${parsed.assetName ?? '운영 자산'} · ${parsed.fileName ?? '파일'} 삭제`;
+  if (action === 'COMPLIANCE_DOCUMENT_DOWNLOADED') return `${parsed.title ?? '법규 문서'} 다운로드`;
   return details;
 }
 
@@ -75,6 +83,7 @@ export default async function AuditLogsPage() {
         <Metric label="전체 로그" value={logs.length} />
         <Metric label="비밀번호 초기화" value={logs.filter((log) => log.action === 'PASSWORD_RESET').length} />
         <Metric label="출장여비 결재" value={logs.filter((log) => log.action === 'TRIP_EXPENSE_APPROVED' || log.action === 'TRIP_EXPENSE_REJECTED').length} />
+        <Metric label="자산 파일 접근" value={logs.filter((log) => log.action.startsWith('ASSET_FILE_')).length} />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

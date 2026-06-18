@@ -8,7 +8,9 @@ export const runtime = 'nodejs';
 
 const profileDetailsSchema = z.object({
   displayName: z.string().max(100).default(''),
+  residentNumberMasked: z.string().max(30).default(''),
   address: z.string().max(255).default(''),
+  certificatePurpose: z.string().max(120).default(''),
   education: z.string().max(2000).default(''),
   awards: z.string().max(2000).default(''),
   certifications: z.string().max(2000).default(''),

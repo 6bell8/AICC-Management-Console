@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   FileText,
+  HardDrive,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -46,9 +47,21 @@ const ROLE_LABEL: Record<string, string> = {
 const NAV: NavNode[] = [
   { type: 'link', label: '대시보드', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
   { type: 'link', label: '마이페이지', href: '/mypage', icon: <UserRound className="h-4 w-4" /> },
-  { type: 'link', label: '조직도 / 팀 현황', href: '/admin/org', icon: <Building2 className="h-4 w-4" /> },
   { type: 'link', label: '결재함', href: '/approvals', icon: <ClipboardCheck className="h-4 w-4" />, badgeKey: 'pendingApprovals' },
   { type: 'link', label: '전자결재 문서함', href: '/approvals/documents', icon: <FileText className="h-4 w-4" /> },
+  { type: 'link', label: '조직도 / 팀 현황', href: '/admin/org', icon: <Building2 className="h-4 w-4" /> },
+  { type: 'link', label: '공간 예약', href: '/reservations', icon: <CalendarClock className="h-4 w-4" /> },
+  { type: 'link', label: '캘린더', href: '/calendar', icon: <CalendarDays className="h-4 w-4" /> },
+  {
+    type: 'group',
+    label: '운영 자산 관리',
+    icon: <HardDrive className="h-4 w-4" />,
+    items: [
+      { label: '사업 회선 관리', href: '/business-lines' },
+      { label: '라이선스 파일', href: '/assets/licenses' },
+      { label: '법규 / 규정 문서', href: '/assets/compliance' },
+    ],
+  },
   {
     type: 'group',
     label: '캠페인',
@@ -87,8 +100,7 @@ const NAV: NavNode[] = [
       { label: '작가 가이드', href: '/board/author-guide' },
     ],
   },
-  { type: 'link', label: '공간 예약', href: '/reservations', icon: <CalendarClock className="h-4 w-4" /> },
-  { type: 'link', label: '사업 회선 관리', href: '/business-lines', icon: <Building2 className="h-4 w-4" /> },
+
 ];
 
 const ADMIN_NAV: NavNode[] = [

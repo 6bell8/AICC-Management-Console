@@ -8,7 +8,11 @@ type SecurityAuditAction =
   | 'SETTINGS_UPDATED'
   | 'TRIP_EXPENSE_APPROVED'
   | 'TRIP_EXPENSE_REJECTED'
-  | 'TRIP_EXPENSE_SETTLED';
+  | 'TRIP_EXPENSE_SETTLED'
+  | 'ASSET_FILE_DOWNLOADED'
+  | 'ASSET_FILE_UPLOADED'
+  | 'ASSET_FILE_DELETED'
+  | 'COMPLIANCE_DOCUMENT_DOWNLOADED';
 
 export async function createSecurityAuditLog(input: {
   actorId: string | null;

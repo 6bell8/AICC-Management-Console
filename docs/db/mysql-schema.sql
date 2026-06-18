@@ -184,6 +184,10 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS organization_settings (
   id TINYINT NOT NULL DEFAULT 1,
   root_name VARCHAR(100) NOT NULL DEFAULT 'AICC 본부',
+  seal_image_url MEDIUMTEXT NULL,
+  seal_file_name VARCHAR(255) NULL,
+  seal_storage_key VARCHAR(255) NULL,
+  seal_updated_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
@@ -247,7 +251,9 @@ DEALLOCATE PREPARE employee_profiles_employment_type_stmt;
 CREATE TABLE IF NOT EXISTS employee_profile_details (
   user_id CHAR(36) NOT NULL,
   display_name VARCHAR(100) NULL,
+  resident_number_masked VARCHAR(30) NULL,
   address VARCHAR(255) NULL,
+  certificate_purpose VARCHAR(120) NULL,
   education TEXT NULL,
   awards TEXT NULL,
   certifications TEXT NULL,
@@ -258,6 +264,35 @@ CREATE TABLE IF NOT EXISTS employee_profile_details (
   CONSTRAINT fk_employee_profile_details_user_id
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS kakao_user_links (
+  id CHAR(36) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  kakao_user_key VARCHAR(120) NOT NULL,
+  channel_id VARCHAR(120) NULL,
+  verified_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_kakao_user_links_user_key (kakao_user_key),
+  INDEX idx_kakao_user_links_user_id (user_id),
+  CONSTRAINT fk_kakao_user_links_user_id
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS kakao_message_logs (
+  id CHAR(36) NOT NULL,
+  kakao_user_key VARCHAR(120) NULL,
+  channel_id VARCHAR(120) NULL,
+  direction ENUM('INBOUND', 'OUTBOUND') NOT NULL,
+  message_type VARCHAR(60) NOT NULL DEFAULT 'TEXT',
+  payload JSON NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_kakao_message_logs_user_created (kakao_user_key, created_at),
+  CONSTRAINT chk_kakao_message_logs_payload_json CHECK (payload IS NULL OR JSON_VALID(payload))
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS leave_policies (
@@ -668,6 +703,89 @@ CREATE TABLE IF NOT EXISTS approval_calendar_syncs (
   PRIMARY KEY (id),
   UNIQUE KEY uq_approval_calendar_syncs_target_provider (target_type, target_id, provider),
   INDEX idx_approval_calendar_syncs_status_created (sync_status, created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS calendar_memos (
+  id CHAR(36) NOT NULL,
+  scope ENUM('PERSONAL', 'TEAM') NOT NULL,
+  memo_date DATE NOT NULL,
+  memo_text TEXT NOT NULL,
+  created_by CHAR(36) NOT NULL,
+  team_id CHAR(36) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_calendar_memos_personal (created_by, memo_date),
+  INDEX idx_calendar_memos_team (team_id, memo_date),
+  CONSTRAINT fk_calendar_memos_created_by
+    FOREIGN KEY (created_by) REFERENCES users (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS operational_assets (
+  id CHAR(36) NOT NULL,
+  asset_type ENUM('LICENSE', 'CONTRACT', 'CERTIFICATE', 'SECURITY_DOC', 'ETC') NOT NULL DEFAULT 'LICENSE',
+  name VARCHAR(180) NOT NULL,
+  vendor VARCHAR(160) NOT NULL,
+  owner_user_id CHAR(36) NULL,
+  team_id CHAR(36) NULL,
+  status ENUM('ACTIVE', 'EXPIRING_SOON', 'EXPIRED', 'REVIEW') NOT NULL DEFAULT 'ACTIVE',
+  starts_at DATE NULL,
+  expires_at DATE NULL,
+  renewal_notice_days INT NOT NULL DEFAULT 30,
+  memo TEXT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_operational_assets_status_expires (status, expires_at),
+  INDEX idx_operational_assets_team_status (team_id, status),
+  CONSTRAINT fk_operational_assets_owner
+    FOREIGN KEY (owner_user_id) REFERENCES users (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS operational_asset_files (
+  id CHAR(36) NOT NULL,
+  asset_id CHAR(36) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  file_type VARCHAR(80) NOT NULL,
+  mime_type VARCHAR(120) NOT NULL DEFAULT 'application/octet-stream',
+  file_size BIGINT NOT NULL DEFAULT 0,
+  storage_provider VARCHAR(40) NOT NULL DEFAULT 'PENDING',
+  storage_key VARCHAR(500) NULL,
+  uploaded_by CHAR(36) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_operational_asset_files_asset_created (asset_id, created_at),
+  CONSTRAINT fk_operational_asset_files_asset
+    FOREIGN KEY (asset_id) REFERENCES operational_assets (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_operational_asset_files_uploaded_by
+    FOREIGN KEY (uploaded_by) REFERENCES users (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS operational_asset_access_logs (
+  id CHAR(36) NOT NULL,
+  asset_id CHAR(36) NOT NULL,
+  file_id CHAR(36) NULL,
+  action ENUM('VIEW', 'DOWNLOAD', 'UPLOAD', 'DELETE') NOT NULL,
+  actor_id CHAR(36) NULL,
+  ip_address VARCHAR(80) NULL,
+  user_agent TEXT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_operational_asset_access_logs_asset_created (asset_id, created_at),
+  INDEX idx_operational_asset_access_logs_actor_created (actor_id, created_at),
+  CONSTRAINT fk_operational_asset_access_logs_asset
+    FOREIGN KEY (asset_id) REFERENCES operational_assets (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_operational_asset_access_logs_file
+    FOREIGN KEY (file_id) REFERENCES operational_asset_files (id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_operational_asset_access_logs_actor
+    FOREIGN KEY (actor_id) REFERENCES users (id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS monitoring_runs (

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Bell, Building2, ClipboardCheck, KeyRound, Settings, ShieldCheck, UsersRound } from 'lucide-react';
+import { Bell, Building2, ClipboardCheck, KeyRound, Settings, ShieldCheck, Stamp, Trash2, Upload, UsersRound } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
 import type { AuthUser } from '@/app/lib/db/users';
@@ -11,6 +11,7 @@ import type { getSettingsCenterData } from '@/app/lib/db/settingsCenter';
 
 type SettingsData = Awaited<ReturnType<typeof getSettingsCenterData>>;
 type LeavePolicy = SettingsData['leavePolicies'][number];
+type DocumentSeal = SettingsData['documentSeal'];
 type LeavePolicyDraft = {
   id?: string;
   position: string;
@@ -68,6 +69,7 @@ export default function SettingsCenterClient({ initialData, currentUser }: Props
   const [policyDraft, setPolicyDraft] = useState<LeavePolicyDraft>(emptyPolicyDraft);
   const [pending, setPending] = useState(false);
   const [policyPending, setPolicyPending] = useState(false);
+  const [sealPending, setSealPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canEdit = currentUser.role === 'HEAD';
 
@@ -168,6 +170,60 @@ export default function SettingsCenterClient({ initialData, currentUser }: Props
     }
   }
 
+  async function uploadDocumentSeal(file: File | null) {
+    if (!canEdit || !file) return;
+    if (!file.type.startsWith('image/')) {
+      setMessage('전자직인은 이미지 파일만 등록할 수 있습니다.');
+      return;
+    }
+    if (file.size > 900_000) {
+      setMessage('전자직인은 900KB 이하 PNG 파일을 권장합니다.');
+      return;
+    }
+
+    setSealPending(true);
+    setMessage(null);
+    try {
+      const imageUrl = await readFileAsDataUrl(file);
+      const res = await fetch('/api/admin/settings/document-seal', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl,
+          fileName: file.name,
+          storageKey: null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || '전자직인을 저장하지 못했습니다.');
+      setData((prev) => ({ ...prev, documentSeal: body.seal as DocumentSeal }));
+      setMessage('전자직인을 저장했습니다.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '전자직인을 저장하지 못했습니다.');
+    } finally {
+      setSealPending(false);
+    }
+  }
+
+  async function removeDocumentSeal() {
+    if (!canEdit) return;
+    if (!window.confirm('등록된 전자직인을 삭제할까요?')) return;
+
+    setSealPending(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/settings/document-seal', { method: 'DELETE' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || '전자직인을 삭제하지 못했습니다.');
+      setData((prev) => ({ ...prev, documentSeal: body.seal as DocumentSeal }));
+      setMessage('전자직인을 삭제했습니다.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '전자직인을 삭제하지 못했습니다.');
+    } finally {
+      setSealPending(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -222,6 +278,66 @@ export default function SettingsCenterClient({ initialData, currentUser }: Props
           <div className="grid gap-2 sm:grid-cols-2">
             <QuickLink href="/admin/org" title="조직도 관리" description="본부, 단, 팀, 구성원 배치를 확인합니다." />
             <QuickLink href="/admin/users" title="계정 승인 관리" description="가입 승인, 역할, 팀, 직급을 관리합니다." />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Stamp className="h-4 w-4 text-sky-600" />
+            <h2 className="text-base font-semibold text-slate-950">문서 / 증명서 설정</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">재직증명서에 사용할 전자직인을 관리합니다. 운영 전환 시 파일은 별도 저장소에 보관하고 DB에는 경로만 저장합니다.</p>
+        </div>
+        <div className="grid gap-4 p-5 lg:grid-cols-[260px_1fr]">
+          <div className="flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-4">
+            {data.documentSeal.sealImageUrl ? (
+              <img src={data.documentSeal.sealImageUrl} alt="등록된 전자직인" className="max-h-36 max-w-full object-contain" />
+            ) : (
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400">
+                  <Stamp className="h-7 w-7" />
+                </div>
+                <div className="mt-3 text-sm font-semibold text-slate-700">전자직인 미등록</div>
+                <div className="mt-1 text-xs text-slate-400">투명 PNG 권장</div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <SealInfo label="파일명" value={data.documentSeal.sealFileName || '-'} />
+              <SealInfo label="업데이트" value={data.documentSeal.sealUpdatedAt ? formatDateTime(data.documentSeal.sealUpdatedAt) : '-'} />
+              <SealInfo label="저장 방식" value={data.documentSeal.sealStorageKey ? '파일 저장소' : data.documentSeal.sealImageUrl ? '임시 DB 저장' : '-'} />
+              <SealInfo label="권장 형식" value="PNG / 투명 배경 / 900KB 이하" />
+            </div>
+
+            <div className="rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2 text-xs text-sky-800">
+              현재는 개발 단계라 이미지 데이터를 DB에 임시 저장합니다. Vercel Blob, S3, Railway Bucket 연결 후에는 이 API에서 업로드 후 storage key만 저장하면 됩니다.
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <label
+                className={[
+                  'inline-flex cursor-pointer items-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100',
+                  !canEdit || sealPending ? 'pointer-events-none opacity-50' : '',
+                ].join(' ')}
+              >
+                <Upload className="h-4 w-4" />
+                직인 이미지 업로드
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={!canEdit || sealPending} onChange={(event) => void uploadDocumentSeal(event.target.files?.[0] ?? null)} />
+              </label>
+              <button
+                type="button"
+                onClick={removeDocumentSeal}
+                disabled={!canEdit || sealPending || !data.documentSeal.sealImageUrl}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-rose-100 hover:bg-rose-50 hover:text-rose-700 disabled:pointer-events-none disabled:opacity-45"
+              >
+                <Trash2 className="h-4 w-4" />
+                삭제
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -459,4 +575,34 @@ function RuleRow({ label, value }: { label: string; value: string }) {
       <span className="text-right font-medium text-slate-900">{value}</span>
     </div>
   );
+}
+
+function SealInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm">
+      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="mt-1 truncate font-medium text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value));
 }

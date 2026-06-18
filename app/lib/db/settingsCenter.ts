@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { RowDataPacket } from 'mysql2/promise';
 
 import { getMysqlPool } from './mysql';
-import { getOrganizationSettings } from './erp';
+import { getOrganizationSeal, getOrganizationSettings } from './erp';
 import { listTeams } from './hr';
 
 type CountRow = RowDataPacket & {
@@ -64,7 +64,7 @@ function mapLeavePolicy(row: LeavePolicyRow) {
 
 export async function getSettingsCenterData() {
   const pool = getMysqlPool();
-  const [organization, teams] = await Promise.all([getOrganizationSettings(), listTeams()]);
+  const [organization, documentSeal, teams] = await Promise.all([getOrganizationSettings(), getOrganizationSeal(), listTeams()]);
 
   const [userRows] = await pool.query<CountRow[]>(`
     SELECT
@@ -104,6 +104,7 @@ export async function getSettingsCenterData() {
 
   return {
     organization,
+    documentSeal,
     teams,
     users: {
       total: Number(userSummary.total_count ?? 0),

@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<LeaveRequest['status'], string> = {
 };
 
 const NOTION_APPROVAL_CALENDAR_URL =
-  'https://app.notion.com/p/37652247bcaa804f85fef7322c8e10ad?v=37652247bcaa804f997d000cb5ccee74&source=copy_link';
+  'https://app.notion.com/p/37652247bcaa804f85fef7322c8e10ad?v=37652247bcaa80319bcf000cfd387852';
 
 function getMonthValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -93,6 +93,28 @@ function statusClass(status: LeaveRequest['status']) {
       return 'bg-amber-50 text-amber-800 ring-1 ring-amber-200';
     default:
       return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+  }
+}
+
+function requestToneClass(type: RequestType) {
+  switch (type) {
+    case 'ANNUAL':
+      return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+    case 'AM_HALF':
+    case 'PM_HALF':
+      return 'border-sky-100 bg-sky-50 text-sky-700';
+    case 'SICK':
+      return 'border-zinc-200 bg-zinc-50 text-zinc-600';
+    case 'OFFICIAL':
+      return 'border-violet-100 bg-violet-50 text-violet-700';
+    case 'COMP':
+      return 'border-amber-100 bg-amber-50 text-amber-800';
+    case 'BUSINESS_TRIP':
+      return 'border-cyan-100 bg-cyan-50 text-cyan-700';
+    case 'TRIP_EXPENSE':
+      return 'border-slate-200 bg-slate-50 text-slate-600';
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600';
   }
 }
 
@@ -238,14 +260,21 @@ export default function LeavePage() {
         </div>
       ) : null}
 
-      <Card className="border-slate-200 bg-white">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">월간 신청 캘린더</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-amber-100/80 bg-amber-50/40 text-sm shadow-sm">
+      <section className="soft-panel p-3">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-950">월간 신청 캘린더</h2>
+            <p className="mt-1 text-xs text-slate-500">날짜를 선택해 근태 신청을 등록하고 월간 신청 현황을 확인합니다.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="inline-flex rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 font-semibold text-sky-700">신청 {items.length}건</span>
+            <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">잔여 {balance?.remainingDays ?? 0}일</span>
+          </div>
+        </div>
+        <div>
+          <div className="grid grid-cols-7 overflow-hidden rounded-lg border border-slate-100 bg-slate-50/60 text-sm">
             {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
-              <div key={day} className="border-b-2 border-r border-slate-200 bg-gradient-to-b from-slate-100 via-slate-50 to-white px-2 py-2.5 text-center text-xs font-bold text-slate-600 shadow-sm last:border-r-0">
+              <div key={day} className="border-b border-r border-slate-100 bg-white px-2 py-2 text-center text-xs font-medium text-slate-500 last:border-r-0">
                 {day}
               </div>
             ))}
@@ -255,13 +284,13 @@ export default function LeavePage() {
                 <div
                   key={`${cell.date}-${index}`}
                   className={[
-                    'group min-h-[124px] border-b border-r border-amber-100/80 p-0 text-left align-top transition last:border-r-0',
-                    cell.date ? 'bg-gradient-to-br from-white via-amber-50/35 to-yellow-50/45 hover:from-amber-50 hover:to-yellow-100/50' : '',
-                    cell.date && canWrite ? 'hover:shadow-[inset_0_0_0_1px_rgba(245,158,11,0.35)]' : '',
-                    cell.muted ? 'bg-slate-50/70' : '',
+                    'group min-h-[132px] border-b border-r border-slate-100 p-0 text-left align-top transition last:border-r-0',
+                    cell.date ? 'bg-white hover:bg-slate-50/70' : '',
+                    cell.date && canWrite ? 'hover:shadow-[inset_0_0_0_1px_rgba(125,211,252,0.75)]' : '',
+                    cell.muted ? 'bg-slate-50/60' : '',
                   ].join(' ')}
                 >
-                  <div className="flex h-full min-h-[124px] flex-col items-start justify-start p-2.5">
+                  <div className="flex h-full min-h-[132px] flex-col items-start justify-start p-2">
                     <div className="flex w-full items-start justify-between gap-2">
                       <button
                         type="button"
@@ -270,22 +299,22 @@ export default function LeavePage() {
                           setSelectedDate(cell.date);
                           setEndDate(cell.date);
                         }}
-                        className="inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-full bg-white/90 px-1.5 text-xs font-bold text-slate-800 ring-1 ring-amber-100 transition duration-150 hover:-translate-y-0.5 hover:bg-amber-100 hover:text-amber-900 hover:ring-amber-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:bg-white/90 disabled:hover:text-slate-700 disabled:hover:shadow-none"
+                        className="inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:bg-sky-50 hover:text-sky-700 hover:ring-sky-200 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:bg-white disabled:hover:text-slate-700 disabled:hover:shadow-none"
                         aria-label={cell.date ? `${cell.date} 신청 등록` : undefined}
                       >
                         {cell.day ?? ''}
                       </button>
-                      {dayItems.length > 0 ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{dayItems.length}</span> : null}
+                      {dayItems.length > 0 ? <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">{dayItems.length}</span> : null}
                     </div>
 
                     <div className="mt-2 w-full space-y-1">
                       {dayItems.slice(0, 3).map((item) => (
-                        <div key={item.id} className="truncate rounded-md bg-white/85 px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm ring-1 ring-amber-100" title={`${REQUEST_LABEL[item.requestType]} - ${item.requesterName}`}>
+                        <div key={item.id} className={['truncate rounded-md border px-2 py-1 text-[11px] font-semibold', requestToneClass(item.requestType)].join(' ')} title={`${REQUEST_LABEL[item.requestType]} - ${item.requesterName}`}>
                           {REQUEST_LABEL[item.requestType]} - {item.requesterName}
                         </div>
                       ))}
                       {dayItems.length > 3 ? (
-                        <button type="button" className="pl-1 text-left text-[11px] font-medium text-amber-700 hover:text-amber-900 hover:underline" onClick={() => setMoreListDate(cell.date)}>
+                        <button type="button" className="pl-1 text-left text-[11px] font-semibold text-slate-400 hover:text-sky-700 hover:underline" onClick={() => setMoreListDate(cell.date)}>
                           +{dayItems.length - 3}건 더보기
                         </button>
                       ) : null}
@@ -295,8 +324,8 @@ export default function LeavePage() {
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {canViewRequestList ? (
         <Card className="border-slate-200 bg-white">
@@ -379,11 +408,11 @@ export default function LeavePage() {
 
       {selectedDate ? (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/45" onClick={() => setSelectedDate(null)} />
+          <div className="absolute inset-0 bg-slate-900/25 backdrop-blur-[2px]" onClick={() => setSelectedDate(null)} />
           <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-xl -translate-x-1/2 -translate-y-1/2">
-            <Card className="border-slate-200 bg-white shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-base">{selectedDate} 신청 등록</CardTitle>
+            <Card className="border-sky-100 bg-white shadow-2xl shadow-slate-200/70">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/60">
+                <CardTitle className="text-base text-slate-950">{selectedDate} 신청 등록</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {balance ? (
@@ -449,6 +478,7 @@ export default function LeavePage() {
                     <Input
                       type="date"
                       value={selectedDate}
+                      className="border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-200 focus-visible:border-sky-300 focus-visible:ring-sky-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
                       onChange={(e) => {
                         const nextStart = e.target.value;
                         setSelectedDate(nextStart);
@@ -458,7 +488,14 @@ export default function LeavePage() {
                   </div>
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">종료일</label>
-                    <Input type="date" value={isHalfDayType(requestType) ? selectedDate : endDate || selectedDate} min={selectedDate} onChange={(e) => setEndDate(e.target.value)} disabled={isHalfDayType(requestType)} />
+                    <Input
+                      type="date"
+                      value={isHalfDayType(requestType) ? selectedDate : endDate || selectedDate}
+                      min={selectedDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      disabled={isHalfDayType(requestType)}
+                      className="border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-200 focus-visible:border-sky-300 focus-visible:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
+                    />
                   </div>
                 </div>
 
@@ -467,25 +504,30 @@ export default function LeavePage() {
                     <div className="text-sm font-semibold text-sky-900">출장 신청 정보</div>
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-slate-700">ㅇ 날짜</label>
-                      <Input value={selectedDate === (endDate || selectedDate) ? selectedDate : `${selectedDate} ~ ${endDate || selectedDate}`} readOnly className="bg-white/80 text-slate-700" />
+                      <Input value={selectedDate === (endDate || selectedDate) ? selectedDate : `${selectedDate} ~ ${endDate || selectedDate}`} readOnly className="border-slate-200 bg-white/80 text-slate-700 shadow-sm focus-visible:border-sky-300 focus-visible:ring-sky-100" />
                     </div>
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-slate-700">
                         ㅇ 목적 <span className="text-rose-500">*</span>
                       </label>
-                      <Input value={tripPurpose} onChange={(e) => setTripPurpose(e.target.value)} placeholder="출장 목적을 입력하세요" />
+                      <Input value={tripPurpose} onChange={(e) => setTripPurpose(e.target.value)} placeholder="출장 목적을 입력하세요" className="border-slate-200 bg-white text-slate-700 shadow-sm transition placeholder:text-slate-400 hover:border-sky-200 focus-visible:border-sky-300 focus-visible:ring-sky-100" />
                     </div>
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-slate-700">
                         ㅇ 장소 <span className="text-rose-500">*</span>
                       </label>
-                      <Input value={tripPlace} onChange={(e) => setTripPlace(e.target.value)} placeholder="출장 장소를 입력하세요" />
+                      <Input value={tripPlace} onChange={(e) => setTripPlace(e.target.value)} placeholder="출장 장소를 입력하세요" className="border-slate-200 bg-white text-slate-700 shadow-sm transition placeholder:text-slate-400 hover:border-sky-200 focus-visible:border-sky-300 focus-visible:ring-sky-100" />
                     </div>
                   </div>
                 ) : (
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">사유</label>
-                    <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="필요 시 사유를 입력해 주세요." className="min-h-[96px]" />
+                    <Textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="필요 시 사유를 입력해 주세요."
+                      className="min-h-[96px] resize-none border-slate-200 bg-white text-slate-700 shadow-sm transition placeholder:text-slate-400 hover:border-sky-200 focus-visible:border-sky-300 focus-visible:ring-sky-100"
+                    />
                   </div>
                 )}
 
