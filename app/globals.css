@@ -357,3 +357,15 @@
   resize: vertical;
   line-height: 1.6;
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: white !important;
+  }
+}

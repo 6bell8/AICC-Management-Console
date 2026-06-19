@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getUserByKakaoKey, logKakaoMessage } from '@/app/lib/db/kakao';
+import { createKakaoLinkVerification, getActiveKakaoLinkSession, getUserByKakaoKey, logKakaoMessage, startKakaoLinkSession } from '@/app/lib/db/kakao';
 import { cancelRoomReservation, createRoomReservation, listRoomReservationSnapshot } from '@/app/lib/db/roomReservations';
 import type { RoomResource } from '@/app/lib/types/roomReservation';
 
@@ -28,6 +28,13 @@ type KakaoButton = {
   messageText: string;
 };
 
+type KakaoThumbnail = {
+  imageUrl: string;
+  fixedRatio?: boolean;
+  width?: number;
+  height?: number;
+};
+
 type KakaoTextResult = {
   text: string;
   outputs?: KakaoOutput[];
@@ -39,6 +46,7 @@ type KakaoOutput =
       basicCard: {
         title: string;
         description?: string;
+        thumbnail?: KakaoThumbnail;
         buttons?: Array<{ action: 'message'; label: string; messageText: string }>;
       };
     }
@@ -48,6 +56,7 @@ type KakaoOutput =
         items: Array<{
           title: string;
           description?: string;
+          thumbnail?: KakaoThumbnail;
           buttons?: Array<{ action: 'message'; label: string; messageText: string }>;
         }>;
       };
@@ -65,23 +74,42 @@ function simpleOutput(text: string): KakaoOutput {
   return { simpleText: { text } };
 }
 
-function cardOutput(title: string, description: string, buttons: KakaoButton[] = []): KakaoOutput {
+function getPublicAssetUrl(path: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://aicc-management-console.vercel.app');
+  return `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function kakaoThumbnail(imagePath = '/favicon.ico'): KakaoThumbnail {
+  return {
+    imageUrl: getPublicAssetUrl(imagePath),
+    fixedRatio: true,
+    width: 256,
+    height: 256,
+  };
+}
+
+function cardOutput(title: string, description: string, buttons: KakaoButton[] = [], thumbnail?: KakaoThumbnail): KakaoOutput {
   return {
     basicCard: {
       title,
       description,
+      ...(thumbnail ? { thumbnail } : {}),
       buttons: toKakaoButtons(buttons),
     },
   };
 }
 
-function carouselOutput(items: Array<{ title: string; description?: string; buttons?: KakaoButton[] }>): KakaoOutput {
+function carouselOutput(items: Array<{ title: string; description?: string; thumbnail?: KakaoThumbnail; buttons?: KakaoButton[] }>): KakaoOutput {
   return {
     carousel: {
       type: 'basicCard',
       items: items.slice(0, 10).map((item) => ({
         title: item.title,
         description: item.description,
+        ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
         buttons: toKakaoButtons(item.buttons),
       })),
     },
@@ -151,6 +179,19 @@ function isApprovalIntent(utterance: string) {
 
 function isNotificationIntent(utterance: string) {
   return hasAny(utterance, ['알림', '내 알림', '공지']);
+}
+
+function isKakaoLinkIntent(utterance: string) {
+  return hasAny(utterance, ['연동', '계정연동', '계정 연동', '인증', '본인인증']);
+}
+
+function isKakaoLinkStartIntent(utterance: string) {
+  return ['본인인증', '계정연동', '계정 연동', '카카오 연동', 'AICC 연동', 'aicc 연동'].includes(utterance);
+}
+
+function parseEmail(utterance: string) {
+  const match = utterance.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match?.[0]?.toLowerCase() ?? null;
 }
 
 function getKstDate(offsetDays = 0) {
@@ -232,8 +273,19 @@ function handleMainMenu(): KakaoTextResult {
       simpleOutput(text),
       carouselOutput([
         {
+          title: 'AICC 계정 인증',
+          description: '카카오톡 사용자와 AICC 로그인 계정을 본인인증으로 연결합니다.',
+          thumbnail: kakaoThumbnail(),
+          buttons: [
+            { label: '본인인증', messageText: '본인인증' },
+            { label: '공간예약', messageText: '공간예약' },
+            { label: '내 예약', messageText: '내 예약' },
+          ],
+        },
+        {
           title: '공간예약',
           description: '회의실/교육장 예약 가능 시간을 확인하고 예약합니다.',
+          thumbnail: kakaoThumbnail(),
           buttons: [
             { label: '공간예약 열기', messageText: '공간예약' },
             { label: '오늘 일정', messageText: '오늘 공간 일정' },
@@ -243,6 +295,7 @@ function handleMainMenu(): KakaoTextResult {
         {
           title: '근태신청',
           description: '출근/퇴근, 외근, 근태 신청 기능을 준비 중입니다.',
+          thumbnail: kakaoThumbnail(),
           buttons: [
             { label: '근태 메뉴', messageText: '근태신청' },
             { label: '메인 메뉴', messageText: '메뉴' },
@@ -251,6 +304,7 @@ function handleMainMenu(): KakaoTextResult {
         {
           title: '연차/휴가',
           description: '연차 신청과 휴가 현황 조회 기능을 준비 중입니다.',
+          thumbnail: kakaoThumbnail(),
           buttons: [
             { label: '연차 메뉴', messageText: '연차신청' },
             { label: '메인 메뉴', messageText: '메뉴' },
@@ -259,6 +313,7 @@ function handleMainMenu(): KakaoTextResult {
         {
           title: '결재함',
           description: '결재 요청과 승인 현황 조회 기능을 준비 중입니다.',
+          thumbnail: kakaoThumbnail(),
           buttons: [
             { label: '결재함 열기', messageText: '결재함' },
             { label: '메인 메뉴', messageText: '메뉴' },
@@ -267,6 +322,7 @@ function handleMainMenu(): KakaoTextResult {
         {
           title: '내 알림',
           description: '공지와 업무 알림을 확인하는 기능을 준비 중입니다.',
+          thumbnail: kakaoThumbnail(),
           buttons: [
             { label: '알림 보기', messageText: '내 알림' },
             { label: '메인 메뉴', messageText: '메뉴' },
@@ -286,7 +342,7 @@ function handlePendingMenu(title: string, description: string): KakaoTextResult 
       cardOutput(title, description, [
         { label: '공간예약', messageText: '공간예약' },
         { label: '메인 메뉴', messageText: '메뉴' },
-      ]),
+      ], kakaoThumbnail()),
     ],
   };
 }
@@ -306,7 +362,7 @@ async function handleResources(): Promise<KakaoTextResult> {
     text,
     outputs: [
       simpleOutput(text),
-      cardOutput('공간 예약', '원하는 시간대를 먼저 확인해 주세요.', defaultButtons()),
+      cardOutput('공간 예약', '원하는 시간대를 먼저 확인해 주세요.', defaultButtons(), kakaoThumbnail()),
     ],
   };
 }
@@ -318,7 +374,7 @@ async function handleAvailability(utterance: string): Promise<KakaoTextResult> {
     const text = '예약 가능 여부는 날짜와 시작/종료 시간이 필요합니다.\n아래 버튼에서 자주 쓰는 시간대를 선택해 주세요.';
     return {
       text,
-      outputs: [simpleOutput(text), cardOutput('예약 가능 시간 확인', '날짜와 시간대를 선택하면 가능한 공간을 보여드립니다.', defaultButtons())],
+      outputs: [simpleOutput(text), cardOutput('예약 가능 시간 확인', '날짜와 시간대를 선택하면 가능한 공간을 보여드립니다.', defaultButtons(), kakaoThumbnail())],
     };
   }
 
@@ -336,7 +392,7 @@ async function handleAvailability(utterance: string): Promise<KakaoTextResult> {
     const text = `${date} ${times.startTime}~${times.endTime}에 예약 가능한 공간이 없습니다.`;
     return {
       text,
-      outputs: [simpleOutput(text), cardOutput('다른 시간 확인', '다른 시간대로 다시 조회해 주세요.', defaultButtons())],
+      outputs: [simpleOutput(text), cardOutput('다른 시간 확인', '다른 시간대로 다시 조회해 주세요.', defaultButtons(), kakaoThumbnail())],
     };
   }
   const text = [`${date} ${times.startTime}~${times.endTime} 예약 가능 공간`, ...available.map((resource) => `- ${resource.name}`), '', '예약할 공간을 선택해 주세요.'].join('\n');
@@ -509,15 +565,67 @@ async function handleCancelReservation(utterance: string, user: NonNullable<Awai
   };
 }
 
+async function handleKakaoLinkVerification(utterance: string, kakaoUserKey: string | null, channelId: string | null): Promise<KakaoTextResult> {
+  if (!kakaoUserKey) {
+    return { text: '카카오 사용자 정보를 확인하지 못했습니다. 카카오톡 채널에서 다시 시도해 주세요.' };
+  }
+
+  const email = parseEmail(utterance);
+  if (!email) {
+    await startKakaoLinkSession({ kakaoUserKey, channelId });
+    const text = ['AICC 계정 연동을 시작합니다.', '아래 형식으로 AICC 로그인 이메일을 보내 주세요.', '', '예: 연동 user@company.com'].join('\n');
+    return {
+      text,
+      outputs: [simpleOutput(text), cardOutput('AICC 계정 연동', '승인된 AICC 계정 이메일로 1회용 코드를 발급합니다.', [{ label: '이메일 입력 예시', messageText: 'user@company.com' }], kakaoThumbnail())],
+    };
+  }
+
+  const result = await createKakaoLinkVerification({ kakaoUserKey, channelId, email });
+  if (!result.ok) {
+    return {
+      text: result.message,
+      outputs: [simpleOutput(result.message), cardOutput('계정 확인 필요', 'AICC에 승인된 이메일인지 확인한 뒤 다시 시도해 주세요.', [{ label: '다시 연동', messageText: '연동' }])],
+    };
+  }
+
+  const text = [
+    `${result.user.name}님 계정으로 1회용 인증 코드를 발급했습니다.`,
+    '',
+    `인증 코드: ${result.code}`,
+    '유효 시간: 10분',
+    '',
+    'AICC Console에 해당 이메일로 로그인한 뒤 마이페이지의 카카오 연동에서 코드를 입력해 주세요.',
+  ].join('\n');
+  return {
+    text,
+    outputs: [
+      simpleOutput(text),
+      cardOutput('AICC 카카오 연동', 'AICC 웹에서 코드를 확인하면 이 카카오 계정이 로그인 계정과 연결됩니다.', [
+        { label: '다시 발급', messageText: `연동 ${email}` },
+        { label: '공간예약', messageText: '공간예약' },
+      ], kakaoThumbnail()),
+    ],
+  };
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as KakaoSkillBody;
   const utterance = normalizeText(body.userRequest?.utterance ?? body.action?.params?.utterance ?? '');
   const kakaoUserKey = getKakaoUserKey(body);
   const channelId = body.bot?.id ?? null;
 
+  const email = parseEmail(utterance);
+  const activeLinkSession = email ? await getActiveKakaoLinkSession(kakaoUserKey) : null;
+  if (isKakaoLinkStartIntent(utterance) || isKakaoLinkIntent(utterance) || activeLinkSession) {
+    const result = await handleKakaoLinkVerification(utterance, kakaoUserKey, channelId);
+    void logKakaoMessage({ kakaoUserKey, channelId, direction: 'INBOUND', payload: body });
+    void logKakaoMessage({ kakaoUserKey, channelId, direction: 'OUTBOUND', payload: result });
+    return kakaoText(result);
+  }
+
   const user = await getUserByKakaoKey(kakaoUserKey);
   if (!user) {
-    const text = 'AICC 계정과 카카오톡 사용자가 연결되지 않았습니다. 관리자에게 카카오 계정 연결을 요청해 주세요.';
+    const text = ['AICC 계정과 카카오톡 사용자가 연결되지 않았습니다.', '카카오 채널에서 아래처럼 입력해 본인인증을 시작해 주세요.', '', '예: 연동 user@company.com'].join('\n');
     void logKakaoMessage({ kakaoUserKey, channelId, direction: 'INBOUND', payload: body });
     void logKakaoMessage({ kakaoUserKey, channelId, direction: 'OUTBOUND', payload: { text } });
     return kakaoText({ text });

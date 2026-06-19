@@ -271,15 +271,52 @@ CREATE TABLE IF NOT EXISTS kakao_user_links (
   user_id CHAR(36) NOT NULL,
   kakao_user_key VARCHAR(120) NOT NULL,
   channel_id VARCHAR(120) NULL,
+  status ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'APPROVED',
   verified_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  requested_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  approved_by CHAR(36) NULL,
+  decided_at DATETIME(3) NULL,
+  rejected_reason VARCHAR(255) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   UNIQUE KEY uq_kakao_user_links_user_key (kakao_user_key),
   INDEX idx_kakao_user_links_user_id (user_id),
+  INDEX idx_kakao_user_links_status_updated (status, updated_at),
   CONSTRAINT fk_kakao_user_links_user_id
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS kakao_link_verifications (
+  id CHAR(36) NOT NULL,
+  kakao_user_key VARCHAR(120) NOT NULL,
+  channel_id VARCHAR(120) NULL,
+  user_id CHAR(36) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  used_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_kakao_link_verifications_user_code (user_id, code_hash, expires_at),
+  INDEX idx_kakao_link_verifications_key_created (kakao_user_key, created_at),
+  CONSTRAINT fk_kakao_link_verifications_user_id
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS kakao_link_sessions (
+  id CHAR(36) NOT NULL,
+  kakao_user_key VARCHAR(120) NOT NULL,
+  channel_id VARCHAR(120) NULL,
+  status ENUM('WAITING_EMAIL', 'COMPLETED', 'EXPIRED') NOT NULL DEFAULT 'WAITING_EMAIL',
+  expires_at DATETIME(3) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_kakao_link_sessions_user_key (kakao_user_key),
+  INDEX idx_kakao_link_sessions_status_expires (status, expires_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS kakao_message_logs (

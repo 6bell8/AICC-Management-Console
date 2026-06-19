@@ -36,6 +36,18 @@ const DETAIL_TABS: Array<{ key: DetailKey; label: string; icon: ReactNode; place
   },
 ];
 
+const CERTIFICATE_TYPES = [
+  { value: 'employment-ko', label: '재직증명서(국문)' },
+  { value: 'employment-en', label: '재직증명서(영문)' },
+  { value: 'career-ko', label: '경력증명서(국문)' },
+  { value: 'career-en', label: '경력증명서(영문)' },
+  { value: 'withholding-receipt', label: '원천징수영수증' },
+  { value: 'income-tax-withholding', label: '소득세원천징수증명서' },
+  { value: 'retirement-ko', label: '퇴직증명서(국문)' },
+  { value: 'retirement-en', label: '퇴직증명서(영문)' },
+  { value: 'leave-return', label: '휴복직증명서' },
+];
+
 function splitItems(value: string) {
   return value
     .split('\n')
@@ -50,6 +62,7 @@ function joinItems(items: string[]) {
 export default function ProfileDetailsForm({ profile, fallbackName }: { profile: EmployeeProfileDetails; fallbackName: string }) {
   const [open, setOpen] = useState(false);
   const [activeDetail, setActiveDetail] = useState<DetailKey>('education');
+  const [certificateType, setCertificateType] = useState(CERTIFICATE_TYPES[0].value);
   const [drafts, setDrafts] = useState<Record<DetailKey, string>>({ education: '', awards: '', certifications: '' });
   const [form, setForm] = useState<ProfileFormState>({
     displayName: profile.displayName,
@@ -163,12 +176,26 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">입력 {filledCount}/8</span>
+          <label className="relative">
+            <span className="sr-only">증명서 종류</span>
+            <select
+              value={certificateType}
+              onChange={(event) => setCertificateType(event.target.value)}
+              className="h-10 min-w-[190px] rounded-md border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-sky-100 hover:bg-sky-50 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
+            >
+              {CERTIFICATE_TYPES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <Link
-            href="/mypage/certificate"
+            href={`/mypage/certificate?type=${certificateType}`}
             className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
           >
             <FileBadge className="h-4 w-4" />
-            재직증명서
+            발급
           </Link>
         </div>
       </div>

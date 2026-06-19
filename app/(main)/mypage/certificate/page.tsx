@@ -23,9 +23,28 @@ const EMPLOYMENT_LABEL: Record<string, string> = {
   E: '계약직',
 };
 
-export default async function EmploymentCertificatePage() {
+const CERTIFICATE_DOCS: Record<string, { title: string; issueCode: string; description: string }> = {
+  'employment-ko': { title: '재직증명서', issueCode: 'EMP-KO', description: '프로필 상세 정보와 조직/인사 정보를 기준으로 출력합니다.' },
+  'employment-en': { title: '재직증명서(영문)', issueCode: 'EMP-EN', description: '영문 제출용 재직증명서 항목으로 출력합니다.' },
+  'career-ko': { title: '경력증명서', issueCode: 'CAR-KO', description: '재직기간과 직무 정보를 기준으로 경력증명서를 출력합니다.' },
+  'career-en': { title: '경력증명서(영문)', issueCode: 'CAR-EN', description: '영문 제출용 경력증명서 항목으로 출력합니다.' },
+  'withholding-receipt': { title: '원천징수영수증', issueCode: 'TAX-WR', description: '원천징수 확인용 문서 양식으로 출력합니다.' },
+  'income-tax-withholding': { title: '소득세원천징수증명서', issueCode: 'TAX-IT', description: '소득세 원천징수 확인용 문서 양식으로 출력합니다.' },
+  'retirement-ko': { title: '퇴직증명서', issueCode: 'RET-KO', description: '퇴직 사실 확인용 문서 양식으로 출력합니다.' },
+  'retirement-en': { title: '퇴직증명서(영문)', issueCode: 'RET-EN', description: '영문 제출용 퇴직증명서 항목으로 출력합니다.' },
+  'leave-return': { title: '휴복직증명서', issueCode: 'LVR', description: '휴직 및 복직 사실 확인용 문서 양식으로 출력합니다.' },
+};
+
+export default async function EmploymentCertificatePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/mypage/certificate');
+  const params = (await searchParams) ?? {};
+  const rawType = Array.isArray(params.type) ? params.type[0] : params.type;
+  const certificateDoc = CERTIFICATE_DOCS[rawType ?? ''] ?? CERTIFICATE_DOCS['employment-ko'];
 
   const [data, profile, documentSeal] = await Promise.all([getPersonalDashboard(user), getEmployeeProfileDetails(user.id), getOrganizationSeal()]);
   const displayName = data.user.name;
@@ -35,15 +54,15 @@ export default async function EmploymentCertificatePage() {
   const issuedAt = formatKoreanDate(issuedDate);
   const hireDate = data.profile.hireDate ?? '';
   const employmentPeriod = hireDate ? `${formatDotDate(hireDate)} ~ 현재 (${getTenureLabel(hireDate, issuedDate)})` : '-';
-  const issueNo = `${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}${String(issuedDate.getDate()).padStart(2, '0')}-${user.id.slice(0, 5).toUpperCase()}`;
+  const issueNo = `${certificateDoc.issueCode}-${issuedDate.getFullYear()}-${String(issuedDate.getMonth() + 1).padStart(2, '0')}${String(issuedDate.getDate()).padStart(2, '0')}-${user.id.slice(0, 5).toUpperCase()}`;
   const duty = data.profile.teamHeadName === data.user.name ? '팀장' : '-';
 
   return (
     <div className="mx-auto max-w-[760px] space-y-4 print:max-w-none print:space-y-0">
       <div className="flex items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-semibold text-slate-950">재직증명서</h1>
-          <p className="mt-1 text-sm text-slate-500">프로필 상세 정보와 조직/인사 정보를 기준으로 출력합니다.</p>
+          <h1 className="text-xl font-semibold text-slate-950">{certificateDoc.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{certificateDoc.description}</p>
         </div>
         <div className="flex gap-2">
           <Link href="/mypage" className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
@@ -54,7 +73,7 @@ export default async function EmploymentCertificatePage() {
       </div>
 
       <section className="bg-white px-8 py-8 shadow-sm ring-1 ring-slate-200 print:px-0 print:py-0 print:shadow-none print:ring-0">
-        <h2 className="text-center text-3xl font-semibold tracking-[0.55em] text-black underline decoration-2 underline-offset-[12px]">재직증명서</h2>
+        <h2 className="text-center text-3xl font-semibold tracking-[0.55em] text-black underline decoration-2 underline-offset-[12px]">{certificateDoc.title}</h2>
 
         <table className="mt-20 w-full border-collapse border border-black text-[15px] text-black">
           <tbody>

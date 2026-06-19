@@ -10,8 +10,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-screen">
       <Sidebar initialUser={user} />
-      <main className="min-h-screen pl-64">
-        <div className="mx-auto w-full max-w-6xl px-6 py-6">{children}</div>
+      <main className="min-h-screen pl-64 print:min-h-0 print:pl-0">
+        <div className="mx-auto w-full max-w-6xl px-6 py-6 print:max-w-none print:px-0 print:py-0">{children}</div>
       </main>
     </div>
   );

@@ -104,7 +104,6 @@ const NAV: NavNode[] = [
 ];
 
 const ADMIN_NAV: NavNode[] = [
-  { type: 'link', label: '운영 현황', href: '/operations', icon: <Activity className="h-4 w-4" /> },
   {
     type: 'group',
     label: '시스템 관리',
@@ -112,9 +111,11 @@ const ADMIN_NAV: NavNode[] = [
     items: [
       { label: '설정 센터', href: '/admin/settings' },
       { label: '계정 승인 관리', href: '/admin/users' },
+      { label: '카카오 채널 관리', href: '/admin/kakao-links' },
       { label: '감사 로그', href: '/admin/audit-logs' },
     ],
   },
+  { type: 'link', label: '운영 현황', href: '/operations', icon: <Activity className="h-4 w-4" /> },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -152,7 +153,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100">
+    <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100 print:hidden">
       <div className="px-4 py-4">
         <div className="flex items-start gap-2">
           <Link
