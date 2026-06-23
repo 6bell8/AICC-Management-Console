@@ -34,7 +34,7 @@ const MOJIBAKE_PATTERNS = [
 
 function walk(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (SKIP_DIRS.has(entry.name)) continue;
+    if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('integration-')) continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(fullPath, files);

@@ -8,12 +8,13 @@ import { listBusinessLines } from '@/app/lib/db/businessLines';
 import { listCampaigns } from '@/app/lib/db/campaigns';
 import { listContractDeals } from '@/app/lib/db/contracts';
 import { getDashboardActivityHeatmap, getDashboardErpSummary } from '@/app/lib/db/erp';
+import { getFamilyEventDashboardSummary } from '@/app/lib/db/familyEvents';
 import { getLeaveVisibilityForUser } from '@/app/lib/db/hr';
 import { getPersonalDashboard } from '@/app/lib/db/personalDashboard';
 import { listNotices } from '@/app/lib/notice/store';
 import type { ContractDeal } from '@/app/lib/types/contracts';
-import NoticePreviewPanel from '@/app/components/ui/notice/NoticePreviewPanel';
 import DashboardActivityHeatmap from './DashboardActivityHeatmap';
+import DashboardOperationsPreviewPanel from './DashboardOperationsPreviewPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,9 +111,10 @@ export default async function DashboardPage() {
   const visibility = await getLeaveVisibilityForUser(user);
   const isTeamManager = visibility.scope === 'TEAM';
   const scopedTeamIds = isTeamManager ? visibility.teamIds : undefined;
-  const [data, erpSummary, activityHeatmap, campaigns, contractDeals, businessLines, notices] = await Promise.all([
+  const [data, erpSummary, familyEventSummary, activityHeatmap, campaigns, contractDeals, businessLines, notices] = await Promise.all([
     getPersonalDashboard(user),
     getDashboardErpSummary(user, { teamIds: scopedTeamIds }),
+    getFamilyEventDashboardSummary(user),
     getDashboardActivityHeatmap({ teamIds: scopedTeamIds }),
     listCampaigns({ page: 1, pageSize: 6 }),
     listContractDeals(),
@@ -160,7 +162,7 @@ export default async function DashboardPage() {
           <Panel title="관리자 운영 우선순위" href="/operations">
             <ActionRow label="전체 대기 결재" value={`${erpSummary.pendingApprovals}건`} href="/approvals" tone="amber" />
             <ActionRow label="출장여비 정산 대기" value={`${erpSummary.pendingSettlements}건 · ${won(erpSummary.pendingSettlementAmount)}`} href="/hr/trip-expenses" tone="emerald" />
-            <ActionRow label="최근 7일 감사 로그" value={`${erpSummary.recentAuditLogs}건`} href="/admin/audit-logs" tone="slate" />
+                        <ActionRow label="최근 7일 감사 로그" value={`${erpSummary.recentAuditLogs}건`} href="/admin/audit-logs" tone="slate" />
           </Panel>
           <Panel title="영업 / 계약 요약" href="/sales/contracts">
             <ActionRow label="진행 계약 금액" value={won(openDealAmount)} href="/sales/activity-stats" tone="emerald" />
@@ -199,7 +201,9 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {useManagerDashboard ? <NoticePreviewPanel notices={recentNotices} /> : null}
+      {useManagerDashboard ? (
+        <DashboardOperationsPreviewPanel notices={recentNotices} familyEventSummary={familyEventSummary} />
+      ) : null}
 
       {useManagerDashboard ? <DashboardActivityHeatmap items={activityHeatmap} /> : null}
 
@@ -272,7 +276,7 @@ export default async function DashboardPage() {
             </Panel>
           </section>
 
-          <NoticePreviewPanel notices={recentNotices} compact />
+          <DashboardOperationsPreviewPanel notices={recentNotices} familyEventSummary={familyEventSummary} />
 
           <section className="grid gap-4 xl:grid-cols-2">
             <Panel title="내 근태 / 출장 최근 흐름" href="/hr/leave">

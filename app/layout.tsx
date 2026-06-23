@@ -26,9 +26,33 @@ import { Toaster } from './components/ui/toaster';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://aicc-management-console.vercel.app'),
   title: {
-    default: 'AICC Console',
-    template: 'AICC Console - %s',
+    default: 'AICC Managed Center',
+    template: '%s | AICC Managed Center',
+  },
+  description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Center입니다.',
+  openGraph: {
+    title: 'AICC Managed Center',
+    description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Center입니다.',
+    url: '/',
+    siteName: 'AICC Managed Center',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AICC Managed Center',
+      },
+    ],
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AICC Managed Center',
+    description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Center입니다.',
+    images: ['/og-image.png'],
   },
 };
 

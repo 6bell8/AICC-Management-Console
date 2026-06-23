@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { KeyRound, MessageCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
@@ -75,9 +76,16 @@ export default async function MyPage() {
           <h1 className="text-xl font-semibold text-slate-950">마이페이지</h1>
           <p className="mt-1 text-sm text-slate-500">내 계정, 조직, 연차 기준 정보를 확인합니다.</p>
         </div>
-        <Link href="/change-password" className="w-fit rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
-          비밀번호 변경
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/mypage/kakao-link" className="inline-flex w-fit items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm font-medium text-yellow-700 shadow-sm transition hover:bg-yellow-100">
+            <MessageCircle className="h-4 w-4" />
+            카카오 연동
+          </Link>
+          <Link href="/change-password" className="inline-flex w-fit items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <KeyRound className="h-4 w-4 text-slate-400" />
+            비밀번호 변경
+          </Link>
+        </div>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">

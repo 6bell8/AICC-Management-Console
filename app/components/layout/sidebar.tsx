@@ -78,6 +78,8 @@ const NAV: NavNode[] = [
     items: [
       { label: '근태관리', href: '/hr/leave' },
       { label: '출장여비 신청', href: '/hr/trip-expenses' },
+      { label: '경조사 관리', href: '/hr/family-events' },
+      { label: '권한 위임 관리', href: '/hr/permission-delegations' },
       { label: '근태/연차 통계', href: '/hr/leave-stats' },
     ],
   },
@@ -97,7 +99,7 @@ const NAV: NavNode[] = [
     items: [
       { label: '공지사항', href: '/board/notice' },
       { label: '동적노드 가이드', href: '/board/dynnode' },
-      { label: '작가 가이드', href: '/board/author-guide' },
+      { label: '저작 가이드', href: '/board/author-guide' },
     ],
   },
 

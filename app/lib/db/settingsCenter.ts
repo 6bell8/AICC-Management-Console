@@ -4,6 +4,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { getMysqlPool } from './mysql';
 import { getOrganizationSeal, getOrganizationSettings } from './erp';
 import { listTeams } from './hr';
+import { listPermissionDelegations } from './permissionDelegations';
 
 type CountRow = RowDataPacket & {
   total_count?: number;
@@ -44,6 +45,15 @@ type NotificationRow = RowDataPacket & {
   total_count: number;
 };
 
+type ApprovedUserRow = RowDataPacket & {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  team_id: string | null;
+  team_name: string | null;
+};
+
 function toDateOnly(value: Date | string | null) {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -64,7 +74,12 @@ function mapLeavePolicy(row: LeavePolicyRow) {
 
 export async function getSettingsCenterData() {
   const pool = getMysqlPool();
-  const [organization, documentSeal, teams] = await Promise.all([getOrganizationSettings(), getOrganizationSeal(), listTeams()]);
+  const [organization, documentSeal, teams, permissionDelegations] = await Promise.all([
+    getOrganizationSettings(),
+    getOrganizationSeal(),
+    listTeams(),
+    listPermissionDelegations(),
+  ]);
 
   const [userRows] = await pool.query<CountRow[]>(`
     SELECT
@@ -98,6 +113,15 @@ export async function getSettingsCenterData() {
     FROM notifications
   `);
 
+  const [approvedUserRows] = await pool.query<ApprovedUserRow[]>(`
+    SELECT u.id, u.name, u.email, u.role, ep.team_id, t.name AS team_name
+    FROM users u
+    LEFT JOIN employee_profiles ep ON ep.user_id = u.id
+    LEFT JOIN teams t ON t.id = ep.team_id
+    WHERE u.status = 'APPROVED'
+    ORDER BY COALESCE(t.name, '미지정') ASC, u.name ASC, u.email ASC
+  `);
+
   const userSummary = userRows[0] ?? {};
   const approvalSummary = approvalRows[0] ?? {};
   const notificationSummary = notificationRows[0] ?? {};
@@ -114,6 +138,15 @@ export async function getSettingsCenterData() {
       viewers: Number(userSummary.viewer_count ?? 0),
       forcePasswordChange: Number(userSummary.force_password_change_count ?? 0),
     },
+    approvedUsers: approvedUserRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      teamId: row.team_id,
+      teamName: row.team_name,
+    })),
+    permissionDelegations,
     leavePolicies: policyRows.map(mapLeavePolicy),
     approvals: {
       pendingSteps: Number(approvalSummary.pending_steps ?? 0),

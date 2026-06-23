@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
+import { Skeleton } from '@/app/components/ui/skeleton';
 import type { AuthUser } from '@/app/lib/db/users';
 
 type ApprovedUser = AuthUser;
@@ -300,7 +301,7 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
 
             <div className="overflow-hidden rounded-lg border border-slate-100">
               {loading ? (
-                <div className="px-3 py-10 text-center text-sm text-slate-500">카카오 요청 정보를 불러오는 중입니다.</div>
+                <KakaoRequestListSkeleton />
               ) : data.recentUsers.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {data.recentUsers.map((item, index) => {
@@ -554,6 +555,29 @@ function StatusPill({ linked }: { linked: boolean }) {
     <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">연결 완료</span>
   ) : (
     <span className="inline-flex rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">본인인증 필요</span>
+  );
+}
+
+function KakaoRequestListSkeleton() {
+  return (
+    <div className="divide-y divide-slate-100">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="bg-white px-3 py-3">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_170px_140px] lg:items-center">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="mt-2 h-4 w-56" />
+              <Skeleton className="mt-2 h-3 w-28" />
+            </div>
+            <Skeleton className="h-4 w-24 lg:ml-auto" />
+            <Skeleton className="h-9 w-24 lg:ml-auto" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

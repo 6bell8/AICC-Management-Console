@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 import { getCurrentUser } from '@/app/lib/auth/session';
 import KakaoLinkVerifyClient from './KakaoLinkVerifyClient';
@@ -15,11 +16,16 @@ export default async function KakaoLinkPage() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <span className="inline-flex rounded-full border border-yellow-200 bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-700">Kakao Account Link</span>
-          <h1 className="mt-3 text-xl font-semibold text-slate-950">카카오 계정 연동</h1>
-          <p className="mt-1 text-sm text-slate-500">카카오 채널에서 발급받은 1회용 코드를 확인해 AICC 계정과 연결합니다.</p>
+          <h1 className="mt-3 text-xl font-semibold text-slate-950">카카오톡 계정 연동</h1>
+          <p className="mt-1 text-sm text-slate-500">카카오톡 채널에서 발급받은 1회용 코드를 확인해 AICC 계정과 연결합니다.</p>
         </div>
-        <Link href="/mypage" className="w-fit rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-          마이페이지로 돌아가기
+        <Link
+          href="/mypage"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+          aria-label="마이페이지로 돌아가기"
+          title="마이페이지로 돌아가기"
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Link>
       </div>
 

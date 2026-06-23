@@ -62,6 +62,8 @@ type KakaoOutput =
       };
     };
 
+const KAKAO_CHANNEL_BANNER = '/kakao-channel-banner.png';
+
 function toKakaoButtons(buttons: KakaoButton[] = []) {
   return buttons.slice(0, 3).map((item) => ({
     label: item.label,
@@ -82,12 +84,12 @@ function getPublicAssetUrl(path: string) {
   return `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-function kakaoThumbnail(imagePath = '/favicon.ico'): KakaoThumbnail {
+function kakaoThumbnail(imagePath = '/og-image.png'): KakaoThumbnail {
   return {
     imageUrl: getPublicAssetUrl(imagePath),
     fixedRatio: true,
-    width: 256,
-    height: 256,
+    width: 800,
+    height: 450,
   };
 }
 
@@ -275,7 +277,7 @@ function handleMainMenu(): KakaoTextResult {
         {
           title: 'AICC 계정 인증',
           description: '카카오톡 사용자와 AICC 로그인 계정을 본인인증으로 연결합니다.',
-          thumbnail: kakaoThumbnail(),
+          thumbnail: kakaoThumbnail(KAKAO_CHANNEL_BANNER),
           buttons: [
             { label: '본인인증', messageText: '본인인증' },
             { label: '공간예약', messageText: '공간예약' },
@@ -342,6 +344,21 @@ function handlePendingMenu(title: string, description: string): KakaoTextResult 
       cardOutput(title, description, [
         { label: '공간예약', messageText: '공간예약' },
         { label: '메인 메뉴', messageText: '메뉴' },
+      ], kakaoThumbnail(KAKAO_CHANNEL_BANNER)),
+    ],
+  };
+}
+
+function handleUnlinkedUserMenu(): KakaoTextResult {
+  const text = ['AICC 계정과 카카오톡 사용자가 연결되지 않았습니다.', '아래 버튼에서 본인인증을 시작해 주세요.'].join('\n');
+  return {
+    text,
+    outputs: [
+      simpleOutput(text),
+      cardOutput('AICC 계정 인증', '카카오톡 사용자와 AICC 로그인 계정을 본인인증으로 연결합니다.', [
+        { label: '본인인증', messageText: '본인인증' },
+        { label: '연동 방법', messageText: '연동' },
+        { label: '공간예약', messageText: '공간예약' },
       ], kakaoThumbnail()),
     ],
   };
@@ -576,7 +593,7 @@ async function handleKakaoLinkVerification(utterance: string, kakaoUserKey: stri
     const text = ['AICC 계정 연동을 시작합니다.', '아래 형식으로 AICC 로그인 이메일을 보내 주세요.', '', '예: 연동 user@company.com'].join('\n');
     return {
       text,
-      outputs: [simpleOutput(text), cardOutput('AICC 계정 연동', '승인된 AICC 계정 이메일로 1회용 코드를 발급합니다.', [{ label: '이메일 입력 예시', messageText: 'user@company.com' }], kakaoThumbnail())],
+      outputs: [simpleOutput(text), cardOutput('AICC 계정 연동', '승인된 AICC 계정 이메일로 1회용 코드를 발급합니다.', [{ label: '이메일 입력 예시', messageText: 'user@company.com' }], kakaoThumbnail(KAKAO_CHANNEL_BANNER))],
     };
   }
 
@@ -603,7 +620,7 @@ async function handleKakaoLinkVerification(utterance: string, kakaoUserKey: stri
       cardOutput('AICC 카카오 연동', 'AICC 웹에서 코드를 확인하면 이 카카오 계정이 로그인 계정과 연결됩니다.', [
         { label: '다시 발급', messageText: `연동 ${email}` },
         { label: '공간예약', messageText: '공간예약' },
-      ], kakaoThumbnail()),
+      ], kakaoThumbnail(KAKAO_CHANNEL_BANNER)),
     ],
   };
 }
@@ -625,10 +642,10 @@ export async function POST(req: Request) {
 
   const user = await getUserByKakaoKey(kakaoUserKey);
   if (!user) {
-    const text = ['AICC 계정과 카카오톡 사용자가 연결되지 않았습니다.', '카카오 채널에서 아래처럼 입력해 본인인증을 시작해 주세요.', '', '예: 연동 user@company.com'].join('\n');
+    const result = handleUnlinkedUserMenu();
     void logKakaoMessage({ kakaoUserKey, channelId, direction: 'INBOUND', payload: body });
-    void logKakaoMessage({ kakaoUserKey, channelId, direction: 'OUTBOUND', payload: { text } });
-    return kakaoText({ text });
+    void logKakaoMessage({ kakaoUserKey, channelId, direction: 'OUTBOUND', payload: result });
+    return kakaoText(result);
   }
 
   let result: KakaoTextResult;

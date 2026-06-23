@@ -325,7 +325,8 @@
 }
 
 .profile-input,
-.profile-textarea {
+.profile-textarea,
+.form-input {
   width: 100%;
   border-radius: 0.5rem;
   border: 1px solid rgb(226 232 240);
@@ -342,12 +343,14 @@
 }
 
 .profile-input::placeholder,
-.profile-textarea::placeholder {
+.profile-textarea::placeholder,
+.form-input::placeholder {
   color: rgb(148 163 184);
 }
 
 .profile-input:focus,
-.profile-textarea:focus {
+.profile-textarea:focus,
+.form-input:focus {
   border-color: rgb(186 230 253);
   box-shadow: 0 0 0 3px rgb(224 242 254 / 0.9);
 }

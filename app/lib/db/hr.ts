@@ -5,6 +5,7 @@ import { getMysqlPool } from './mysql';
 import { createSecurityAuditLog } from './securityAudit';
 import type { AuthUser } from './users';
 import { buildLeaveNotionPayload, createNotionCalendarPage } from '../integrations/notionCalendar';
+import { getTeamScope } from '../auth/authorization';
 import type {
   ApprovalItem,
   ApprovalStatus,
@@ -437,27 +438,7 @@ export async function ensureDefaultTeamForUser(user: AuthUser) {
 export type LeaveVisibilityScope = 'ALL' | 'TEAM' | 'SELF';
 
 export async function getLeaveVisibilityForUser(user: AuthUser): Promise<{ scope: LeaveVisibilityScope; teamIds: string[] }> {
-  if (user.role === 'HEAD' || user.role === 'ADMIN') {
-    return { scope: 'ALL', teamIds: [] };
-  }
-
-  const pool = getMysqlPool();
-  const [rows] = await pool.query<RowDataPacket[]>(
-    `
-      SELECT DISTINCT team_id AS id
-      FROM user_team_memberships
-      WHERE user_id = ? AND team_role = 'HEAD'
-      UNION
-      SELECT id
-      FROM teams
-      WHERE head_user_id = ?
-    `,
-    [user.id, user.id],
-  );
-  const teamIds = rows.map((row) => String(row.id)).filter(Boolean);
-  if (teamIds.length > 0) return { scope: 'TEAM', teamIds };
-
-  return { scope: 'SELF', teamIds: [] };
+  return getTeamScope(user);
 }
 
 export async function listLeaveRequests(input: { user: AuthUser; month?: string }) {

@@ -25,12 +25,6 @@ AICC 콘솔 형태의 포트폴리오 프로젝트입니다.
 - `/signup` : 회원가입 신청(관리자 승인제)
 - `/guest` : 포트폴리오 관람용 게스트 진입
 - `/admin/users` : 계정 승인/권한 관리(HEAD, ADMIN 전용)
-- `/admin/kakao-links` : 카카오 채널 사용자와 AICC 계정의 연결/승인 관리(HEAD, ADMIN 전용)
-
-### My Page
-- `/mypage` : 개인 프로필 및 인사 정보
-- `/mypage/certificate` : 증명서 출력(재직, 경력, 원천징수, 퇴직, 휴복직)
-- `/mypage/kakao-link` : 카카오 채널에서 받은 1회용 인증 코드 확인
 
 ### Dashboard
 - `/dashboard` : 대시보드(KPI + 추이/상태 분포 차트 + 최근 변경 리스트)
@@ -87,14 +81,10 @@ DB 상태 확인:
 - `api/auth/logout/route.ts`
 - `api/auth/me/route.ts`
 - `api/admin/users/route.ts`
-- `api/admin/kakao-links/route.ts` : 카카오 사용자 연결 조회/수동 연결/승인·반려/해제
-- `api/profile/kakao-link/route.ts` : 로그인 사용자의 카카오 인증 코드 확인
-- `api/kakao/webhook/route.ts` : 카카오 오픈빌더 웹훅 및 계정 연동 시작
 
 데이터 저장소:
 - 런타임 데이터는 MySQL에 저장합니다.
 - `data/*.json`은 초기 시드 원본으로만 사용합니다.
-- 카카오 연동 데이터는 `kakao_user_links`, `kakao_link_verifications`, `kakao_link_sessions` 테이블을 사용합니다.
 
 ---
 
@@ -189,16 +179,6 @@ DB_PORT
 DB_USER
 DB_PASSWORD
 DB_NAME
-```
-
-Railway에서 기본 제공하는 변수명도 지원합니다.
-
-```txt
-MYSQLHOST
-MYSQLPORT
-MYSQLUSER
-MYSQLPASSWORD
-MYSQLDATABASE
 ```
 
 Railway MySQL을 사용할 경우 Railway의 public host/port 값을 사용합니다. `mysql.railway.internal`은 Railway 내부 서비스 전용이라 Vercel이나 로컬 PC에서는 사용하지 않습니다.

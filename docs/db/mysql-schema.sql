@@ -670,6 +670,72 @@ CREATE TABLE IF NOT EXISTS trip_expense_attachments (
   CONSTRAINT chk_trip_expense_attachments_file_size CHECK (file_size >= 0)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS family_event_requests (
+  id CHAR(36) NOT NULL,
+  requester_id CHAR(36) NOT NULL,
+  team_id CHAR(36) NULL,
+  event_type ENUM('MARRIAGE', 'BIRTH', 'FUNERAL', 'FIRST_BIRTHDAY', 'HOSPITAL', 'OTHER') NOT NULL,
+  relation_name VARCHAR(80) NULL,
+  event_date DATE NOT NULL,
+  location VARCHAR(255) NULL,
+  note TEXT NULL,
+  support_amount INT NOT NULL DEFAULT 0,
+  wreath_required BOOLEAN NOT NULL DEFAULT FALSE,
+  status ENUM('PENDING', 'CONFIRMED', 'COMPLETED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+  reviewed_by CHAR(36) NULL,
+  reviewed_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_family_event_requests_requester (requester_id, created_at),
+  INDEX idx_family_event_requests_team_status (team_id, status, event_date),
+  INDEX idx_family_event_requests_status_date (status, event_date),
+  CONSTRAINT fk_family_event_requests_requester
+    FOREIGN KEY (requester_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_family_event_requests_team
+    FOREIGN KEY (team_id) REFERENCES teams (id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_family_event_requests_reviewer
+    FOREIGN KEY (reviewed_by) REFERENCES users (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS permission_delegations (
+  id CHAR(36) NOT NULL,
+  delegator_user_id CHAR(36) NOT NULL,
+  delegatee_user_id CHAR(36) NOT NULL,
+  team_id CHAR(36) NOT NULL,
+  permission_scope ENUM('TEAM_MANAGER', 'APPROVAL', 'TEAM_HR', 'TEAM_CALENDAR') NOT NULL DEFAULT 'TEAM_MANAGER',
+  starts_at DATE NOT NULL,
+  ends_at DATE NOT NULL,
+  reason VARCHAR(500) NULL,
+  status ENUM('ACTIVE', 'CANCELLED', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+  created_by CHAR(36) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  cancelled_by CHAR(36) NULL,
+  cancelled_at DATETIME(3) NULL,
+  PRIMARY KEY (id),
+  INDEX idx_permission_delegations_delegatee (delegatee_user_id, status, starts_at, ends_at),
+  INDEX idx_permission_delegations_team (team_id, status, starts_at, ends_at),
+  CONSTRAINT fk_permission_delegations_delegator
+    FOREIGN KEY (delegator_user_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegations_delegatee
+    FOREIGN KEY (delegatee_user_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegations_team
+    FOREIGN KEY (team_id) REFERENCES teams (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegations_created_by
+    FOREIGN KEY (created_by) REFERENCES users (id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_permission_delegations_cancelled_by
+    FOREIGN KEY (cancelled_by) REFERENCES users (id)
+    ON DELETE SET NULL,
+  CONSTRAINT chk_permission_delegations_dates CHECK (ends_at >= starts_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS meeting_resources (
   id CHAR(36) NOT NULL,
   name VARCHAR(100) NOT NULL,

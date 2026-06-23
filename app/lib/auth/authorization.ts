@@ -2,6 +2,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 
 import type { AuthUser } from '../db/users';
 import { getMysqlPool } from '../db/mysql';
+import { getActiveDelegatedTeamIds } from '../db/permissionDelegations';
 
 export type TeamScope = {
   scope: 'ALL' | 'TEAM' | 'SELF';
@@ -16,7 +17,7 @@ export function canWrite(user: Pick<AuthUser, 'role'> | null | undefined) {
   return Boolean(user && user.role !== 'VIEWER');
 }
 
-export async function getHeadedTeamIds(user: Pick<AuthUser, 'id' | 'role'>) {
+export async function getDirectHeadedTeamIds(user: Pick<AuthUser, 'id' | 'role'>) {
   if (isGlobalAdmin(user)) return [];
 
   const pool = getMysqlPool();
@@ -34,6 +35,14 @@ export async function getHeadedTeamIds(user: Pick<AuthUser, 'id' | 'role'>) {
   );
 
   return rows.map((row) => String(row.id)).filter(Boolean);
+}
+
+export async function getHeadedTeamIds(user: Pick<AuthUser, 'id' | 'role'>) {
+  if (isGlobalAdmin(user)) return [];
+
+  const directTeamIds = await getDirectHeadedTeamIds(user);
+  const delegatedTeamIds = await getActiveDelegatedTeamIds(user.id, ['TEAM_MANAGER', 'APPROVAL', 'TEAM_HR']);
+  return Array.from(new Set([...directTeamIds, ...delegatedTeamIds]));
 }
 
 export async function getTeamScope(user: Pick<AuthUser, 'id' | 'role'>): Promise<TeamScope> {
@@ -72,4 +81,3 @@ export async function isTeamHeadByName(user: Pick<AuthUser, 'id' | 'role'>, name
 export async function canSettleTripExpenses(user: Pick<AuthUser, 'id' | 'role'>) {
   return isTeamHeadByName(user, ['인사팀', 'HR', 'Human Resources']);
 }
-
