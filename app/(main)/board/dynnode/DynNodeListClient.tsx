@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Code2, FilePlus2 } from 'lucide-react';
 
 import { getDynNodes } from '@/app/lib/api/dynnode';
+import type { DynNodePost } from '@/app/lib/types/dynnode';
+import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
@@ -51,6 +54,7 @@ export default function DynNodeListClient() {
   const sp = useSearchParams();
   const router = useRouter();
   const { canWrite } = useCurrentUser();
+  const [preview, setPreview] = useState<DynNodePost | null>(null);
 
   const page = toPosInt(sp.get('page'), 1);
   const pageSize = toPosInt(sp.get('pageSize'), 10);
@@ -64,6 +68,7 @@ export default function DynNodeListClient() {
 
   const data = q.data;
   const items = data?.items ?? [];
+  const previewItem = preview ?? items[0] ?? null;
   const totalPages = data?.totalPages ?? 1;
 
   const pages = useMemo(() => getCompactPages(page, totalPages), [page, totalPages]);
@@ -78,14 +83,24 @@ export default function DynNodeListClient() {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">동적노드 게시판</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+          <Code2 className="h-5 w-5 text-sky-600" />
+          동적노드 게시판
+        </h1>
         {canWrite ? (
           <Link href="/board/dynnode/new">
-            <Button variant="outline">새 글</Button>
+            <Button
+              variant="outline"
+              className="h-9 w-9 border-sky-100 p-0 text-sky-700 hover:border-sky-200 hover:bg-sky-50"
+              aria-label="새 동적노드"
+              title="새 동적노드"
+            >
+              <FilePlus2 className="h-4 w-4 shrink-0" />
+            </Button>
           </Link>
         ) : (
-          <Button variant="outline" disabled>
-            새 글
+          <Button variant="outline" className="h-9 w-9 border-sky-100 p-0 text-sky-700" disabled aria-label="새 동적노드" title="새 동적노드">
+            <FilePlus2 className="h-4 w-4 shrink-0" />
           </Button>
         )}
       </div>
@@ -94,27 +109,39 @@ export default function DynNodeListClient() {
 
       <div className="h-4 text-xs text-slate-900/60">{q.isFetching ? '불러오는 중...' : ''}</div>
 
-      {/* ✅ 카드 테두리/구분선: 검정 톤 */}
-      <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
-        {q.isPending ? (
-          <ListSkeleton rows={8} />
-        ) : items.length === 0 ? (
-          <div className="p-4 text-sm text-slate-900/60">게시글이 없습니다.</div>
-        ) : (
-          <div className="divide-y divide-slate-900/20">
-            {items.map((p) => (
-              <Link key={p.id} href={`/board/dynnode/${encodeURIComponent(p.id)}`} className="block p-4 transition-colors hover:bg-slate-900/5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate text-slate-900">{p.title}</div>
-                    <div className="text-xs text-slate-900/60 truncate">{p.summary ?? p.id}</div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(380px,1.15fr)]">
+        <div className="overflow-hidden rounded-lg border border-slate-900/25 bg-white">
+          {q.isPending ? (
+            <ListSkeleton rows={8} />
+          ) : items.length === 0 ? (
+            <div className="p-4 text-sm text-slate-900/60">게시글이 없습니다.</div>
+          ) : (
+            <div className="divide-y divide-slate-900/20">
+              {items.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/board/dynnode/${encodeURIComponent(p.id)}`}
+                  onMouseEnter={() => setPreview(p)}
+                  onFocus={() => setPreview(p)}
+                  className="block p-4 transition-colors hover:bg-slate-900/5 focus-visible:bg-slate-900/5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-slate-900">{p.title}</div>
+                      <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-900/60">
+                        <Badge variant={p.status === 'PUBLISHED' ? 'published' : 'draft'}>{p.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
+                        <span className="truncate">{p.summary ?? p.id}</span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-xs text-slate-900/60">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
                   </div>
-                  <div className="text-xs text-slate-900/60 shrink-0">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <PreviewPanel item={previewItem} />
       </div>
 
       <div className="flex items-center justify-between gap-3">
@@ -163,5 +190,40 @@ export default function DynNodeListClient() {
         </Button>
       </div>
     </div>
+  );
+}
+
+function PreviewPanel({ item }: { item: DynNodePost | null }) {
+  return (
+    <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+        <Code2 className="h-4 w-4 text-sky-600" />
+        미리보기
+      </div>
+
+      {item ? (
+        <div className="mt-4 space-y-3">
+          <div>
+            <div className="line-clamp-2 text-sm font-semibold text-slate-950">{item.title}</div>
+            <div className="mt-2">
+              <Badge variant={item.status === 'PUBLISHED' ? 'published' : 'draft'}>{item.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
+            </div>
+          </div>
+
+          <p className="line-clamp-3 text-sm leading-6 text-slate-600">{item.summary || '요약이 없습니다.'}</p>
+
+          <pre className="max-h-72 overflow-auto rounded-md border border-slate-100 bg-slate-950 p-3 text-xs leading-5 text-slate-100">
+            {item.code}
+          </pre>
+
+          <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs leading-5 text-slate-500">
+            <div>수정: {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '-'}</div>
+            <div>태그: {item.tags?.length > 0 ? item.tags.join(', ') : '-'}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 text-sm text-slate-500">목록에 마우스를 올리면 코드를 미리 확인할 수 있습니다.</div>
+      )}
+    </aside>
   );
 }
