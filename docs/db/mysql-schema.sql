@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS business_lines (
 CREATE TABLE IF NOT EXISTS teams (
   id CHAR(36) NOT NULL,
   name VARCHAR(100) NOT NULL,
+  division_name VARCHAR(100) NOT NULL DEFAULT '운영단',
   head_user_id CHAR(36) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
@@ -734,6 +735,31 @@ CREATE TABLE IF NOT EXISTS permission_delegations (
     FOREIGN KEY (cancelled_by) REFERENCES users (id)
     ON DELETE SET NULL,
   CONSTRAINT chk_permission_delegations_dates CHECK (ends_at >= starts_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS permission_delegation_presets (
+  id CHAR(36) NOT NULL,
+  team_id CHAR(36) NOT NULL,
+  delegator_user_id CHAR(36) NOT NULL,
+  default_delegatee_user_id CHAR(36) NOT NULL,
+  created_by CHAR(36) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_permission_delegation_presets_team_delegator (team_id, delegator_user_id),
+  INDEX idx_permission_delegation_presets_delegatee (default_delegatee_user_id),
+  CONSTRAINT fk_permission_delegation_presets_team
+    FOREIGN KEY (team_id) REFERENCES teams (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegation_presets_delegator
+    FOREIGN KEY (delegator_user_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegation_presets_delegatee
+    FOREIGN KEY (default_delegatee_user_id) REFERENCES users (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_permission_delegation_presets_created_by
+    FOREIGN KEY (created_by) REFERENCES users (id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS meeting_resources (

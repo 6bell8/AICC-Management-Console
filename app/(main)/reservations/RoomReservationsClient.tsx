@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, CalendarDays, Clock3, GraduationCap, Plus, Trash2, Users } from 'lucide-react';
+import { Building2, CalendarDays, Clock3, GraduationCap, Plus, Trash2, Users, X } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
 import type { AuthUser } from '@/app/lib/db/users';
@@ -46,6 +46,13 @@ type ReservationForm = {
 };
 
 type ReservationView = 'manage' | 'board' | 'weekly';
+type ConfirmDialog = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone?: 'danger' | 'default';
+  onConfirm: () => void;
+};
 
 const VIEW_LABEL: Record<ReservationView, string> = {
   manage: '공간 관리',
@@ -116,6 +123,7 @@ export default function RoomReservationsClient({
   const [selectedDate, setSelectedDate] = useState(initialDate || today());
   const [activeView, setActiveView] = useState<ReservationView>('manage');
   const [message, setMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
   const [resourceForm, setResourceForm] = useState<ResourceForm>({
     name: '',
     type: 'MEETING_ROOM',
@@ -225,6 +233,10 @@ export default function RoomReservationsClient({
     setReservationForm((prev) => ({ ...prev, resourceId: resource.id }));
   }
 
+  function requestConfirm(dialog: ConfirmDialog) {
+    setConfirmDialog(dialog);
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -326,9 +338,13 @@ export default function RoomReservationsClient({
                         tabIndex={0}
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (window.confirm(`${resource.name}을 삭제할까요? 예약 내역도 함께 삭제됩니다.`)) {
-                            deleteMutation.mutate({ type: 'resource', id: resource.id });
-                          }
+                          requestConfirm({
+                            title: '공간을 삭제할까요?',
+                            description: `${resource.name}과 연결된 예약 내역이 함께 정리됩니다.`,
+                            confirmLabel: '공간 삭제',
+                            tone: 'danger',
+                            onConfirm: () => deleteMutation.mutate({ type: 'resource', id: resource.id }),
+                          });
                         }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') {
@@ -445,7 +461,15 @@ export default function RoomReservationsClient({
               resource={resource}
               reservations={reservationsByResource.get(resource.id) ?? []}
               currentUser={currentUser}
-              onCancel={(id) => deleteMutation.mutate({ type: 'reservation', id })}
+              onCancel={(id) =>
+                requestConfirm({
+                  title: '예약을 취소할까요?',
+                  description: '취소 후에는 예약 보드에서 해당 일정이 제외됩니다.',
+                  confirmLabel: '예약 취소',
+                  tone: 'danger',
+                  onConfirm: () => deleteMutation.mutate({ type: 'reservation', id }),
+                })
+              }
             />
           ))}
         </div>
@@ -454,6 +478,47 @@ export default function RoomReservationsClient({
 
       {activeView === 'weekly' ? (
         <WeeklyTimeline resources={data.resources} reservations={data.reservations} weekDays={weekDays} selectedDate={selectedDate} />
+      ) : null}
+
+      {confirmDialog ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button type="button" className="absolute inset-0 bg-slate-950/35" aria-label="확인 창 닫기" onClick={() => setConfirmDialog(null)} />
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-slate-950">{confirmDialog.title}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{confirmDialog.description}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-50 hover:text-slate-900"
+                aria-label="닫기"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex justify-end gap-2 bg-slate-50/70 px-5 py-4">
+              <button type="button" onClick={() => setConfirmDialog(null)} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  action();
+                }}
+                className={[
+                  'rounded-md border px-3 py-2 text-sm font-semibold transition',
+                  confirmDialog.tone === 'danger' ? 'border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100' : 'border-sky-100 bg-sky-50 text-sky-700 hover:bg-sky-100',
+                ].join(' ')}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -514,9 +579,7 @@ function ResourceColumn({
               {canCancel ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('이 예약을 취소할까요?')) onCancel(reservation.id);
-                  }}
+                  onClick={() => onCancel(reservation.id)}
                   className="mt-3 rounded-md border border-rose-100 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-100"
                 >
                   예약 취소

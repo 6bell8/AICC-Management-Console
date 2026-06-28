@@ -63,6 +63,7 @@ type KakaoOutput =
     };
 
 const KAKAO_CHANNEL_BANNER = '/kakao-channel-banner.png';
+const KAKAO_SPACE_RESERVATION_IMAGE = '/kakao-space-reservation.png';
 
 function toKakaoButtons(buttons: KakaoButton[] = []) {
   return buttons.slice(0, 3).map((item) => ({
@@ -84,7 +85,7 @@ function getPublicAssetUrl(path: string) {
   return `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-function kakaoThumbnail(imagePath = '/og-image.png'): KakaoThumbnail {
+function kakaoThumbnail(imagePath = KAKAO_SPACE_RESERVATION_IMAGE): KakaoThumbnail {
   return {
     imageUrl: getPublicAssetUrl(imagePath),
     fixedRatio: true,
@@ -625,7 +626,7 @@ async function handleKakaoLinkVerification(utterance: string, kakaoUserKey: stri
   };
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
   const body = (await req.json().catch(() => ({}))) as KakaoSkillBody;
   const utterance = normalizeText(body.userRequest?.utterance ?? body.action?.params?.utterance ?? '');
   const kakaoUserKey = getKakaoUserKey(body);
@@ -691,4 +692,23 @@ export async function POST(req: Request) {
   void logKakaoMessage({ kakaoUserKey, channelId, direction: 'INBOUND', payload: body });
   void logKakaoMessage({ kakaoUserKey, channelId, direction: 'OUTBOUND', payload: result });
   return kakaoText(result);
+}
+
+export async function POST(req: Request) {
+  try {
+    return await handlePost(req);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '카카오 요청을 처리하지 못했습니다.';
+    return kakaoText({
+      text: `요청 처리 중 문제가 발생했습니다.\n${message}`,
+      outputs: [
+        simpleOutput(`요청 처리 중 문제가 발생했습니다.\n${message}`),
+        cardOutput('공간 예약', '잠시 후 다시 시도하거나 공간 목록에서 다시 시작해 주세요.', [
+          { label: '공간 목록', messageText: '공간예약' },
+          { label: '오늘 일정', messageText: '오늘 공간 일정' },
+          { label: '내 예약', messageText: '내 예약' },
+        ], kakaoThumbnail()),
+      ],
+    });
+  }
 }

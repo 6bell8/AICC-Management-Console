@@ -28,6 +28,18 @@ export type PermissionDelegation = {
   cancelledAt: string | null;
 };
 
+export type PermissionDelegationPreset = {
+  id: string;
+  teamId: string;
+  teamName: string;
+  delegatorUserId: string;
+  delegatorName: string;
+  defaultDelegateeUserId: string;
+  defaultDelegateeName: string;
+  createdBy: string | null;
+  updatedAt: string;
+};
+
 type DelegationRow = RowDataPacket & {
   id: string;
   delegator_user_id: string;
@@ -45,6 +57,18 @@ type DelegationRow = RowDataPacket & {
   created_at: Date | string;
   cancelled_by: string | null;
   cancelled_at: Date | string | null;
+};
+
+type PresetRow = RowDataPacket & {
+  id: string;
+  team_id: string;
+  team_name: string;
+  delegator_user_id: string;
+  delegator_name: string;
+  default_delegatee_user_id: string;
+  default_delegatee_name: string;
+  created_by: string | null;
+  updated_at: Date | string;
 };
 
 let schemaReady: Promise<void> | null = null;
@@ -81,43 +105,86 @@ function mapDelegation(row: DelegationRow): PermissionDelegation {
   };
 }
 
+function mapPreset(row: PresetRow): PermissionDelegationPreset {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    teamName: row.team_name,
+    delegatorUserId: row.delegator_user_id,
+    delegatorName: row.delegator_name,
+    defaultDelegateeUserId: row.default_delegatee_user_id,
+    defaultDelegateeName: row.default_delegatee_name,
+    createdBy: row.created_by,
+    updatedAt: toIso(row.updated_at) ?? new Date().toISOString(),
+  };
+}
+
 export async function ensurePermissionDelegationsTable() {
   if (!schemaReady) {
-    schemaReady = getMysqlPool().execute(`
-      CREATE TABLE IF NOT EXISTS permission_delegations (
-        id CHAR(36) NOT NULL,
-        delegator_user_id CHAR(36) NOT NULL,
-        delegatee_user_id CHAR(36) NOT NULL,
-        team_id CHAR(36) NOT NULL,
-        permission_scope ENUM('TEAM_MANAGER', 'APPROVAL', 'TEAM_HR', 'TEAM_CALENDAR') NOT NULL DEFAULT 'TEAM_MANAGER',
-        starts_at DATE NOT NULL,
-        ends_at DATE NOT NULL,
-        reason VARCHAR(500) NULL,
-        status ENUM('ACTIVE', 'CANCELLED', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
-        created_by CHAR(36) NULL,
-        created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-        cancelled_by CHAR(36) NULL,
-        cancelled_at DATETIME(3) NULL,
-        PRIMARY KEY (id),
-        INDEX idx_permission_delegations_delegatee (delegatee_user_id, status, starts_at, ends_at),
-        INDEX idx_permission_delegations_team (team_id, status, starts_at, ends_at),
-        CONSTRAINT fk_permission_delegations_delegator
-          FOREIGN KEY (delegator_user_id) REFERENCES users (id)
-          ON DELETE CASCADE,
-        CONSTRAINT fk_permission_delegations_delegatee
-          FOREIGN KEY (delegatee_user_id) REFERENCES users (id)
-          ON DELETE CASCADE,
-        CONSTRAINT fk_permission_delegations_team
-          FOREIGN KEY (team_id) REFERENCES teams (id)
-          ON DELETE CASCADE,
-        CONSTRAINT fk_permission_delegations_created_by
-          FOREIGN KEY (created_by) REFERENCES users (id)
-          ON DELETE SET NULL,
-        CONSTRAINT fk_permission_delegations_cancelled_by
-          FOREIGN KEY (cancelled_by) REFERENCES users (id)
-          ON DELETE SET NULL
-      ) ENGINE=InnoDB
-    `).then(() => undefined);
+    schemaReady = (async () => {
+      const pool = getMysqlPool();
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS permission_delegations (
+          id CHAR(36) NOT NULL,
+          delegator_user_id CHAR(36) NOT NULL,
+          delegatee_user_id CHAR(36) NOT NULL,
+          team_id CHAR(36) NOT NULL,
+          permission_scope ENUM('TEAM_MANAGER', 'APPROVAL', 'TEAM_HR', 'TEAM_CALENDAR') NOT NULL DEFAULT 'TEAM_MANAGER',
+          starts_at DATE NOT NULL,
+          ends_at DATE NOT NULL,
+          reason VARCHAR(500) NULL,
+          status ENUM('ACTIVE', 'CANCELLED', 'EXPIRED') NOT NULL DEFAULT 'ACTIVE',
+          created_by CHAR(36) NULL,
+          created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          cancelled_by CHAR(36) NULL,
+          cancelled_at DATETIME(3) NULL,
+          PRIMARY KEY (id),
+          INDEX idx_permission_delegations_delegatee (delegatee_user_id, status, starts_at, ends_at),
+          INDEX idx_permission_delegations_team (team_id, status, starts_at, ends_at),
+          CONSTRAINT fk_permission_delegations_delegator
+            FOREIGN KEY (delegator_user_id) REFERENCES users (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegations_delegatee
+            FOREIGN KEY (delegatee_user_id) REFERENCES users (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegations_team
+            FOREIGN KEY (team_id) REFERENCES teams (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegations_created_by
+            FOREIGN KEY (created_by) REFERENCES users (id)
+            ON DELETE SET NULL,
+          CONSTRAINT fk_permission_delegations_cancelled_by
+            FOREIGN KEY (cancelled_by) REFERENCES users (id)
+            ON DELETE SET NULL
+        ) ENGINE=InnoDB
+      `);
+      await pool.execute(`
+        CREATE TABLE IF NOT EXISTS permission_delegation_presets (
+          id CHAR(36) NOT NULL,
+          team_id CHAR(36) NOT NULL,
+          delegator_user_id CHAR(36) NOT NULL,
+          default_delegatee_user_id CHAR(36) NOT NULL,
+          created_by CHAR(36) NULL,
+          created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (id),
+          UNIQUE KEY uq_permission_delegation_presets_team_delegator (team_id, delegator_user_id),
+          INDEX idx_permission_delegation_presets_delegatee (default_delegatee_user_id),
+          CONSTRAINT fk_permission_delegation_presets_team
+            FOREIGN KEY (team_id) REFERENCES teams (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegation_presets_delegator
+            FOREIGN KEY (delegator_user_id) REFERENCES users (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegation_presets_delegatee
+            FOREIGN KEY (default_delegatee_user_id) REFERENCES users (id)
+            ON DELETE CASCADE,
+          CONSTRAINT fk_permission_delegation_presets_created_by
+            FOREIGN KEY (created_by) REFERENCES users (id)
+            ON DELETE SET NULL
+        ) ENGINE=InnoDB
+      `);
+    })();
   }
   return schemaReady;
 }
@@ -154,6 +221,22 @@ export async function listPermissionDelegations() {
   return rows.map(mapDelegation);
 }
 
+export async function listPermissionDelegationPresets() {
+  await ensurePermissionDelegationsTable();
+  const [rows] = await getMysqlPool().query<PresetRow[]>(`
+    SELECT pdp.id, pdp.team_id, t.name AS team_name,
+      pdp.delegator_user_id, delegator.name AS delegator_name,
+      pdp.default_delegatee_user_id, delegatee.name AS default_delegatee_name,
+      pdp.created_by, pdp.updated_at
+    FROM permission_delegation_presets pdp
+    JOIN teams t ON t.id = pdp.team_id
+    JOIN users delegator ON delegator.id = pdp.delegator_user_id
+    JOIN users delegatee ON delegatee.id = pdp.default_delegatee_user_id
+    ORDER BY t.name ASC, delegator.name ASC
+  `);
+  return rows.map(mapPreset);
+}
+
 export async function getActiveDelegatedTeamIds(userId: string, scopes: PermissionDelegationScope[] = ['TEAM_MANAGER']) {
   await expireDelegations();
   const [rows] = await getMysqlPool().query<RowDataPacket[]>(
@@ -169,6 +252,28 @@ export async function getActiveDelegatedTeamIds(userId: string, scopes: Permissi
     [userId, scopes],
   );
   return rows.map((row) => String(row.id)).filter(Boolean);
+}
+
+export async function upsertPermissionDelegationPreset(input: {
+  teamId: string;
+  delegatorUserId: string;
+  defaultDelegateeUserId: string;
+  createdBy: string;
+}) {
+  await ensurePermissionDelegationsTable();
+  const id = randomUUID();
+  await getMysqlPool().execute(
+    `
+      INSERT INTO permission_delegation_presets
+        (id, team_id, delegator_user_id, default_delegatee_user_id, created_by)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        default_delegatee_user_id = VALUES(default_delegatee_user_id),
+        created_by = VALUES(created_by),
+        updated_at = CURRENT_TIMESTAMP(3)
+    `,
+    [id, input.teamId, input.delegatorUserId, input.defaultDelegateeUserId, input.createdBy],
+  );
 }
 
 export async function createPermissionDelegation(input: {

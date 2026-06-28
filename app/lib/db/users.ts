@@ -213,6 +213,34 @@ export async function createSignupUser(input: { email: string; passwordHash: str
   return withoutPassword(user);
 }
 
+export async function getNextManagedLoginId() {
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(`
+    SELECT MAX(CAST(email AS UNSIGNED)) AS max_login_id
+    FROM users
+    WHERE email REGEXP '^[0-9]+$'
+  `);
+  const next = Number(rows[0]?.max_login_id ?? 0) + 1;
+  return String(next).padStart(5, '0');
+}
+
+export async function createManagedUser(input: { loginId: string; passwordHash: string; name: string; role: UserRole; approvedBy: string }) {
+  const id = randomUUID();
+  const loginId = input.loginId.trim().toLowerCase();
+  const pool = getMysqlPool();
+  await pool.execute(
+    `
+      INSERT INTO users (id, email, password_hash, force_password_change, name, role, status, approved_by, approved_at)
+      VALUES (?, ?, ?, TRUE, ?, ?, 'APPROVED', ?, CURRENT_TIMESTAMP(3))
+    `,
+    [id, loginId, input.passwordHash, input.name.trim(), input.role, input.approvedBy],
+  );
+
+  const user = await getUserById(id);
+  if (!user) throw new Error('Failed to create managed user');
+  return withoutPassword(user);
+}
+
 export async function upsertHeadUser(input: { email: string; passwordHash: string; name: string }) {
   const id = randomUUID();
   const pool = getMysqlPool();

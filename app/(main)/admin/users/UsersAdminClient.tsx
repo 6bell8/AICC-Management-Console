@@ -1,7 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import Link from 'next/link';
+import { Network, UserPlus } from 'lucide-react';
 import type { AuthUser, UserRole, UserStatus } from '@/app/lib/db/users';
 import { Button } from '@/app/components/ui/button';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -23,6 +25,11 @@ type Props = {
 const ROLES: UserRole[] = ['ADMIN', 'OPERATOR', 'VIEWER'];
 const STATUSES: UserStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+type CreateUserDraft = {
+  loginId: string;
+  name: string;
+  role: UserRole;
+};
 
 function statusBadge(status: UserStatus) {
   if (status === 'APPROVED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
@@ -50,8 +57,9 @@ export default function UsersAdminClient({ currentUser }: Props) {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [profiles, setProfiles] = useState<EmployeeProfile[]>([]);
-  const [teamDraft, setTeamDraft] = useState<{ id?: string; name: string; headUserId: string }>({ name: '', headUserId: '' });
-  const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+  const [nextLoginId, setNextLoginId] = useState('00001');
+  const [createUserDraft, setCreateUserDraft] = useState<CreateUserDraft>({ loginId: '00001', name: '', role: 'OPERATOR' });
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -72,7 +80,6 @@ export default function UsersAdminClient({ currentUser }: Props) {
   }, [page, pageCount]);
   const rangeStart = totalUsers === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(totalUsers, page * pageSize);
-  const pendingUsers = { length: summary.pending };
   const filteredUsers = { length: totalUsers };
   const pagedUsers = users;
 
@@ -97,20 +104,23 @@ export default function UsersAdminClient({ currentUser }: Props) {
       const teamsBody = await teamsRes.json().catch(() => ({}));
       const profilesBody = await profilesRes.json().catch(() => ({}));
       if (!usersRes.ok) {
-        setMessage(usersBody.message || '사용자 목록을 불러오지 못했습니다.');
+        setMessage(usersBody.message || '?ъ슜??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??');
         return;
       }
       setUsers(usersBody.users ?? []);
+      const nextId = usersBody.nextLoginId ?? '00001';
+      setNextLoginId(nextId);
+      setCreateUserDraft((prev) => (prev.loginId && prev.loginId !== nextLoginId ? prev : { ...prev, loginId: nextId }));
       setTotalUsers(Number(usersBody.total ?? usersBody.users?.length ?? 0));
       setSummary(usersBody.summary ?? { pending: 0, approved: 0, admin: 0 });
       if (usersBody.page && usersBody.page !== page) setPage(usersBody.page);
       setTeams(teamsRes.ok ? teamsBody.teams ?? [] : []);
       setProfiles(profilesRes.ok ? profilesBody.profiles ?? [] : []);
       if (!teamsRes.ok || !profilesRes.ok) {
-        setMessage('사용자 목록은 불러왔지만 팀 또는 HR 프로필 일부를 불러오지 못했습니다.');
+        setMessage('?ъ슜??紐⑸줉? 遺덈윭?붿?留?? ?먮뒗 HR ?꾨줈???쇰?瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??');
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '계정 승인 관리 데이터를 불러오지 못했습니다.';
+      const message = error instanceof Error ? error.message : '怨꾩젙 ?뱀씤 愿由??곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??';
       setMessage(message);
     } finally {
       setLoading(false);
@@ -141,15 +151,43 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '사용자 권한 변경에 실패했습니다.');
+      setMessage(body.message || '?ъ슜??沅뚰븳 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎.');
       return;
     }
 
     await loadUsers();
   }
 
+  async function createUser() {
+    if (!createUserDraft.loginId.trim() || !createUserDraft.name.trim()) {
+      setMessage('濡쒓렇??ID? ?대쫫???낅젰??二쇱꽭??');
+      return;
+    }
+    setPendingId('create-user');
+    setMessage(null);
+    const res = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createUserDraft),
+    });
+    const body = await res.json().catch(() => ({}));
+    setPendingId(null);
+
+    if (!res.ok) {
+      setMessage(body.message || '怨꾩젙???앹꽦?섏? 紐삵뻽?듬땲??');
+      return;
+    }
+
+    const nextId = body.nextLoginId ?? nextLoginId;
+    setNextLoginId(nextId);
+    setCreateUserDraft({ loginId: nextId, name: '', role: 'OPERATOR' });
+    setCreateUserModalOpen(false);
+    setMessage(`${body.user?.name ?? '怨꾩젙'} 怨꾩젙???앹꽦?덉뒿?덈떎. 珥덇린 鍮꾨?踰덊샇??new123!@ ?낅땲??`);
+    await loadUsers();
+  }
+
   async function deleteUser(id: string) {
-    if (!confirm('이 계정을 삭제하시겠습니까?')) return;
+    if (!confirm('??怨꾩젙????젣?섏떆寃좎뒿?덇퉴?')) return;
     setPendingId(id);
     setMessage(null);
     const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -157,7 +195,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '사용자 삭제에 실패했습니다.');
+      setMessage(body.message || '?ъ슜????젣???ㅽ뙣?덉뒿?덈떎.');
       return;
     }
 
@@ -165,7 +203,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
   }
 
   async function resetPassword(id: string, name: string) {
-    if (!confirm(`${name}님의 비밀번호를 new123!@로 초기화하시겠습니까?`)) return;
+    if (!confirm(`${name}?섏쓽 鍮꾨?踰덊샇瑜?new123!@濡?珥덇린?뷀븯?쒓쿋?듬땲源?`)) return;
     setPendingId(`password:${id}`);
     setMessage(null);
     const res = await fetch('/api/admin/users', {
@@ -177,12 +215,12 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '비밀번호 초기화에 실패했습니다.');
+      setMessage(body.message || '鍮꾨?踰덊샇 珥덇린?붿뿉 ?ㅽ뙣?덉뒿?덈떎.');
       return;
     }
 
     await loadUsers();
-    setMessage(`${name}님의 비밀번호를 new123!@로 초기화했습니다.`);
+    setMessage(`${name}?섏쓽 鍮꾨?踰덊샇瑜?new123!@濡?珥덇린?뷀뻽?듬땲??`);
   }
 
   function getProfile(userId: string): EmployeeProfile {
@@ -220,47 +258,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
     const body = await res.json().catch(() => ({}));
     setPendingId(null);
     if (!res.ok) {
-      setMessage(body.message || 'HR 프로필 저장에 실패했습니다.');
-      return;
-    }
-    await loadUsers();
-  }
-
-  async function saveTeam() {
-    if (!teamDraft.name.trim()) {
-      setMessage('팀명을 입력해 주세요.');
-      return;
-    }
-    setPendingId(teamDraft.id ?? 'team');
-    setMessage(null);
-    const res = await fetch('/api/admin/teams', {
-      method: teamDraft.id ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: teamDraft.id,
-        name: teamDraft.name,
-        headUserId: teamDraft.headUserId || null,
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    setPendingId(null);
-    if (!res.ok) {
-      setMessage(body.message || '팀 저장에 실패했습니다.');
-      return;
-    }
-    setTeamDraft({ name: '', headUserId: '' });
-    setTeamModalOpen(false);
-    await loadUsers();
-  }
-
-  async function removeTeam(id: string) {
-    if (!confirm('팀을 삭제하시겠습니까? 연결된 사용자 프로필의 팀 정보는 비워집니다.')) return;
-    setPendingId(id);
-    const res = await fetch(`/api/admin/teams?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const body = await res.json().catch(() => ({}));
-    setPendingId(null);
-    if (!res.ok) {
-      setMessage(body.message || '팀 삭제에 실패했습니다.');
+      setMessage(body.message || 'HR ?꾨줈????μ뿉 ?ㅽ뙣?덉뒿?덈떎.');
       return;
     }
     await loadUsers();
@@ -273,65 +271,35 @@ export default function UsersAdminClient({ currentUser }: Props) {
           <h1 className="text-xl font-semibold">계정 승인 관리</h1>
           <p className="mt-1 text-sm text-slate-500">가입 신청 승인, 반려, 역할 변경을 관리합니다.</p>
         </div>
-      </div>
-
-      <div className="hidden">
-        <Metric label="승인 대기" value={pendingUsers.length} />
-        <Metric label="승인 계정" value={users.filter((user) => user.status === 'APPROVED').length} />
-        <Metric label="관리자" value={users.filter((user) => user.role === 'HEAD' || user.role === 'ADMIN').length} />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <Metric label="승인 대기" value={summary.pending} />
-        <Metric label="승인 계정" value={summary.approved} />
-        <Metric label="관리자" value={summary.admin} />
+        {currentUser.role === 'HEAD' || currentUser.role === 'ADMIN' ? (
+          <Button
+            variant="saveOutline"
+            onClick={() => {
+              setCreateUserDraft({ loginId: nextLoginId, name: '', role: 'OPERATOR' });
+              setCreateUserModalOpen(true);
+            }}
+          >
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+            계정 생성
+          </Button>
+        ) : null}
       </div>
 
       {message && <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</div>}
 
-      {currentUser.role === 'HEAD' ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold">팀 관리</h2>
-              <p className="mt-1 text-sm text-slate-500">HEAD 계정은 팀을 등록, 수정, 삭제하고 팀장을 지정할 수 있습니다.</p>
-            </div>
-            <Button
-              variant="saveOutline"
-              onClick={() => {
-                setTeamDraft({ name: '', headUserId: '' });
-                setTeamModalOpen(true);
-              }}
-            >
-              팀 등록
-            </Button>
+      {currentUser.role === 'HEAD' || currentUser.role === 'ADMIN' ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950">팀 구조 관리</h2>
+            <p className="mt-1 text-sm text-slate-500">팀 등록, 수정, 삭제와 팀장 지정은 조직도 / 팀 현황에서 관리합니다.</p>
           </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => (
-              <div key={team.id} className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-slate-900">{team.name}</div>
-                  <div className="text-xs text-slate-500">팀장: {team.headName ?? '미지정'}</div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-slate-700 hover:text-slate-950"
-                    onClick={() => {
-                      setTeamDraft({ id: team.id, name: team.name, headUserId: team.headUserId ?? '' });
-                      setTeamModalOpen(true);
-                    }}
-                  >
-                    수정
-                  </button>
-                  <button type="button" className="text-xs font-medium text-rose-600 hover:text-rose-700" onClick={() => removeTeam(team.id)}>
-                    삭제
-                  </button>
-                </div>
-              </div>
-            ))}
-            {teams.length === 0 ? <div className="text-sm text-slate-500">등록된 팀이 없습니다.</div> : null}
-          </div>
+          <Link
+            href="/admin/org"
+            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-100"
+          >
+            <Network className="h-4 w-4" aria-hidden="true" />
+            조직도에서 관리
+          </Link>
         </div>
       ) : null}
 
@@ -341,7 +309,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
             <div>
               <h2 className="text-sm font-semibold text-slate-950">회원 목록</h2>
               <p className="mt-1 text-xs text-slate-500">
-                전체 {users.length}명 중 {filteredUsers.length}명 표시 · {rangeStart}-{rangeEnd}
+                전체 {totalUsers}명 중 {rangeStart}-{rangeEnd} 표시
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[220px_130px_130px_160px_110px]">
@@ -593,7 +561,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
         </div>
         <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-slate-500">
-            {filteredUsers.length === 0 ? '표시할 회원이 없습니다.' : `${rangeStart}-${rangeEnd} / ${filteredUsers.length}명`}
+            {filteredUsers.length === 0 ? '표시할 회원이 없습니다.' : `${rangeStart}-${rangeEnd} / ${totalUsers}명`}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <PaginationButton disabled={page === 1} onClick={() => setPage(1)}>
@@ -617,78 +585,74 @@ export default function UsersAdminClient({ currentUser }: Props) {
         </div>
       </div>
 
-      {teamModalOpen ? (
+      {createUserModalOpen ? (
         <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/35"
-            onClick={() => {
-              setTeamModalOpen(false);
-              setTeamDraft({ name: '', headUserId: '' });
-            }}
-          />
+          <div className="absolute inset-0 bg-black/35" onClick={() => setCreateUserModalOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2">
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
               <div className="mb-4">
-                <h2 className="text-base font-semibold">{teamDraft.id ? '팀 수정' : '팀 등록'}</h2>
-                <p className="mt-1 text-sm text-slate-500">팀명과 팀장을 지정합니다.</p>
+                <h2 className="text-base font-semibold text-slate-950">계정 생성</h2>
+                <p className="mt-1 text-sm text-slate-500">승인 완료 상태의 계정을 바로 생성합니다. 초기 비밀번호는 new123!@ 입니다.</p>
               </div>
               <div className="space-y-3">
                 <label className="block space-y-1">
-                  <span className="text-xs font-medium text-slate-500">팀명</span>
+                  <span className="text-xs font-medium text-slate-500">로그인 ID</span>
+                  <div className="flex gap-2">
+                    <input
+                      value={createUserDraft.loginId}
+                      onChange={(event) => setCreateUserDraft((prev) => ({ ...prev, loginId: event.target.value }))}
+                      className="h-10 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
+                      placeholder="00001 또는 user@company.com"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCreateUserDraft((prev) => ({ ...prev, loginId: nextLoginId }))}
+                      className="shrink-0 rounded-md border border-sky-100 bg-sky-50 px-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                    >
+                      자동
+                    </button>
+                  </div>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium text-slate-500">이름</span>
                   <input
-                    value={teamDraft.name}
-                    onChange={(e) => setTeamDraft((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="팀명을 입력해 주세요."
+                    value={createUserDraft.name}
+                    onChange={(event) => setCreateUserDraft((prev) => ({ ...prev, name: event.target.value }))}
                     className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                    autoFocus
+                    placeholder="사용자 이름"
                   />
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-xs font-medium text-slate-500">팀장</span>
+                  <span className="text-xs font-medium text-slate-500">권한</span>
                   <select
-                    value={teamDraft.headUserId}
-                    onChange={(e) => setTeamDraft((prev) => ({ ...prev, headUserId: e.target.value }))}
+                    value={createUserDraft.role}
+                    onChange={(event) => setCreateUserDraft((prev) => ({ ...prev, role: event.target.value as UserRole }))}
                     className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                   >
-                    <option value="">팀장 미지정</option>
-                    {users
-                      .filter((user) => user.role === 'HEAD' || user.role === 'ADMIN' || user.role === 'OPERATOR')
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
+                    {(currentUser.role === 'HEAD' ? ['ADMIN', 'OPERATOR', 'VIEWER'] : ['OPERATOR', 'VIEWER']).map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
                   </select>
                 </label>
+                <div className="rounded-md border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm text-slate-600">
+                  초기 비밀번호: <span className="font-semibold text-slate-900">new123!@</span>
+                </div>
               </div>
               <div className="mt-5 flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setTeamModalOpen(false);
-                    setTeamDraft({ name: '', headUserId: '' });
-                  }}
-                  disabled={Boolean(pendingId)}
-                >
+                <Button variant="outline" onClick={() => setCreateUserModalOpen(false)} disabled={pendingId === 'create-user'}>
                   취소
                 </Button>
-                <Button variant="saveOutline" onClick={saveTeam} disabled={Boolean(pendingId)}>
-                  {teamDraft.id ? '수정' : '등록'}
+                <Button variant="saveOutline" onClick={createUser} disabled={pendingId === 'create-user'}>
+                  {pendingId === 'create-user' ? '생성 중' : '계정 생성'}
                 </Button>
               </div>
             </div>
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
     </div>
   );
 }

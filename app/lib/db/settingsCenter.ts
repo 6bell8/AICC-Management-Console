@@ -4,7 +4,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { getMysqlPool } from './mysql';
 import { getOrganizationSeal, getOrganizationSettings } from './erp';
 import { listTeams } from './hr';
-import { listPermissionDelegations } from './permissionDelegations';
+import { listPermissionDelegationPresets, listPermissionDelegations } from './permissionDelegations';
 
 type CountRow = RowDataPacket & {
   total_count?: number;
@@ -74,11 +74,12 @@ function mapLeavePolicy(row: LeavePolicyRow) {
 
 export async function getSettingsCenterData() {
   const pool = getMysqlPool();
-  const [organization, documentSeal, teams, permissionDelegations] = await Promise.all([
+  const [organization, documentSeal, teams, permissionDelegations, permissionDelegationPresets] = await Promise.all([
     getOrganizationSettings(),
     getOrganizationSeal(),
     listTeams(),
     listPermissionDelegations(),
+    listPermissionDelegationPresets(),
   ]);
 
   const [userRows] = await pool.query<CountRow[]>(`
@@ -147,6 +148,7 @@ export async function getSettingsCenterData() {
       teamName: row.team_name,
     })),
     permissionDelegations,
+    permissionDelegationPresets,
     leavePolicies: policyRows.map(mapLeavePolicy),
     approvals: {
       pendingSteps: Number(approvalSummary.pending_steps ?? 0),

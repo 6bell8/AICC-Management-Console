@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deleteNotice, getNotice, patchNotice } from '@/app/lib/notice/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}) as any);
-  const updated = await patchNotice(id, body);
+  const user = await getCurrentUser();
+  const updated = await patchNotice(id, { ...body, editorName: user?.name ?? null });
 
   if (!updated) return NextResponse.json({ message: 'not found' }, { status: 404 });
   return NextResponse.json({ notice: updated }, { status: 200 });

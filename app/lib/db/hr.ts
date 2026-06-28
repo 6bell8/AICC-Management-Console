@@ -5,7 +5,8 @@ import { getMysqlPool } from './mysql';
 import { createSecurityAuditLog } from './securityAudit';
 import type { AuthUser } from './users';
 import { buildLeaveNotionPayload, createNotionCalendarPage } from '../integrations/notionCalendar';
-import { getTeamScope } from '../auth/authorization';
+import { getDirectHeadedTeamIds, getTeamScope, isGlobalAdmin } from '../auth/authorization';
+import { getActiveDelegatedTeamIds } from './permissionDelegations';
 import type {
   ApprovalItem,
   ApprovalStatus,
@@ -22,6 +23,7 @@ import type {
 type TeamRow = RowDataPacket & {
   id: string;
   name: string;
+  division_name: string | null;
   head_user_id: string | null;
   head_name: string | null;
 };
@@ -99,9 +101,26 @@ function mapTeam(row: TeamRow): Team {
   return {
     id: row.id,
     name: row.name,
+    divisionName: row.division_name || '운영단',
     headUserId: row.head_user_id,
     headName: row.head_name,
   };
+}
+
+async function ensureTeamsDivisionColumn() {
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'teams'
+        AND COLUMN_NAME = 'division_name'
+      LIMIT 1
+    `,
+  );
+  if (rows.length > 0) return;
+  await pool.execute("ALTER TABLE teams ADD COLUMN division_name VARCHAR(100) NOT NULL DEFAULT '운영단' AFTER name");
 }
 
 function mapLeave(row: LeaveRow): LeaveRequest {
@@ -253,41 +272,87 @@ async function createNotification(input: {
 }
 
 export async function listTeams() {
+  await ensureTeamsDivisionColumn();
   const pool = getMysqlPool();
   const [rows] = await pool.query<TeamRow[]>(
     `
-      SELECT t.id, t.name, t.head_user_id, u.name AS head_name
+      SELECT t.id, t.name, t.division_name, t.head_user_id, u.name AS head_name
       FROM teams t
       LEFT JOIN users u ON u.id = t.head_user_id
-      ORDER BY t.name ASC
+      ORDER BY t.division_name ASC, t.name ASC
     `,
   );
   return rows.map(mapTeam);
 }
 
-export async function createTeam(input: { name: string; headUserId?: string | null }) {
+export async function createTeam(input: { name: string; divisionName?: string | null; headUserId?: string | null }) {
+  await ensureTeamsDivisionColumn();
   const pool = getMysqlPool();
   const id = randomUUID();
-  await pool.execute(
-    `
-      INSERT INTO teams (id, name, head_user_id)
-      VALUES (?, ?, ?)
-    `,
-    [id, input.name.trim(), input.headUserId || null],
-  );
+  const divisionName = input.divisionName?.trim() || '운영단';
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute(
+      `
+        INSERT INTO teams (id, name, division_name, head_user_id)
+        VALUES (?, ?, ?, ?)
+      `,
+      [id, input.name.trim(), divisionName, input.headUserId || null],
+    );
+    if (input.headUserId) {
+      await connection.execute(
+        `
+          INSERT INTO user_team_memberships (user_id, team_id, team_role)
+          VALUES (?, ?, 'HEAD')
+          ON DUPLICATE KEY UPDATE team_role = 'HEAD'
+        `,
+        [input.headUserId, id],
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
   return id;
 }
 
-export async function updateTeam(input: { id: string; name: string; headUserId?: string | null }) {
+export async function updateTeam(input: { id: string; name: string; divisionName?: string | null; headUserId?: string | null }) {
+  await ensureTeamsDivisionColumn();
   const pool = getMysqlPool();
-  await pool.execute(
-    `
-      UPDATE teams
-      SET name = ?, head_user_id = ?
-      WHERE id = ?
-    `,
-    [input.name.trim(), input.headUserId || null, input.id],
-  );
+  const divisionName = input.divisionName?.trim() || '운영단';
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute(
+      `
+        UPDATE teams
+        SET name = ?, division_name = ?, head_user_id = ?
+        WHERE id = ?
+      `,
+      [input.name.trim(), divisionName, input.headUserId || null, input.id],
+    );
+    await connection.execute("DELETE FROM user_team_memberships WHERE team_id = ? AND team_role = 'HEAD'", [input.id]);
+    if (input.headUserId) {
+      await connection.execute(
+        `
+          INSERT INTO user_team_memberships (user_id, team_id, team_role)
+          VALUES (?, ?, 'HEAD')
+          ON DUPLICATE KEY UPDATE team_role = 'HEAD'
+        `,
+        [input.headUserId, input.id],
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function deleteTeam(id: string) {
@@ -378,6 +443,7 @@ export async function upsertEmployeeProfile(input: {
       [input.userId, teamId, input.position, input.employmentType, hireDate, Math.max(0, input.yearsOfService)],
     );
 
+    await connection.execute("DELETE FROM user_team_memberships WHERE user_id = ? AND team_role = 'MEMBER'", [input.userId]);
     if (teamId) {
       await connection.execute(
         `
@@ -506,6 +572,28 @@ export async function createLeaveRequest(input: {
   const halfDay = input.requestType === 'AM_HALF' ? 'AM' : input.requestType === 'PM_HALF' ? 'PM' : null;
   const requestedDays = getRequestUseDays({ requestType: input.requestType, startDate, endDate });
 
+  if (halfDay) {
+    const [duplicateRows] = await pool.query<RowDataPacket[]>(
+      `
+        SELECT id
+        FROM leave_requests
+        WHERE requester_id = ?
+          AND status IN ('DRAFT', 'PENDING', 'APPROVED')
+          AND start_date <= ?
+          AND end_date >= ?
+          AND (
+            request_type = 'ANNUAL'
+            OR request_type = ?
+          )
+        LIMIT 1
+      `,
+      [input.requester.id, startDate, startDate, input.requestType],
+    );
+    if (duplicateRows[0]) {
+      throw new Error('이미 같은 날짜에 등록된 반차 또는 연차 신청이 있습니다.');
+    }
+  }
+
   if (requestedDays > 0) {
     const balance = await getLeaveBalanceForUser(input.requester.id);
     if (requestedDays > balance.remainingDays) {
@@ -568,8 +656,18 @@ export async function createLeaveRequest(input: {
 
 export async function listApprovalItems(user: AuthUser) {
   const pool = getMysqlPool();
-  const approvalScope = user.role === 'HEAD' || user.role === 'ADMIN' ? '' : 'AND aps.approver_id = ?';
-  const approvalParams = user.role === 'HEAD' || user.role === 'ADMIN' ? [] : [user.id];
+  const approvalTeamIds = await getApprovalTeamIds(user);
+  const approvalScope = approvalTeamIds === null
+    ? ''
+    : approvalTeamIds.length > 0
+      ? `AND (aps.approver_id = ? OR lr.team_id IN (${approvalTeamIds.map(() => '?').join(', ')}))`
+      : 'AND aps.approver_id = ?';
+  const tripApprovalScope = approvalTeamIds === null
+    ? ''
+    : approvalTeamIds.length > 0
+      ? `AND (aps.approver_id = ? OR ter.team_id IN (${approvalTeamIds.map(() => '?').join(', ')}))`
+      : 'AND aps.approver_id = ?';
+  const approvalParams = approvalTeamIds === null ? [] : approvalTeamIds.length > 0 ? [user.id, ...approvalTeamIds] : [user.id];
   const leaveParams: unknown[] = [...approvalParams];
   const tripExpenseParams: unknown[] = [...approvalParams];
 
@@ -650,7 +748,7 @@ export async function listApprovalItems(user: AuthUser) {
             AND prev.step_order < aps.step_order
             AND prev.status <> 'APPROVED'
         )
-        ${approvalScope}
+        ${tripApprovalScope}
       ORDER BY trip.end_date ASC, ter.created_at ASC
     `,
     tripExpenseParams,
@@ -668,6 +766,52 @@ export async function listApprovalItems(user: AuthUser) {
   })) satisfies ApprovalItem[];
 
   return [...leaveItems, ...tripExpenseItems];
+}
+
+async function getApprovalTeamIds(user: AuthUser) {
+  if (isGlobalAdmin(user)) return null;
+  const [directTeamIds, delegatedTeamIds] = await Promise.all([
+    getDirectHeadedTeamIds(user),
+    getActiveDelegatedTeamIds(user.id, ['TEAM_MANAGER', 'APPROVAL']),
+  ]);
+  return Array.from(new Set([...directTeamIds, ...delegatedTeamIds]));
+}
+
+async function getApprovalTargetTeamId(input: { targetType: string; targetId: string; connection: Pick<Awaited<ReturnType<typeof getMysqlPool>>,'query'> }) {
+  if (input.targetType === 'TRIP_EXPENSE') {
+    const [rows] = await input.connection.query<RowDataPacket[]>(
+      `
+        SELECT team_id
+        FROM trip_expense_requests
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [input.targetId],
+    );
+    return rows[0]?.team_id ? String(rows[0].team_id) : null;
+  }
+
+  const [rows] = await input.connection.query<RowDataPacket[]>(
+    `
+      SELECT team_id
+      FROM leave_requests
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [input.targetId],
+  );
+  return rows[0]?.team_id ? String(rows[0].team_id) : null;
+}
+
+async function canDecideApproval(input: { user: AuthUser; approverId: string | null; targetType: string; targetId: string; connection: Pick<Awaited<ReturnType<typeof getMysqlPool>>,'query'> }) {
+  if (isGlobalAdmin(input.user)) return true;
+  if (input.approverId === input.user.id) return true;
+
+  const [teamId, approvalTeamIds] = await Promise.all([
+    getApprovalTargetTeamId({ targetType: input.targetType, targetId: input.targetId, connection: input.connection }),
+    getApprovalTeamIds(input.user),
+  ]);
+  return Boolean(teamId && approvalTeamIds?.includes(teamId));
 }
 
 export type CalendarSyncResult = {
@@ -786,8 +930,17 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
       [input.stepId],
     );
     const pendingStep = stepRows[0];
+    const canDecidePendingStep = pendingStep
+      ? await canDecideApproval({
+          user: input.user,
+          approverId: pendingStep.approver_id ? String(pendingStep.approver_id) : null,
+          targetType: String(pendingStep.target_type),
+          targetId: String(pendingStep.target_id),
+          connection,
+        })
+      : false;
     if (!pendingStep) throw new Error('처리할 결재 건을 찾지 못했습니다.');
-    if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN' && pendingStep.approver_id !== input.user.id) {
+    if (!canDecidePendingStep) {
       throw new Error('결재 권한이 없습니다.');
     }
 
@@ -930,7 +1083,7 @@ export async function decideApproval(input: { user: AuthUser; stepId: string; de
     );
     const step = rows[0];
     if (!step) throw new Error('처리할 결재 건을 찾지 못했습니다.');
-    if (input.user.role !== 'HEAD' && input.user.role !== 'ADMIN' && step.approver_id !== input.user.id) {
+    if (false && input.user.role !== 'HEAD' && input.user.role !== 'ADMIN' && step.approver_id !== input.user.id) {
       throw new Error('결재 권한이 없습니다.');
     }
 

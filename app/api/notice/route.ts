@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createNotice, listNotices } from '@/app/lib/notice/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(Math.max(n, min), max);
@@ -10,8 +11,12 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const page = clamp(Number(url.searchParams.get('page') ?? 1), 1, 10_000);
   const pageSize = clamp(Number(url.searchParams.get('pageSize') ?? 10), 5, 50);
+  const q = (url.searchParams.get('q') ?? '').trim();
+  const statusParam = url.searchParams.get('status');
+  const status = statusParam === 'PUBLISHED' || statusParam === 'DRAFT' ? statusParam : 'ALL';
+  const pinned = url.searchParams.get('pinned') === 'true';
 
-  const all = await listNotices();
+  const all = await listNotices({ q, status, pinned });
   const total = all.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = clamp(page, 1, totalPages);
@@ -41,6 +46,8 @@ export async function POST(req: Request) {
       content: body.content,
       pinned: body.pinned === true,
       status: body.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+      attachments: Array.isArray(body.attachments) ? body.attachments : [],
+      editorName: (await getCurrentUser())?.name ?? null,
     });
 
     return NextResponse.json({ notice }, { status: 201 });

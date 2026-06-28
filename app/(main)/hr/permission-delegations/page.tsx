@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { getDirectHeadedTeamIds, isGlobalAdmin } from '@/app/lib/auth/authorization';
+import { getHeadedTeamIds, isGlobalAdmin } from '@/app/lib/auth/authorization';
 import { getCurrentUser } from '@/app/lib/auth/session';
 import { getSettingsCenterData } from '@/app/lib/db/settingsCenter';
 
@@ -14,7 +14,7 @@ export default async function PermissionDelegationsPage() {
 
   const data = await getSettingsCenterData();
   const globalAdmin = isGlobalAdmin(user);
-  const headedTeamIds = globalAdmin ? [] : await getDirectHeadedTeamIds(user);
+  const headedTeamIds = globalAdmin ? [] : await getHeadedTeamIds(user);
   if (!globalAdmin && headedTeamIds.length === 0) redirect('/dashboard');
 
   const scopedData = globalAdmin
@@ -24,6 +24,7 @@ export default async function PermissionDelegationsPage() {
         teams: data.teams.filter((team) => headedTeamIds.includes(team.id)),
         approvedUsers: data.approvedUsers.filter((approvedUser) => approvedUser.id === user.id || (approvedUser.teamId ? headedTeamIds.includes(approvedUser.teamId) : false)),
         permissionDelegations: data.permissionDelegations.filter((delegation) => headedTeamIds.includes(delegation.teamId)),
+        permissionDelegationPresets: data.permissionDelegationPresets.filter((preset) => headedTeamIds.includes(preset.teamId)),
       };
 
   return <PermissionDelegationsClient initialData={scopedData} currentUser={user} />;

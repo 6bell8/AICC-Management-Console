@@ -145,12 +145,7 @@ export default function ComplianceAssetsPage() {
         </button>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-4">
-        <SummaryTile label="전체 문서" value={`${COMPLIANCE_DOCS.length}건`} tone="sky" />
-        <SummaryTile label="정상" value={`${normalCount}건`} tone="emerald" />
-        <SummaryTile label="검토 필요" value={`${reviewCount}건`} tone="amber" />
-        <SummaryTile label="분류" value={`${CATEGORIES.length - 1}개`} tone="slate" />
-      </section>
+
 
       <section className="soft-panel p-3">
         <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">

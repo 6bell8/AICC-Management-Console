@@ -9,7 +9,7 @@ export type AuthorGuideListResponse = {
 };
 
 export async function getAuthorGuides(
-  params?: { page?: number; pageSize?: number; q?: string },
+  params?: { page?: number; pageSize?: number; q?: string; status?: 'ALL' | 'PUBLISHED' | 'DRAFT' },
   opts?: { baseUrl?: string; cookie?: string },
 ): Promise<AuthorGuideListResponse> {
   const page = params?.page ?? 1;
@@ -18,6 +18,7 @@ export async function getAuthorGuides(
 
   const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (q) qs.set('q', q);
+  if (params?.status && params.status !== 'ALL') qs.set('status', params.status);
 
   const path = `/api/author-guide?${qs.toString()}`;
   const url = opts?.baseUrl ? new URL(path, opts.baseUrl).toString() : path;

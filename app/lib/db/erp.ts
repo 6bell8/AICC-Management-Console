@@ -63,6 +63,22 @@ async function ensureOrganizationSettingsColumn(columnName: string, definition: 
   await pool.execute(`ALTER TABLE organization_settings ADD COLUMN ${columnName} ${definition}`);
 }
 
+async function ensureTeamsDivisionColumn() {
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `
+      SELECT COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'teams'
+        AND COLUMN_NAME = 'division_name'
+      LIMIT 1
+    `,
+  );
+  if (rows.length > 0) return;
+  await pool.execute("ALTER TABLE teams ADD COLUMN division_name VARCHAR(100) NOT NULL DEFAULT '운영단' AFTER name");
+}
+
 export async function getOrganizationSettings() {
   await ensureOrganizationSettingsTable();
   const pool = getMysqlPool();
@@ -172,28 +188,30 @@ export async function listSecurityAuditLogs() {
 }
 
 export async function listOrganizationSnapshot() {
+  await ensureTeamsDivisionColumn();
   const pool = getMysqlPool();
   const settings = await getOrganizationSettings();
   const [rows] = await pool.query<RowDataPacket[]>(
     `
       SELECT
-        t.id AS team_id, t.name AS team_name, t.head_user_id, head.name AS head_name,
+        t.id AS team_id, t.name AS team_name, t.division_name, t.head_user_id, head.name AS head_name,
         u.id AS user_id, u.name AS user_name, u.email, u.role, u.status,
         ep.position, ep.employment_type, ep.hire_date, ep.years_of_service
       FROM teams t
       LEFT JOIN users head ON head.id = t.head_user_id
       LEFT JOIN employee_profiles ep ON ep.team_id = t.id
       LEFT JOIN users u ON u.id = ep.user_id
-      ORDER BY t.name ASC, FIELD(u.role, 'HEAD', 'ADMIN', 'OPERATOR', 'VIEWER'), u.name ASC
+      ORDER BY t.division_name ASC, t.name ASC, FIELD(u.role, 'HEAD', 'ADMIN', 'OPERATOR', 'VIEWER'), u.name ASC
     `,
   );
 
-  const teams = new Map<string, { id: string; name: string; headUserId?: string | null; headName: string; members: Array<Record<string, unknown>> }>();
+  const teams = new Map<string, { id: string; name: string; divisionName?: string; headUserId?: string | null; headName: string; members: Array<Record<string, unknown>> }>();
   for (const row of rows) {
     const id = String(row.team_id);
     if (!teams.has(id)) {
       teams.set(id, { id, name: String(row.team_name), headName: row.head_name ? String(row.head_name) : '미지정', members: [] });
     }
+    teams.get(id)!.divisionName = row.division_name ? String(row.division_name) : '운영단';
     teams.get(id)!.headUserId = row.head_user_id ? String(row.head_user_id) : null;
     if (row.user_id) {
       teams.get(id)!.members.push({

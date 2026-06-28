@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { getMysqlPool } from './mysql';
 
 type SecurityAuditAction =
+  | 'USER_CREATED'
   | 'PASSWORD_RESET'
   | 'PASSWORD_CHANGED'
   | 'SETTINGS_UPDATED'

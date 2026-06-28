@@ -9,6 +9,7 @@ export const runtime = 'nodejs';
 const teamSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1).max(100),
+  divisionName: z.string().trim().min(1).max(100).optional(),
   headUserId: z.string().nullable().optional(),
 });
 
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   try {
     const parsed = teamSchema.safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ message: '팀 정보를 확인해 주세요.' }, { status: 400 });
-    const id = await createTeam({ name: parsed.data.name, headUserId: parsed.data.headUserId });
+    const id = await createTeam({ name: parsed.data.name, divisionName: parsed.data.divisionName, headUserId: parsed.data.headUserId });
     return NextResponse.json({ id }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '팀을 저장하지 못했습니다.';
@@ -46,7 +47,7 @@ export async function PATCH(req: Request) {
   try {
     const parsed = teamSchema.extend({ id: z.string().min(1) }).safeParse(await req.json());
     if (!parsed.success) return NextResponse.json({ message: '팀 정보를 확인해 주세요.' }, { status: 400 });
-    await updateTeam({ id: parsed.data.id, name: parsed.data.name, headUserId: parsed.data.headUserId });
+    await updateTeam({ id: parsed.data.id, name: parsed.data.name, divisionName: parsed.data.divisionName, headUserId: parsed.data.headUserId });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : '팀을 수정하지 못했습니다.';

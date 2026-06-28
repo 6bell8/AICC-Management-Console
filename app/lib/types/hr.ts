@@ -10,6 +10,7 @@ export type HalfDay = 'AM' | 'PM' | null;
 export type Team = {
   id: string;
   name: string;
+  divisionName: string;
   headUserId: string | null;
   headName: string | null;
 };

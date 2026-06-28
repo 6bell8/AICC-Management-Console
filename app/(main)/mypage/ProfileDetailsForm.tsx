@@ -197,6 +197,15 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
             <FileBadge className="h-4 w-4" />
             발급
           </Link>
+          <button
+            type="button"
+            onClick={saveProfile}
+            disabled={saving}
+            className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? '저장 중' : '저장'}
+          </button>
         </div>
       </div>
 
@@ -324,15 +333,7 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
 
           <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-500">재직증명서 기재 항목은 증명서 출력 화면에 우선 반영됩니다.</p>
-            <button
-              type="button"
-              onClick={saveProfile}
-              disabled={saving}
-              className="inline-flex w-fit items-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save className="h-4 w-4" />
-              {saving ? '저장 중' : '저장'}
-            </button>
+
           </div>
 
           {message ? <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">{message}</div> : null}

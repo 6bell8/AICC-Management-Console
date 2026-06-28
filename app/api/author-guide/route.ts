@@ -33,6 +33,7 @@ export async function GET(req: Request) {
     page: toPosInt(searchParams.get('page'), 1),
     pageSize: toPosInt(searchParams.get('pageSize'), 10),
     q: (searchParams.get('q') ?? '').trim(),
+    status: searchParams.get('status') === 'PUBLISHED' || searchParams.get('status') === 'DRAFT' ? searchParams.get('status')! as 'PUBLISHED' | 'DRAFT' : 'ALL',
   });
 
   return NextResponse.json(result);

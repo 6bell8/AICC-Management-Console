@@ -17,6 +17,7 @@ type AuthorGuideRow = RowDataPacket & {
 
 export type AuthorGuideListParams = {
   q?: string;
+  status?: AuthorGuideStatus | 'ALL';
   page?: number;
   pageSize?: number;
 };
@@ -51,8 +52,17 @@ export async function listAuthorGuides(params: AuthorGuideListParams) {
   const q = (params.q ?? '').trim();
   const page = clampPage(params.page);
   const pageSize = clampPageSize(params.pageSize);
-  const whereSql = q ? 'WHERE title LIKE ? OR content LIKE ?' : '';
-  const values = q ? [`%${q}%`, `%${q}%`] : [];
+  const filters: string[] = [];
+  const values: string[] = [];
+  if (q) {
+    filters.push('(title LIKE ? OR content LIKE ?)');
+    values.push(`%${q}%`, `%${q}%`);
+  }
+  if (params.status === 'PUBLISHED' || params.status === 'DRAFT') {
+    filters.push('status = ?');
+    values.push(params.status);
+  }
+  const whereSql = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
   const [countRows] = await pool.query<Array<RowDataPacket & { total: number }>>(
     `SELECT COUNT(*) AS total FROM author_guides ${whereSql}`,
