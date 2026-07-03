@@ -19,10 +19,10 @@ function ListSkeleton({ rows = 8 }: { rows?: number }) {
     <div className="divide-y divide-slate-100">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="p-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-5 w-2/3 max-w-full" />
+              <Skeleton className="h-4 w-1/2 max-w-full" />
             </div>
             <Skeleton className="h-4 w-28 shrink-0" />
           </div>
@@ -34,7 +34,7 @@ function ListSkeleton({ rows = 8 }: { rows?: number }) {
 
 function PreviewPanel({ item }: { item: AuthorGuide | null }) {
   return (
-    <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <aside className="hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:block">
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
         <BookOpen className="h-4 w-4 text-sky-600" />
         미리보기
@@ -136,9 +136,9 @@ export default function AuthorGuideListClient() {
   }, [qDebounced]);
 
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="flex min-w-0 items-center gap-2 text-2xl font-semibold">
           <BookOpen className="h-5 w-5 text-sky-600" />
           저작가이드
         </h1>
@@ -164,7 +164,7 @@ export default function AuthorGuideListClient() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
         {(['ALL', 'PUBLISHED', 'DRAFT'] as const).map((value) => (
           <Button key={value} variant={status === value ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, status: value })}>
             {value === 'ALL' ? '전체' : value === 'PUBLISHED' ? '공개' : '임시'}
@@ -184,7 +184,7 @@ export default function AuthorGuideListClient() {
             <div className="divide-y divide-slate-100">
               {items.map((guide) => (
                 <Link key={guide.id} href={`/board/author-guide/${encodeURIComponent(guide.id)}`} onMouseEnter={() => setPreview(guide)} onFocus={() => setPreview(guide)} className="block p-4 transition-colors hover:bg-slate-50">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0">
                       <div className="truncate font-medium text-slate-900">{guide.title}</div>
                       <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
@@ -192,7 +192,7 @@ export default function AuthorGuideListClient() {
                         <span className="truncate">{(guide.content ?? '').slice(0, 40)}{(guide.content ?? '').length > 40 ? '...' : ''}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 text-xs text-slate-500">{guide.updatedAt ? new Date(guide.updatedAt).toLocaleString() : '-'}</div>
+                    <div className="shrink-0 text-xs text-slate-500 sm:text-right">{guide.updatedAt ? new Date(guide.updatedAt).toLocaleString() : '-'}</div>
                   </div>
                 </Link>
               ))}
@@ -202,22 +202,24 @@ export default function AuthorGuideListClient() {
         <PreviewPanel item={previewItem} />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-slate-500">총 {data?.total ?? 0}개 · {data?.page ?? page}/{totalPages} 페이지</div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:flex">
           {[10, 20, 30].map((n) => (
             <Button key={n} variant={n === pageSize ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, pageSize: n })}>{n}개</Button>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
+      <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap sm:justify-center">
         <Button variant="outline" className="h-9 w-9 p-0" disabled={page <= 1} onClick={() => pushQuery({ page: page - 1 })} aria-label="이전 페이지" title="이전 페이지">
           <ArrowLeft className="h-4 w-4 shrink-0" />
         </Button>
-        {pages.map((p, idx) => p === '...' ? <span key={`e-${idx}`} className="px-2 text-slate-400">...</span> : (
-          <Button key={p} variant={p === page ? 'ghost' : 'outline'} aria-current={p === page ? 'page' : undefined} onClick={() => pushQuery({ page: p })}>{p}</Button>
-        ))}
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-2">
+          {pages.map((p, idx) => p === '...' ? <span key={`e-${idx}`} className="px-2 text-slate-400">...</span> : (
+            <Button key={p} variant={p === page ? 'ghost' : 'outline'} aria-current={p === page ? 'page' : undefined} onClick={() => pushQuery({ page: p })}>{p}</Button>
+          ))}
+        </div>
         <Button variant="outline" className="h-9 w-9 p-0" disabled={page >= totalPages} onClick={() => pushQuery({ page: page + 1 })} aria-label="다음 페이지" title="다음 페이지">
           <ArrowRight className="h-4 w-4 shrink-0" />
         </Button>

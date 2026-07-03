@@ -115,23 +115,45 @@ export default function LoginClient() {
 
         {message && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{message}</div>}
 
-        <button type="submit" disabled={isSubmitting} className="w-full rounded-lg bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-60">
-          {isSubmitting ? '로그인 중...' : '로그인'}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={[
+            'flex w-full items-center justify-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-medium text-white transition disabled:cursor-wait',
+            isSubmitting ? 'animate-[loginButtonPulse_1.15s_ease-in-out_infinite]' : 'hover:bg-slate-900',
+          ].join(' ')}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="inline-flex items-center gap-1" aria-hidden="true">
+                <span className="h-1.5 w-1.5 animate-[loginDot_900ms_ease-in-out_infinite] rounded-full bg-white" />
+                <span className="h-1.5 w-1.5 animate-[loginDot_900ms_ease-in-out_120ms_infinite] rounded-full bg-white/80" />
+                <span className="h-1.5 w-1.5 animate-[loginDot_900ms_ease-in-out_240ms_infinite] rounded-full bg-white/60" />
+              </span>
+            </>
+          ) : (
+            '로그인'
+          )}
         </button>
       </form>
 
-      <div className="mt-4 text-center text-xs text-black/60">
-        계정이 없으신가요?{' '}
-        <Link href="/signup" className="font-medium text-black underline">
-          가입 신청
-        </Link>
-      </div>
+      <div className="mt-5 grid gap-2 max-[480px]:grid-cols-2 sm:block sm:space-y-3">
+        <div className="text-center text-xs text-black/60 max-[480px]:rounded-lg max-[480px]:border max-[480px]:border-slate-200 max-[480px]:bg-slate-50/70 max-[480px]:px-2 max-[480px]:py-3 max-[480px]:shadow-sm">
+          <span className="max-[480px]:block max-[480px]:text-[11px]">계정이 없으신가요?</span>{' '}
+          <Link href="/signup" className="font-semibold text-black underline max-[480px]:mt-1 max-[480px]:inline-flex max-[480px]:no-underline">
+            가입 신청
+          </Link>
+        </div>
 
-      <div className="mt-3 text-center text-xs text-black/60">
-        포트폴리오만 둘러보시나요?{' '}
-        <Link href="/guest" className="font-medium text-black underline">
-          게스트 모드
-        </Link>
+        <div className="text-center text-xs text-black/60 max-[480px]:rounded-lg max-[480px]:border max-[480px]:border-sky-100 max-[480px]:bg-sky-50/60 max-[480px]:px-2 max-[480px]:py-3 max-[480px]:shadow-sm">
+          <span className="max-[480px]:block max-[480px]:text-[11px]">포트폴리오만 둘러보기</span>{' '}
+          <Link
+            href="/guest"
+            className="font-semibold text-black underline max-[480px]:mt-1 max-[480px]:inline-flex max-[480px]:text-sky-800 max-[480px]:no-underline"
+          >
+            게스트 모드
+          </Link>
+        </div>
       </div>
     </div>
   );

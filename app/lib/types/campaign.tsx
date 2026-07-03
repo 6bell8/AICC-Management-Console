@@ -11,13 +11,12 @@ export type Campaign = {
   updatedAt: string;
 };
 
-// ✅ 업데이트 폼에서 보내는 값 타입
 export type CampaignUpdateFormValues = {
   name: string;
-  description?: string | null; // 폼에서는 빈 문자열 가능
+  description?: string | null;
   status: CampaignStatus;
-  startAt?: string | null; // undefined 허용
-  endAt?: string | null; // undefined 허용
+  startAt?: string | null;
+  endAt?: string | null;
 };
 
 export type CampaignListResponse = {

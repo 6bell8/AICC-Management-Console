@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronRight, FolderPlus, Loader2, Network, Pencil, Settings2, Trash2 } from 'lucide-react';
 
+import { RichSelect } from '@/app/components/ui/select';
 import type { AuthUser } from '@/app/lib/db/users';
 import { EMPLOYEE_POSITIONS, EMPLOYMENT_TYPES, type EmployeePosition, type EmploymentType } from '@/app/lib/types/hr';
 
@@ -729,7 +730,94 @@ function EditBoard({
               </div>
             </div>
           ) : null}
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 p-3 min-[481px]:hidden">
+            {selectedMembers.map((member) => {
+              const disabled = !canEdit || pendingId === member.id;
+              const currentTeamId = selectedTeam?.id ?? null;
+              return (
+                <div key={member.id} className="rounded-lg border border-slate-100 bg-white p-3 shadow-sm">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-950">{member.name}</div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500">{member.email}</div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3">
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-semibold text-slate-500">소속 팀</span>
+                      <RichSelect
+                        value={currentTeamId ?? ''}
+                        disabled={disabled}
+                        onChange={(value) => {
+                          const nextTeamId = value || null;
+                          const nextTeam = data.teams.find((team) => team.id === nextTeamId);
+                          if (nextTeam) setSelectedDivisionName(nextTeam.divisionName || '운영단');
+                          setSelectedTeamId(nextTeamId);
+                          onUpdateMember(member, nextTeamId, { teamId: nextTeamId });
+                        }}
+                        options={[
+                          { value: '', label: '팀 미지정' },
+                          ...data.teams.map((team) => ({ value: team.id, label: team.name, description: team.divisionName || '소속 단 미지정' })),
+                        ]}
+                        buttonClassName="min-h-11 rounded-md border-slate-200 px-3 text-sm"
+                      />
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold text-slate-500">직급</span>
+                        <RichSelect
+                          value={member.position}
+                          disabled={disabled}
+                          onChange={(value) => onUpdateMember(member, currentTeamId, { position: value as EmployeePosition })}
+                          options={EMPLOYEE_POSITIONS.map((position) => ({ value: position, label: POSITION_LABEL[position] }))}
+                          buttonClassName="min-h-11 rounded-md border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold text-slate-500">고용</span>
+                        <RichSelect
+                          value={member.employmentType}
+                          disabled={disabled}
+                          onChange={(value) => onUpdateMember(member, currentTeamId, { employmentType: value as EmploymentType })}
+                          options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_LABEL[type] }))}
+                          buttonClassName="min-h-11 rounded-md border-slate-200 px-3 text-sm"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold text-slate-500">입사일</span>
+                        <input type="date" value={member.hireDate ?? ''} disabled={disabled} onChange={(event) => onUpdateMember(member, currentTeamId, { hireDate: event.target.value || null })} className={`${smallInputClass} min-h-11`} />
+                      </label>
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-semibold text-slate-500">근속</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={80}
+                            value={member.yearsOfService}
+                            disabled={disabled}
+                            onChange={(event) => onUpdateMember(member, currentTeamId, { yearsOfService: Math.max(0, Number(event.target.value || 0)) })}
+                            className={`${smallInputClass} min-h-11 text-right`}
+                          />
+                          <span className="text-xs text-slate-500">년</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {selectedMembers.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-8 text-center text-sm text-slate-500">
+                표시할 구성원이 없습니다.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="overflow-x-auto max-[480px]:hidden">
           <table className="min-w-[920px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
               <tr>
@@ -752,43 +840,40 @@ function EditBoard({
                       <div className="mt-0.5 text-xs text-slate-500">{member.email}</div>
                     </td>
                     <td className="px-3 py-3">
-                      <select
+                      <RichSelect
                         value={currentTeamId ?? ''}
                         disabled={disabled}
-                        onChange={(event) => {
-                          const nextTeamId = event.target.value || null;
+                        onChange={(value) => {
+                          const nextTeamId = value || null;
                           const nextTeam = data.teams.find((team) => team.id === nextTeamId);
                           if (nextTeam) setSelectedDivisionName(nextTeam.divisionName || '운영단');
                           setSelectedTeamId(nextTeamId);
                           onUpdateMember(member, nextTeamId, { teamId: nextTeamId });
                         }}
-                        className={smallInputClass}
-                      >
-                        <option value="">팀 미지정</option>
-                        {data.teams.map((team) => (
-                          <option key={team.id} value={team.id}>
-                            {team.name}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: '', label: '팀 미지정' },
+                          ...data.teams.map((team) => ({ value: team.id, label: team.name, description: team.divisionName || '소속 단 미지정' })),
+                        ]}
+                        buttonClassName={smallInputClass}
+                      />
                     </td>
                     <td className="px-3 py-3">
-                      <select value={member.position} disabled={disabled} onChange={(event) => onUpdateMember(member, currentTeamId, { position: event.target.value as EmployeePosition })} className={smallInputClass}>
-                        {EMPLOYEE_POSITIONS.map((position) => (
-                          <option key={position} value={position}>
-                            {POSITION_LABEL[position]}
-                          </option>
-                        ))}
-                      </select>
+                      <RichSelect
+                        value={member.position}
+                        disabled={disabled}
+                        onChange={(value) => onUpdateMember(member, currentTeamId, { position: value as EmployeePosition })}
+                        options={EMPLOYEE_POSITIONS.map((position) => ({ value: position, label: POSITION_LABEL[position] }))}
+                        buttonClassName={smallInputClass}
+                      />
                     </td>
                     <td className="px-3 py-3">
-                      <select value={member.employmentType} disabled={disabled} onChange={(event) => onUpdateMember(member, currentTeamId, { employmentType: event.target.value as EmploymentType })} className={smallInputClass}>
-                        {EMPLOYMENT_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {EMPLOYMENT_LABEL[type]}
-                          </option>
-                        ))}
-                      </select>
+                      <RichSelect
+                        value={member.employmentType}
+                        disabled={disabled}
+                        onChange={(value) => onUpdateMember(member, currentTeamId, { employmentType: value as EmploymentType })}
+                        options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: EMPLOYMENT_LABEL[type] }))}
+                        buttonClassName={smallInputClass}
+                      />
                     </td>
                     <td className="px-3 py-3">
                       <input type="date" value={member.hireDate ?? ''} disabled={disabled} onChange={(event) => onUpdateMember(member, currentTeamId, { hireDate: event.target.value || null })} className={smallInputClass} />

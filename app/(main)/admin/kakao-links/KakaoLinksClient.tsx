@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
+import { RichSelect } from '@/app/components/ui/select';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import type { AuthUser } from '@/app/lib/db/users';
 
@@ -241,7 +242,7 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
 
       {message ? <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">{message}</div> : null}
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         <Metric icon={<Link2 className="h-4 w-4" />} label="연동 완료" value={`${linkedCount}명`} tone="emerald" />
         <Metric icon={<KeyRound className="h-4 w-4" />} label="미연동 요청" value={`${unlinkedCount}건`} tone="kakao" />
         <Metric icon={<MessageCircle className="h-4 w-4" />} label="표시된 요청" value={`${recentRequestCount}건`} tone="amber" />
@@ -311,11 +312,13 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
                       <div key={`${item.kakaoUserKey}-${index}`} className="bg-white px-3 py-3 transition hover:bg-slate-50/70">
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_170px_140px] lg:items-center">
                           <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="max-w-[320px] truncate font-mono text-xs font-semibold text-slate-800" title={item.kakaoUserKey}>
+                            <div className="flex items-start justify-between gap-3 lg:justify-start">
+                              <span className="min-w-0 max-w-[170px] truncate font-mono text-xs font-semibold text-slate-800 sm:max-w-[320px]" title={item.kakaoUserKey}>
                                 {maskKey(item.kakaoUserKey)}
                               </span>
-                              <StatusPill linked={isLinked} />
+                              <span className="shrink-0">
+                                <StatusPill linked={isLinked} />
+                              </span>
                             </div>
                             <div className="mt-1 text-xs text-slate-500">
                               마지막 발화: <span className="text-slate-700">{item.lastUtterance || '-'}</span>
@@ -325,7 +328,7 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
                             </div>
                           </div>
                           <div className="text-xs text-slate-500 lg:text-right">최근 요청 {formatKst(item.lastSeenAt)}</div>
-                          <div className="flex justify-start gap-2 lg:justify-end">
+                          <div className="flex justify-start gap-2 max-[480px]:pt-1 lg:justify-end">
                             {isLinked ? (
                               <button
                                 type="button"
@@ -356,19 +359,17 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
                               <p>본인인증이 원칙입니다. 카카오 장애, 인증번호 미수신, 사용자 지원 요청 등 예외 상황에서만 수동 연결하세요.</p>
                             </div>
                             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                              <select
+                              <RichSelect
                                 value={selectedUsers[item.kakaoUserKey] ?? ''}
-                                onChange={(event) => setSelectedUsers((current) => ({ ...current, [item.kakaoUserKey]: event.target.value }))}
-                                className="h-10 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-100"
+                                onChange={(value) => setSelectedUsers((current) => ({ ...current, [item.kakaoUserKey]: value }))}
+                                options={[
+                                  { value: '', label: 'AICC 계정 선택' },
+                                  ...data.users.map((user) => ({ value: user.id, label: user.name, description: user.email })),
+                                ]}
+                                className="min-w-0 flex-1"
+                                buttonClassName="min-h-10 rounded-md border-slate-200 px-2 text-sm text-slate-700 focus:border-yellow-300 focus:ring-yellow-100"
                                 disabled={!isEmergencyOperator}
-                              >
-                                <option value="">AICC 계정 선택</option>
-                                {data.users.map((user) => (
-                                  <option key={user.id} value={user.id}>
-                                    {user.name} · {user.email}
-                                  </option>
-                                ))}
-                              </select>
+                              />
                               <button
                                 type="button"
                                 onClick={() => void emergencyConnect(item)}
@@ -394,35 +395,36 @@ export default function KakaoLinksClient({ currentUser }: { currentUser: AuthUse
               <div className="text-xs text-slate-500">
                 {rangeLabel} / 총 {data.pagination.total}건
               </div>
-              <div className="flex items-center gap-2">
-                <select value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 outline-none">
-                  {[10, 20, 50].map((value) => (
-                    <option key={value} value={value}>
-                      {value}개
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void loadData({ page: Math.max(1, page - 1) })}
-                  disabled={page <= 1 || loading}
-                  className="soft-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 disabled:pointer-events-none disabled:opacity-40"
-                  aria-label="이전 페이지"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="min-w-16 text-center text-xs font-semibold text-slate-600">
-                  {page} / {data.pagination.pageCount}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void loadData({ page: Math.min(data.pagination.pageCount, page + 1) })}
-                  disabled={page >= data.pagination.pageCount || loading}
-                  className="soft-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 disabled:pointer-events-none disabled:opacity-40"
-                  aria-label="다음 페이지"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                <RichSelect
+                  value={String(pageSize)}
+                  onChange={(value) => onPageSize(Number(value))}
+                  options={[10, 20, 50].map((value) => ({ value: String(value), label: `${value}개` }))}
+                  buttonClassName="sm:min-h-8 sm:rounded-md sm:px-2 sm:text-xs"
+                />
+                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => void loadData({ page: Math.max(1, page - 1) })}
+                    disabled={page <= 1 || loading}
+                    className="soft-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700 disabled:pointer-events-none disabled:opacity-40"
+                    aria-label="이전 페이지"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-0 text-center text-xs font-semibold text-sky-700 sm:min-w-16">
+                    {page} / {data.pagination.pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void loadData({ page: Math.min(data.pagination.pageCount, page + 1) })}
+                    disabled={page >= data.pagination.pageCount || loading}
+                    className="soft-interactive inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700 disabled:pointer-events-none disabled:opacity-40"
+                    aria-label="다음 페이지"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -540,7 +542,7 @@ function Metric({ icon, label, value, tone }: { icon: ReactNode; label: string; 
   }[tone];
 
   return (
-    <div className={['soft-interactive rounded-lg border p-3', toneClass].join(' ')}>
+    <div className={['soft-interactive rounded-lg border p-3 max-[480px]:min-h-[92px]', toneClass].join(' ')}>
       <div className="flex items-center justify-between gap-3 text-xs font-semibold">
         <span>{label}</span>
         <span className="opacity-80">{icon}</span>

@@ -75,6 +75,39 @@
   100% { transform: translateX(300%); }
 }
 
+@keyframes richSelectSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes loginButtonPulse {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 rgb(15 23 42 / 0);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.012);
+    box-shadow: 0 10px 24px rgb(15 23 42 / 0.16);
+  }
+}
+
+@keyframes loginDot {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
 /* data-state 기반으로 애니메이션 적용 */
 [data-toast][data-state="open"] {
   animation: toastInRight 180ms ease-out both;
@@ -194,6 +227,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
 }
 
@@ -322,6 +357,54 @@
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: rgb(100 116 139);
+}
+
+@keyframes mobileMenuFade {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(2px);
+  }
+}
+
+@keyframes mobileMenuFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(2px);
+  }
+
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes mobileMenuSlide {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 10px, 0) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes mobileMenuSlideOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(-14px, 8px, 0) scale(0.988);
+  }
 }
 
 .profile-input,

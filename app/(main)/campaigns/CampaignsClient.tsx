@@ -100,12 +100,12 @@ function CampaignListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="divide-y rounded-md border border-gray-200">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center justify-between gap-3 p-3 border-gray-200">
+        <div key={i} className="flex flex-col gap-3 border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+            <Skeleton className="h-3 w-40 max-w-full" />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2 sm:ml-0 sm:shrink-0">
             <Skeleton className="h-5 w-16 rounded-full" />
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-9 w-20" />
@@ -272,14 +272,14 @@ export default function CampaignsClient() {
   });
 
   return (
-    <div className="p-6 space-y-4 mx-8">
-      <div className="flex items-end justify-between gap-3">
+    <div className="space-y-4 p-4 sm:p-6 lg:mx-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">캠페인</h1>
           <p className="text-sm text-muted-foreground">캠페인 목록을 확인하고 상세로 이동합니다.</p>
         </div>
 
-        <Button variant="outline" onClick={() => createMutation.mutate()} disabled={!canWrite || createMutation.isPending}>
+        <Button variant="outline" onClick={() => createMutation.mutate()} disabled={!canWrite || createMutation.isPending} className="w-full sm:w-auto">
           {createMutation.isPending ? '생성 중…' : '+ 새 캠페인'}
         </Button>
       </div>
@@ -296,7 +296,7 @@ export default function CampaignsClient() {
             상태: {statusLabel(status)} · 페이지: {safePage}/{totalPages} · {rangeText}
           </CardDescription>
 
-          <div className="flex flex-col md:flex-row gap-2">
+          <div className="flex flex-col gap-2 md:flex-row">
             <Input
               value={qInput}
               onChange={(e) => setQInput(e.target.value)}
@@ -315,6 +315,7 @@ export default function CampaignsClient() {
 
             <Button
               variant="outline"
+              className="w-full md:w-auto"
               onClick={() => {
                 setQInput('');
                 setStatus('ALL');
@@ -353,7 +354,7 @@ export default function CampaignsClient() {
                   const textClass = pal.text ?? ''; // palette에 text가 있으면 그대로 사용
 
                   return (
-                    <div key={c.id} className="group flex items-center justify-between gap-3 p-3 transition-colors hover:bg-slate-900/5">
+                    <div key={c.id} className="group flex flex-col gap-3 p-3 transition-colors hover:bg-slate-900/5 sm:flex-row sm:items-center sm:justify-between">
                       <Link
                         href={`/campaigns/${encodeURIComponent(c.id)}`}
                         className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -362,7 +363,7 @@ export default function CampaignsClient() {
                         <div className="text-xs text-muted-foreground truncate">ID: {c.id}</div>
                       </Link>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
                         <Badge variant={variant} className={textClass}>
                           {label}
                         </Badge>
@@ -372,7 +373,7 @@ export default function CampaignsClient() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="border border-gray-400 hover:border-gray-900 transition-colors duration-300 ease-in-out"
+                          className="ml-auto border-slate-200 transition-colors duration-300 ease-in-out hover:border-sky-200 hover:bg-sky-50 sm:ml-0"
                           disabled={!canWrite || !nextStatus || rowPending}
                           onClick={() => {
                             if (!nextStatus) return;
@@ -396,38 +397,40 @@ export default function CampaignsClient() {
                 })}
               </div>
 
-              <div className="pt-3 flex items-center justify-between">
+              <div className="flex flex-col gap-3 pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs text-muted-foreground">{rangeText}</div>
 
-                <div className="flex items-center gap-1">
+                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                   <Button variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
                     이전
                   </Button>
 
-                  {getCompactPages(safePage, totalPages).map((it, idx) => {
-                    if (it === '…') {
+                  <div className="flex min-w-0 flex-wrap items-center justify-center gap-1">
+                    {getCompactPages(safePage, totalPages).map((it, idx) => {
+                      if (it === '…') {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted-foreground">
+                            …
+                          </span>
+                        );
+                      }
+
+                      const p = it;
+                      const isActive = p === safePage;
+
                       return (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted-foreground">
-                          …
-                        </span>
+                        <Button
+                          key={p}
+                          variant={isActive ? 'ghost' : 'hoverGhost'}
+                          className="h-9 w-9 px-0"
+                          onClick={() => setPage(p)}
+                          aria-current={isActive ? 'page' : undefined}
+                        >
+                          {p}
+                        </Button>
                       );
-                    }
-
-                    const p = it;
-                    const isActive = p === safePage;
-
-                    return (
-                      <Button
-                        key={p}
-                        variant={isActive ? 'ghost' : 'hoverGhost'}
-                        className="h-9 w-9 px-0"
-                        onClick={() => setPage(p)}
-                        aria-current={isActive ? 'page' : undefined}
-                      >
-                        {p}
-                      </Button>
-                    );
-                  })}
+                    })}
+                  </div>
 
                   <Button variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>
                     다음

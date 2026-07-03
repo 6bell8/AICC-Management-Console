@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Network, UserPlus } from 'lucide-react';
 import type { AuthUser, UserRole, UserStatus } from '@/app/lib/db/users';
 import { Button } from '@/app/components/ui/button';
+import { RichSelect } from '@/app/components/ui/select';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import {
   EMPLOYEE_POSITION_LABEL,
@@ -319,54 +320,30 @@ export default function UsersAdminClient({ currentUser }: Props) {
                 placeholder="이름 또는 이메일 검색"
                 className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
-              <select
+              <RichSelect
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as UserStatus | 'ALL')}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="ALL">상태 전체</option>
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <select
+                onChange={(value) => setStatusFilter(value as UserStatus | 'ALL')}
+                options={[{ value: 'ALL', label: '상태 전체' }, ...STATUSES.map((status) => ({ value: status, label: status }))]}
+              />
+              <RichSelect
                 value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value as UserRole | 'ALL')}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="ALL">역할 전체</option>
-                {(['HEAD', 'ADMIN', 'OPERATOR', 'VIEWER'] as UserRole[]).map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-              <select
+                onChange={(value) => setRoleFilter(value as UserRole | 'ALL')}
+                options={[{ value: 'ALL', label: '역할 전체' }, ...(['HEAD', 'ADMIN', 'OPERATOR', 'VIEWER'] as UserRole[]).map((role) => ({ value: role, label: role }))]}
+              />
+              <RichSelect
                 value={teamFilter}
-                onChange={(event) => setTeamFilter(event.target.value)}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="ALL">팀 전체</option>
-                <option value="UNASSIGNED">팀 미지정</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={pageSize}
-                onChange={(event) => setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number])}
-                className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>
-                    {size}개씩
-                  </option>
-                ))}
-              </select>
+                onChange={setTeamFilter}
+                options={[
+                  { value: 'ALL', label: '팀 전체' },
+                  { value: 'UNASSIGNED', label: '팀 미지정' },
+                  ...teams.map((team) => ({ value: team.id, label: team.name })),
+                ]}
+              />
+              <RichSelect
+                value={String(pageSize)}
+                onChange={(value) => setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number])}
+                options={PAGE_SIZE_OPTIONS.map((size) => ({ value: String(size), label: `${size}개씩` }))}
+              />
             </div>
           </div>
         </div>
@@ -433,62 +410,45 @@ export default function UsersAdminClient({ currentUser }: Props) {
                         {isHead ? (
                           <span className="font-medium text-slate-900">HEAD</span>
                         ) : (
-                          <select
+                          <RichSelect
                             value={user.role}
                             disabled={!canEdit || busy}
-                            onChange={(e) => updateUser(user.id, { role: e.target.value as UserRole })}
-                            className="w-[120px] rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                          >
-                            {(currentUser.role === 'HEAD' ? ['ADMIN', ...ROLES.filter((role) => role !== 'ADMIN')] : ROLES.filter((role) => role !== 'ADMIN')).map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(value) => updateUser(user.id, { role: value as UserRole })}
+                            options={(currentUser.role === 'HEAD' ? ['ADMIN', ...ROLES.filter((role) => role !== 'ADMIN')] : ROLES.filter((role) => role !== 'ADMIN')).map((role) => ({ value: role, label: role }))}
+                            className="w-[120px]"
+                            buttonClassName="min-h-8 rounded-md border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100"
+                          />
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <RichSelect
                           value={profile.teamId ?? ''}
                           disabled={!canEditProfile || busy}
-                          onChange={(e) => updateProfile({ ...profile, teamId: e.target.value || null })}
-                          className="w-[150px] rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                        >
-                          <option value="">팀 미지정</option>
-                          {teams.map((team) => (
-                            <option key={team.id} value={team.id}>
-                              {team.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => updateProfile({ ...profile, teamId: value || null })}
+                          options={[{ value: '', label: '팀 미지정' }, ...teams.map((team) => ({ value: team.id, label: team.name }))]}
+                          className="w-[150px]"
+                          buttonClassName="min-h-8 rounded-md border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100"
+                        />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <RichSelect
                           value={profile.position}
                           disabled={!canEditProfile || busy}
-                          onChange={(e) => updateProfile({ ...profile, position: e.target.value as EmployeePosition })}
-                          className="w-[120px] rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                        >
-                          {EMPLOYEE_POSITIONS.map((position) => (
-                            <option key={position} value={position}>
-                              {EMPLOYEE_POSITION_LABEL[position]}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => updateProfile({ ...profile, position: value as EmployeePosition })}
+                          options={EMPLOYEE_POSITIONS.map((position) => ({ value: position, label: EMPLOYEE_POSITION_LABEL[position] }))}
+                          className="w-[120px]"
+                          buttonClassName="min-h-8 rounded-md border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100"
+                        />
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <RichSelect
                           value={profile.employmentType}
                           disabled={!canEditProfile || busy}
-                          onChange={(e) => updateProfile({ ...profile, employmentType: e.target.value as EmploymentType })}
-                          className="w-[104px] rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:bg-slate-100"
-                        >
-                          {EMPLOYMENT_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {type} · {EMPLOYMENT_TYPE_LABEL[type]}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => updateProfile({ ...profile, employmentType: value as EmploymentType })}
+                          options={EMPLOYMENT_TYPES.map((type) => ({ value: type, label: `${type} · ${EMPLOYMENT_TYPE_LABEL[type]}` }))}
+                          className="w-[104px]"
+                          buttonClassName="min-h-8 rounded-md border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100"
+                        />
                       </td>
                       <td className="px-4 py-3">
                         <div className="inline-flex flex-col rounded-md border border-emerald-100 bg-emerald-50/70 px-2.5 py-1 text-xs text-emerald-800">
@@ -563,24 +523,30 @@ export default function UsersAdminClient({ currentUser }: Props) {
           <div className="text-xs text-slate-500">
             {filteredUsers.length === 0 ? '표시할 회원이 없습니다.' : `${rangeStart}-${rangeEnd} / ${totalUsers}명`}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <PaginationButton disabled={page === 1} onClick={() => setPage(1)}>
-              First
-            </PaginationButton>
+          <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end sm:gap-1.5">
+            <span className="hidden sm:inline-flex">
+              <PaginationButton disabled={page === 1} onClick={() => setPage(1)}>
+                First
+              </PaginationButton>
+            </span>
             <PaginationButton disabled={page === 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>
               &lt;
             </PaginationButton>
-            {pageNumbers.map((pageNumber) => (
-              <PaginationButton key={pageNumber} active={pageNumber === page} onClick={() => setPage(pageNumber)}>
-                {pageNumber}
-              </PaginationButton>
-            ))}
+            <span className="flex min-w-0 items-center justify-center gap-1.5">
+              {pageNumbers.map((pageNumber) => (
+                <PaginationButton key={pageNumber} active={pageNumber === page} onClick={() => setPage(pageNumber)}>
+                  {pageNumber}
+                </PaginationButton>
+              ))}
+            </span>
             <PaginationButton disabled={page === pageCount} onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}>
               &gt;
             </PaginationButton>
-            <PaginationButton disabled={page === pageCount} onClick={() => setPage(pageCount)}>
-              Last
-            </PaginationButton>
+            <span className="hidden sm:inline-flex">
+              <PaginationButton disabled={page === pageCount} onClick={() => setPage(pageCount)}>
+                Last
+              </PaginationButton>
+            </span>
           </div>
         </div>
       </div>
@@ -624,17 +590,12 @@ export default function UsersAdminClient({ currentUser }: Props) {
                 </label>
                 <label className="block space-y-1">
                   <span className="text-xs font-medium text-slate-500">권한</span>
-                  <select
+                  <RichSelect
                     value={createUserDraft.role}
-                    onChange={(event) => setCreateUserDraft((prev) => ({ ...prev, role: event.target.value as UserRole }))}
-                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
-                  >
-                    {(currentUser.role === 'HEAD' ? ['ADMIN', 'OPERATOR', 'VIEWER'] : ['OPERATOR', 'VIEWER']).map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setCreateUserDraft((prev) => ({ ...prev, role: value as UserRole }))}
+                    options={(currentUser.role === 'HEAD' ? ['ADMIN', 'OPERATOR', 'VIEWER'] : ['OPERATOR', 'VIEWER']).map((role) => ({ value: role, label: role }))}
+                    buttonClassName="min-h-10 rounded-md border-slate-200 px-3 text-sm shadow-sm focus:border-slate-300 focus:ring-slate-100"
+                  />
                 </label>
                 <div className="rounded-md border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm text-slate-600">
                   초기 비밀번호: <span className="font-semibold text-slate-900">new123!@</span>
@@ -675,7 +636,7 @@ function PaginationButton({
       onClick={onClick}
       className={[
         'min-w-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition',
-        active ? 'border-blue-200 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100',
+        active ? 'border-sky-200 bg-sky-50 text-sky-700 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700',
         disabled ? 'cursor-not-allowed opacity-40' : '',
       ].join(' ')}
     >

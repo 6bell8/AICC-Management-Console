@@ -8,6 +8,7 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
+import { RichSelect } from '@/app/components/ui/select';
 import { Trash2, Plus, Inbox } from 'lucide-react';
 import { useToast } from '@/app/components/ui/use-toast';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -443,18 +444,13 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                   <SectionTitle title="기본 정보" />
 
                   <Field label="상태">
-                    <select
+                    <RichSelect
                       value={editing.status}
-                      onChange={(e) => setEditing({ ...editing, status: e.target.value as ContractStatus })}
-                      className={ui.input}
+                      onChange={(value) => setEditing({ ...editing, status: value as ContractStatus })}
+                      options={CONTRACT_STATUS_META.map((s) => ({ value: s.key, label: s.label }))}
+                      buttonClassName={ui.input}
                       disabled={!canWrite || Boolean(pendingAction)}
-                    >
-                      {CONTRACT_STATUS_META.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </Field>
 
                   <Field label="계약명">
@@ -624,7 +620,7 @@ export default function ContractsClient({ initialDeals }: { initialDeals: Contra
                                       items: items.length ? items : [{ id: uid(), name: '', qty: 1, unitPrice: MONEY_STEP }],
                                     });
                                   }}
-                                  className="h-9 w-9 text-slate-500 hover:text-red-600 hover:bg-red-50/60"
+                                  className="h-9 w-9 text-slate-500 hover:bg-rose-50/60 hover:text-rose-600"
                                   disabled={!canWrite || Boolean(pendingAction)}
                                 >
                                   <Trash2 className="h-4 w-4" />

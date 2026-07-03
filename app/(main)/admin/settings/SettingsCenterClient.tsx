@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { Children, isValidElement, useMemo, useState } from 'react';
 import { Bell, Building2, ChevronDown, ClipboardCheck, KeyRound, Search, Settings, ShieldCheck, Stamp, Trash2, Upload, UserCog, UsersRound, X } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
+import { RichSelect } from '@/app/components/ui/select';
 import type { AuthUser } from '@/app/lib/db/users';
 import type { getSettingsCenterData } from '@/app/lib/db/settingsCenter';
 
@@ -812,12 +813,23 @@ function SelectChipButton({ label, selected, onClick }: { label: string; selecte
 }
 
 function SelectField({ children, disabled, label, onChange, value }: { children: ReactNode; disabled?: boolean; label: string; onChange: (value: string) => void; value: string }) {
+  const options = Children.toArray(children)
+    .filter(isValidElement)
+    .map((child) => {
+      const props = child.props as { children?: ReactNode; value?: string };
+      return { value: String(props.value ?? ''), label: props.children };
+    });
+
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-slate-600">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400">
-        {children}
-      </select>
+      <RichSelect
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        options={options}
+        buttonClassName="min-h-10 rounded-md border-slate-200 px-3 text-sm text-slate-900 focus:border-sky-200 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400"
+      />
     </label>
   );
 }

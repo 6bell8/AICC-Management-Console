@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { CalendarDays, Search, ShieldCheck, Star, Trash2, UserCog, X } from 'lucide-react';
 
+import { RichSelect } from '@/app/components/ui/select';
 import type { AuthUser } from '@/app/lib/db/users';
 import type { getSettingsCenterData } from '@/app/lib/db/settingsCenter';
 
@@ -258,7 +259,7 @@ export default function PermissionDelegationsClient({ initialData, currentUser }
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <button type="button" className="absolute inset-0 bg-slate-950/40" aria-label="권한 위임 등록 닫기" onClick={() => setModalOpen(false)} />
           <div className="relative z-10 flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 sm:px-5">
               <div>
                 <div className="flex items-center gap-2">
                   <UserCog className="h-4 w-4 text-sky-600" />
@@ -271,16 +272,16 @@ export default function PermissionDelegationsClient({ initialData, currentUser }
               </button>
             </div>
 
-            <div className="min-h-0 overflow-y-auto p-5">
+            <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
               <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-4">
                   <section className="rounded-lg border border-slate-100 bg-white p-3">
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-950">사용자 선택</h3>
                         <p className="mt-0.5 text-xs text-slate-500">{globalAdmin ? '위임자와 대리자를 각각 선택합니다.' : '대리자를 선택합니다. 위임자는 현재 로그인 계정으로 고정됩니다.'}</p>
                       </div>
-                      <div className="relative w-full max-w-[280px]">
+                      <div className="relative w-full sm:max-w-[280px]">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="이름, 이메일, 권한 검색" className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100" />
                       </div>
@@ -304,12 +305,12 @@ export default function PermissionDelegationsClient({ initialData, currentUser }
                   </section>
 
                   <section className="rounded-lg border border-slate-100 bg-white p-3">
-                    <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-950">팀 선택</h3>
                         <p className="mt-0.5 text-xs text-slate-500">위임 권한이 적용될 팀을 선택합니다.</p>
                       </div>
-                      <div className="relative w-full max-w-[260px]">
+                      <div className="relative w-full sm:max-w-[260px]">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input value={teamSearch} onChange={(event) => setTeamSearch(event.target.value)} placeholder="팀명, 팀장 검색" className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100" />
                       </div>
@@ -348,11 +349,13 @@ export default function PermissionDelegationsClient({ initialData, currentUser }
                     <div className="space-y-3">
                       <label className="block">
                         <span className="mb-1.5 block text-xs font-semibold text-slate-600">위임 범위</span>
-                        <select value={draft.scope} onChange={(event) => setDraft((prev) => ({ ...prev, scope: event.target.value }))} disabled={pending} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-200 focus:ring-2 focus:ring-sky-100">
-                          {Object.entries(delegationScopeLabel).map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
-                          ))}
-                        </select>
+                        <RichSelect
+                          value={draft.scope}
+                          onChange={(value) => setDraft((prev) => ({ ...prev, scope: value }))}
+                          disabled={pending}
+                          options={Object.entries(delegationScopeLabel).map(([value, label]) => ({ value, label }))}
+                          buttonClassName="min-h-10 rounded-md border-slate-200 px-3 text-sm text-slate-900 focus:border-sky-200 focus:ring-sky-100"
+                        />
                       </label>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                         <label className="block">

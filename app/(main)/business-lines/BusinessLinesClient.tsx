@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Download, Plus, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
+import { RichSelect } from '@/app/components/ui/select';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { deleteBusinessLine, getBusinessLines, saveBusinessLine } from '@/app/lib/api/businessLines';
 import type { BusinessLine, BusinessLineServiceType, BusinessLineStatus } from '@/app/lib/types/businessLine';
@@ -203,10 +204,12 @@ export default function BusinessLinesClient() {
         <input type="date" value={from} onChange={(e) => { setPage(1); setFrom(e.target.value); }} className="h-10 rounded-md border border-slate-200 px-3 text-sm" />
         <span className="text-slate-400">~</span>
         <input type="date" value={to} onChange={(e) => { setPage(1); setTo(e.target.value); }} className="h-10 rounded-md border border-slate-200 px-3 text-sm" />
-        <select value={status} onChange={(e) => { setPage(1); setStatus(e.target.value); }} className="h-10 rounded-md border border-slate-200 px-3 text-sm">
-          <option value="ALL">전체</option>
-          {BUSINESS_LINE_STATUSES.map((item) => <option key={item} value={item}>{STATUS_LABEL[item]}</option>)}
-        </select>
+        <RichSelect
+          value={status}
+          onChange={(value) => { setPage(1); setStatus(value); }}
+          options={[{ value: 'ALL', label: '전체' }, ...BUSINESS_LINE_STATUSES.map((item) => ({ value: item, label: STATUS_LABEL[item] }))]}
+          buttonClassName="min-h-10 rounded-md border-slate-200 px-3 text-sm"
+        />
         <div className="relative min-w-[260px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -335,14 +338,10 @@ function BusinessLineModal({
           <Field label="JIRA"><input value={line.jiraKey ?? ''} onChange={(e) => onChange({ ...line, jiraKey: e.target.value })} /></Field>
           <Field label="회선번호"><input value={line.lineNumber} onChange={(e) => onChange({ ...line, lineNumber: e.target.value })} /></Field>
           <Field label="사용서버">
-            <select value={line.serviceType} onChange={(e) => onChange({ ...line, serviceType: e.target.value as BusinessLineServiceType })}>
-              {BUSINESS_LINE_SERVICE_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <RichSelect value={line.serviceType} onChange={(value) => onChange({ ...line, serviceType: value as BusinessLineServiceType })} options={BUSINESS_LINE_SERVICE_TYPES.map((item) => ({ value: item, label: item }))} />
           </Field>
           <Field label="REGI상태">
-            <select value={line.regiStatus} onChange={(e) => onChange({ ...line, regiStatus: e.target.value as BusinessLineStatus })}>
-              {BUSINESS_LINE_STATUSES.map((item) => <option key={item} value={item}>{STATUS_LABEL[item]}</option>)}
-            </select>
+            <RichSelect value={line.regiStatus} onChange={(value) => onChange({ ...line, regiStatus: value as BusinessLineStatus })} options={BUSINESS_LINE_STATUSES.map((item) => ({ value: item, label: STATUS_LABEL[item] }))} />
           </Field>
           <Field label="봇명"><input value={line.botName} onChange={(e) => onChange({ ...line, botName: e.target.value })} /></Field>
           <Field label="봇코드"><input value={line.botCode} onChange={(e) => onChange({ ...line, botCode: e.target.value })} /></Field>

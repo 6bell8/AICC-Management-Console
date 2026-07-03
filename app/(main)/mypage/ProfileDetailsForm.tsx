@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Award, BriefcaseBusiness, Camera, ChevronDown, FileBadge, GraduationCap, Home, IdCard, Plus, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 
+import { RichSelect } from '@/app/components/ui/select';
 import type { EmployeeProfileDetails } from '@/app/lib/db/profileDetails';
 
 type ProfileFormState = Omit<EmployeeProfileDetails, 'userId' | 'updatedAt'>;
@@ -174,25 +175,20 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
           </span>
         </button>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap sm:items-center">
           <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">입력 {filledCount}/8</span>
           <label className="relative">
             <span className="sr-only">증명서 종류</span>
-            <select
+            <RichSelect
               value={certificateType}
-              onChange={(event) => setCertificateType(event.target.value)}
-              className="h-10 min-w-[190px] rounded-md border border-slate-200 bg-white px-3 pr-8 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-sky-100 hover:bg-sky-50 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
-            >
-              {CERTIFICATE_TYPES.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              onChange={setCertificateType}
+              options={CERTIFICATE_TYPES.map((item) => ({ value: item.value, label: item.label }))}
+              buttonClassName="min-h-10 rounded-md border-slate-200 px-3 pr-8 text-sm font-medium text-slate-700 shadow-sm hover:border-sky-100 hover:bg-sky-50 focus:border-sky-200 focus:ring-sky-100 sm:min-w-[190px]"
+            />
           </label>
           <Link
             href={`/mypage/certificate?type=${certificateType}`}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
           >
             <FileBadge className="h-4 w-4" />
             발급
@@ -201,7 +197,7 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
             type="button"
             onClick={saveProfile}
             disabled={saving}
-            className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
           >
             <Save className="h-4 w-4" />
             {saving ? '저장 중' : '저장'}
@@ -316,7 +312,7 @@ export default function ProfileDetailsForm({ profile, fallbackName }: { profile:
                     <div className="flex flex-wrap gap-2">
                       {activeItems.map((item, index) => (
                         <span key={`${item}-${index}`} className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700">
-                          <span className="max-w-[280px] truncate">{item}</span>
+                          <span className="max-w-[68vw] truncate sm:max-w-[280px]">{item}</span>
                           <button type="button" onClick={() => removeDetailItem(activeDetail, index)} className="rounded-full text-slate-400 transition hover:text-rose-500" aria-label={`${item} 삭제`}>
                             <X className="h-3.5 w-3.5" />
                           </button>

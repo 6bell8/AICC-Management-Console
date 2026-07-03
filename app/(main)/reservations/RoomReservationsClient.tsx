@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, CalendarDays, Clock3, GraduationCap, Plus, Trash2, Users, X } from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
+import { RichSelect } from '@/app/components/ui/select';
 import type { AuthUser } from '@/app/lib/db/users';
 import type { RoomReservation, RoomReservationSnapshot, RoomResource, RoomResourceType } from '@/app/lib/types/roomReservation';
 
@@ -254,21 +255,21 @@ export default function RoomReservationsClient({
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:overflow-visible md:px-0 md:pb-0">
         <Metric label="운영 공간" value={`${summary.resources}개`} icon={<Building2 className="h-4 w-4" />} />
         <Metric label="회의실" value={`${summary.meetingRooms}개`} icon={<Users className="h-4 w-4" />} />
         <Metric label="교육장" value={`${summary.trainingRooms}개`} icon={<GraduationCap className="h-4 w-4" />} />
         <Metric label="선택일 예약" value={`${summary.reservations}건`} icon={<CalendarDays className="h-4 w-4" />} />
       </section>
 
-      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+      <div className="grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-white p-2 sm:flex sm:flex-wrap">
         {(Object.keys(VIEW_LABEL) as ReservationView[]).map((view) => (
           <button
             key={view}
             type="button"
             onClick={() => setActiveView(view)}
             className={[
-              'rounded-md px-3 py-2 text-sm font-medium transition',
+               'rounded-md px-3 py-2 text-center text-sm font-medium leading-5 break-keep transition max-[480px]:text-xs',
               activeView === view
                 ? 'bg-slate-900 text-white shadow-sm'
                 : 'border border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900',
@@ -294,10 +295,15 @@ export default function RoomReservationsClient({
             {canManageResources ? (
               <div className="mt-4 grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_140px_96px] xl:grid-cols-[minmax(0,1fr)_140px_96px_minmax(0,1fr)_auto]">
                 <input value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} className={inputClass} placeholder="공간명" />
-                <select value={resourceForm.type} onChange={(e) => setResourceForm((prev) => ({ ...prev, type: e.target.value as RoomResourceType }))} className={inputClass}>
-                  <option value="MEETING_ROOM">회의실</option>
-                  <option value="TRAINING_ROOM">교육장</option>
-                </select>
+                <RichSelect
+                  value={resourceForm.type}
+                  onChange={(value) => setResourceForm((prev) => ({ ...prev, type: value as RoomResourceType }))}
+                  options={[
+                    { value: 'MEETING_ROOM', label: '회의실' },
+                    { value: 'TRAINING_ROOM', label: '교육장' },
+                  ]}
+                  buttonClassName={`${inputClass} max-[480px]:h-12 max-[480px]:text-base`}
+                />
                 <input
                   type="number"
                   min={1}
@@ -375,18 +381,19 @@ export default function RoomReservationsClient({
             <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2">
               <label className="min-w-0 space-y-1 text-sm">
                 <span className="text-slate-600">공간</span>
-                <select
-                    value={reservationForm.resourceId}
-                    onChange={(e) => setReservationForm((prev) => ({ ...prev, resourceId: e.target.value }))}
-                    className={inputClass}
-                    disabled={!canReserve}
-                >
-                  {data.resources.map((resource) => (
-                      <option key={resource.id} value={resource.id}>
-                        {resource.name}
-                      </option>
-                  ))}
-                </select>
+                <RichSelect
+                  value={reservationForm.resourceId}
+                  onChange={(value) => setReservationForm((prev) => ({ ...prev, resourceId: value }))}
+                  options={data.resources.map((resource) => ({
+                    value: resource.id,
+                    label: resource.name,
+                    description: `${RESOURCE_TYPE_LABEL[resource.type]} · ${resource.capacity}명${resource.location ? ` · ${resource.location}` : ''}`,
+                  }))}
+                  placeholder="공간 선택"
+                  emptyText="등록된 공간이 없습니다."
+                  buttonClassName={`${inputClass} max-[480px]:h-12 max-[480px]:text-base`}
+                  disabled={!canReserve}
+                />
               </label>
               <label className="min-w-0 space-y-1 text-sm">
                 <span className="text-slate-600">제목</span>
@@ -526,9 +533,9 @@ export default function RoomReservationsClient({
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="min-w-[132px] flex-1 rounded-lg border border-slate-200 bg-white p-3 md:min-w-0 md:p-4">
       <div className="flex items-center gap-2 text-sm text-slate-500">{icon}{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
+      <div className="mt-1.5 text-2xl font-semibold text-slate-950 md:mt-2">{value}</div>
     </div>
   );
 }

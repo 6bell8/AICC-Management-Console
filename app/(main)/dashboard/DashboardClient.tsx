@@ -251,7 +251,48 @@ export default function DashboardClient() {
           </Link>
         </div>
 
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 grid gap-2 sm:hidden">
+          {loading ? (
+            Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="mt-3 h-5 w-16 rounded-full" />
+                <Skeleton className="mt-3 h-3 w-28" />
+              </div>
+            ))
+          ) : null}
+          {!loading && recent.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-8 text-center text-sm text-slate-500">
+              캠페인이 없습니다.
+            </div>
+          ) : null}
+          {!loading && recent.map((r) => {
+            const p = getStatusPalette(r.status);
+            const variant = statusKeyToBadgeVariant(p.key);
+            const label = safeLabel(p.label, r.status);
+
+            return (
+              <Link
+                key={r.id}
+                href={`/campaigns/${encodeURIComponent(r.id)}`}
+                className="block rounded-lg border border-slate-100 bg-white p-3 shadow-sm transition hover:border-sky-100 hover:bg-sky-50/30"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="line-clamp-2 text-sm font-semibold text-slate-950">{r.name}</div>
+                    <div className="mt-1 truncate font-mono text-[11px] text-slate-400">{r.id}</div>
+                  </div>
+                  <Badge variant={variant}>{label}</Badge>
+                </div>
+                <div className="mt-3 text-xs text-slate-500">
+                  업데이트 {new Date(r.updatedAt).toLocaleString()}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500">
               <tr className="border-b">

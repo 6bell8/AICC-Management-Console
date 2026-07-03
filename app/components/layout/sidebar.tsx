@@ -17,11 +17,13 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  Menu,
   Settings,
   Target,
   UserRound,
+  X,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { authStorage } from '../../lib/auth/storage';
@@ -129,6 +131,8 @@ function isActive(pathname: string, href: string, exact?: boolean) {
 export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileClosing, setMobileClosing] = useState(false);
   const countsQuery = useQuery<{ unreadNotifications: number; pendingApprovals: number }>({
     queryKey: ['notifications', 'counts'],
     queryFn: async () => {
@@ -142,6 +146,25 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
   const counts = countsQuery.data ?? { unreadNotifications: 0, pendingApprovals: 0 };
   const nav: NavNode[] = initialUser.role === 'HEAD' || initialUser.role === 'ADMIN' ? [...NAV, ...ADMIN_NAV] : NAV;
 
+  const openMobileMenu = () => {
+    setMobileClosing(false);
+    setMobileOpen(true);
+  };
+
+  const closeMobileMenu = () => {
+    if (!mobileOpen || mobileClosing) return;
+    setMobileClosing(true);
+    window.setTimeout(() => {
+      setMobileOpen(false);
+      setMobileClosing(false);
+    }, 460);
+  };
+
+  useEffect(() => {
+    if (mobileOpen) closeMobileMenu();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const onLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -154,8 +177,8 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
     router.refresh();
   };
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100 print:hidden">
+  const sidebarContent = (
+    <>
       <div className="px-4 py-4">
         <div className="flex items-start gap-2">
           <Link
@@ -263,6 +286,80 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
           로그아웃
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <div className="fixed inset-x-0 top-0 z-50 hidden h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur print:hidden max-[480px]:flex">
+        <Link
+          href="/notifications"
+          className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
+          aria-label="알림으로 이동"
+          title="알림"
+        >
+          <Bell className="h-4 w-4" />
+          {counts.unreadNotifications > 0 ? (
+            <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-sky-500 ring-2 ring-white" aria-label="읽지 않은 알림 있음" />
+          ) : null}
+        </Link>
+        <Link href="/dashboard" className="min-w-0 px-2 text-center" aria-label="대시보드로 이동">
+          <div className="truncate text-sm font-semibold text-slate-950">AICC 운영관리 포털</div>
+          <div className="truncate text-[11px] text-slate-500">Admin UI</div>
+        </Link>
+        <button
+          type="button"
+          onClick={openMobileMenu}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white text-slate-700 shadow-sm shadow-slate-200/70 transition duration-300 ease-out hover:bg-sky-50 hover:text-sky-700 hover:shadow-sky-100"
+          aria-label="메뉴 열기"
+          aria-expanded={mobileOpen}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100 print:hidden max-[480px]:hidden">
+        {sidebarContent}
+      </aside>
+
+      {mobileOpen ? (
+        <div
+          className={[
+            'fixed inset-0 z-[80] hidden bg-slate-950/45 print:hidden max-[480px]:block',
+            mobileClosing
+              ? 'animate-[mobileMenuFadeOut_420ms_cubic-bezier(0.16,1,0.3,1)_both]'
+              : 'animate-[mobileMenuFade_420ms_cubic-bezier(0.16,1,0.3,1)_both]',
+          ].join(' ')}
+          role="dialog"
+          aria-modal="true"
+          aria-label="모바일 메뉴"
+        >
+          <aside
+            className={[
+              'flex h-[100dvh] w-full flex-col bg-slate-900 text-slate-100 shadow-2xl',
+              mobileClosing
+                ? 'animate-[mobileMenuSlideOut_460ms_cubic-bezier(0.16,1,0.3,1)_both]'
+                : 'animate-[mobileMenuSlide_560ms_cubic-bezier(0.16,1,0.3,1)_both]',
+            ].join(' ')}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold tracking-wide text-white">AICC 운영관리 포털</div>
+                <div className="truncate text-xs text-slate-300">전체 메뉴</div>
+              </div>
+              <button
+                type="button"
+                onClick={closeMobileMenu}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 bg-slate-800 text-slate-200 transition hover:bg-slate-700 hover:text-white"
+                aria-label="메뉴 닫기"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {sidebarContent}
+          </aside>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -33,8 +33,7 @@ const variantClass: Record<ButtonVariant, string> = {
   ghost: 'bg-slate-100 text-slate-800 cursor-pointer hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700',
   oHGhost: 'bg-slate-100 text-slate-800 hover:bg-slate-200 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
   hoverGhost: 'text-slate-700 hover:bg-slate-100 cursor-pointer dark:bg-gray-800 dark:hover:bg-gray-700',
-  dlOutline:
-    'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer',
+  dlOutline: 'border border-rose-100 bg-rose-50 text-rose-700 shadow-sm hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800 cursor-pointer',
   link: 'text-primary underline-offset-4 hover:underline cursor-pointer',
   closeOutline:
     'border border-stone-200/70 bg-white/60 text-slate-700 ' + 'hover:bg-stone-50/60 hover:border-stone-300/70 hover:text-slate-800 cursor-pointer',
