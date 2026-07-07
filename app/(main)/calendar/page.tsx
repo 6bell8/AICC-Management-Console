@@ -292,8 +292,8 @@ export default function CalendarPage() {
           <h1 className="mt-3 text-xl font-semibold text-slate-950">캘린더</h1>
           <p className="mt-1 text-sm text-slate-500">개인 근태와 팀 운영 일정을 분리해서 확인합니다.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="group relative inline-flex h-10 w-[132px] items-center rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100">
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <label className="group relative inline-flex h-10 w-full items-center rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100 sm:w-[132px]">
             <span className="pointer-events-none absolute left-3 text-slate-400 transition group-hover:text-sky-500">
               <CalendarDays className="h-4 w-4" />
             </span>
@@ -302,10 +302,10 @@ export default function CalendarPage() {
               value={month}
               onChange={(event) => setMonth(event.target.value || getMonthValue())}
               aria-label="조회 월"
-              className="h-full w-full border-0 bg-transparent pl-9 pr-1 text-sm font-semibold text-slate-700 shadow-none outline-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-0.5 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
+              className="h-full w-full border-0 bg-transparent pl-9 pr-1 text-sm font-semibold text-slate-700 shadow-none outline-none focus-visible:ring-0 max-[480px]:px-10 max-[480px]:text-center [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-0.5 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
             />
           </label>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+          <div className="inline-grid grid-cols-2 rounded-lg border border-slate-200 bg-white p-1 sm:inline-flex">
             {[
               { key: 'personal' as const, label: '내 캘린더' },
               { key: 'team' as const, label: '팀 캘린더' },
@@ -323,7 +323,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:grid-cols-4 md:gap-3 md:overflow-visible md:px-0 md:pb-0">
         <SummaryTile label="근태" value={stats.leave} tone="emerald" icon={<CalendarDays className="h-4 w-4" />} />
         <SummaryTile label="출장" value={stats.trip} tone="sky" icon={<ClipboardList className="h-4 w-4" />} />
         <SummaryTile label="공간예약" value={stats.reservation} tone="violet" icon={<UsersRound className="h-4 w-4" />} />
@@ -432,7 +432,7 @@ function SummaryTile({ label, value, tone, icon }: { label: string; value: numbe
   }[tone];
 
   return (
-    <div className={['soft-interactive rounded-lg border p-3', toneClass].join(' ')}>
+    <div className={['soft-interactive min-w-[128px] flex-1 rounded-lg border p-3 md:min-w-0', toneClass].join(' ')}>
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs font-semibold">{label}</div>
         <span className="opacity-80">{icon}</span>

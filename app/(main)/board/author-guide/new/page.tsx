@@ -41,9 +41,9 @@ export default function AuthorGuideNewPage() {
   const disabled = !canWrite || m.isPending;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+    <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
           <BookOpen className="h-5 w-5 text-sky-600" />
           새 저작가이드 작성
         </h1>
@@ -62,14 +62,14 @@ export default function AuthorGuideNewPage() {
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="가이드 내용을 입력해 주세요" className="min-h-[220px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" disabled={disabled} />
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="가이드 내용을 입력해 주세요" className="min-h-[320px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0 sm:min-h-[360px]" disabled={disabled} />
       </div>
 
       <div className="flex w-full items-center justify-end gap-3">
         <StatusToggle value={status} onChange={canWrite ? setStatus : () => undefined} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_36px] gap-2 sm:flex sm:flex-wrap">
         <Button variant="oHGhost" disabled={!canSubmit} onClick={() => m.mutate()}>{m.isPending ? '저장 중...' : '저장'}</Button>
         <Button variant="outline" className="h-9 w-9 p-0" disabled={m.isPending} onClick={() => router.push('/board/author-guide')} aria-label="저작가이드 목록" title="저작가이드 목록">
           <ClipboardList className="h-4 w-4 shrink-0" />

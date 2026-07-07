@@ -2,7 +2,6 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
 import { getMysqlPool } from '../db/mysql';
 import type { DynNodePost, DynNodeStatus } from '../types/dynnode';
-import { DEFAULT_DYNNODE_SAMPLE_CTX, getDynnodeSampleCtx } from './defaults';
 
 type DynNodeRow = RowDataPacket & {
   id: string;
@@ -10,11 +9,14 @@ type DynNodeRow = RowDataPacket & {
   summary: string | null;
   code: string;
   sample_ctx: unknown;
+  ctx_key: string | null;
   tags: string | string[];
   status: DynNodeStatus;
   created_at: Date | string;
   updated_at: Date | string;
 };
+
+let ensureDynnodeCtxKeyColumnPromise: Promise<void> | null = null;
 
 function nowIso() {
   return new Date().toISOString();
@@ -39,13 +41,48 @@ function parseTags(value: string | string[]) {
   }
 }
 
+function stringifySampleCtx(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (value == null) return '{\n  \n}\n';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+async function ensureDynnodeCtxKeyColumn() {
+  if (!ensureDynnodeCtxKeyColumnPromise) {
+    ensureDynnodeCtxKeyColumnPromise = (async () => {
+      const pool = getMysqlPool();
+      const [columns] = await pool.query<RowDataPacket[]>(
+        `
+          SELECT COLUMN_NAME
+          FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'dynnode_posts'
+            AND COLUMN_NAME = 'ctx_key'
+          LIMIT 1
+        `,
+      );
+      if (columns.length > 0) return;
+      await pool.query("ALTER TABLE dynnode_posts ADD COLUMN ctx_key VARCHAR(120) NOT NULL DEFAULT 'api:API01' AFTER sample_ctx");
+    })().catch((error) => {
+      ensureDynnodeCtxKeyColumnPromise = null;
+      throw error;
+    });
+  }
+  return ensureDynnodeCtxKeyColumnPromise;
+}
+
 function mapPost(row: DynNodeRow): DynNodePost {
   return {
     id: row.id,
     title: row.title,
     summary: row.summary,
     code: row.code,
-    sampleCtx: getDynnodeSampleCtx(row.sample_ctx),
+    sampleCtx: stringifySampleCtx(row.sample_ctx),
+    ctxKey: row.ctx_key?.trim() || 'api:API01',
     tags: parseTags(row.tags),
     status: row.status,
     createdAt: toIso(row.created_at),
@@ -53,23 +90,39 @@ function mapPost(row: DynNodeRow): DynNodePost {
   };
 }
 
-export async function listPosts() {
+export async function listPosts(params?: { q?: string; status?: DynNodeStatus | 'ALL' }) {
+  await ensureDynnodeCtxKeyColumn();
   const pool = getMysqlPool();
+  const filters: string[] = [];
+  const values: string[] = [];
+  const q = params?.q?.trim();
+  if (q) {
+    filters.push('(title LIKE ? OR summary LIKE ? OR code LIKE ?)');
+    values.push(`%${q}%`, `%${q}%`, `%${q}%`);
+  }
+  if (params?.status === 'PUBLISHED' || params?.status === 'DRAFT') {
+    filters.push('status = ?');
+    values.push(params.status);
+  }
+  const whereSql = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const [rows] = await pool.query<DynNodeRow[]>(
     `
-      SELECT id, title, summary, code, sample_ctx, tags, status, created_at, updated_at
+      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at
       FROM dynnode_posts
+      ${whereSql}
       ORDER BY updated_at DESC
     `,
+    values,
   );
   return rows.map(mapPost);
 }
 
 export async function getPost(id: string) {
+  await ensureDynnodeCtxKeyColumn();
   const pool = getMysqlPool();
   const [rows] = await pool.query<DynNodeRow[]>(
     `
-      SELECT id, title, summary, code, sample_ctx, tags, status, created_at, updated_at
+      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at
       FROM dynnode_posts
       WHERE id = ?
       LIMIT 1
@@ -84,24 +137,27 @@ export async function createPost(input: {
   summary?: string | null;
   code: string;
   sampleCtx?: string;
+  ctxKey?: string;
   tags?: string[];
   status?: DynNodeStatus;
 }) {
   const pool = getMysqlPool();
+  await ensureDynnodeCtxKeyColumn();
   const id = makeId();
   const now = nowIso();
 
   await pool.execute(
     `
-      INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, tags, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
       input.title,
       input.summary ?? null,
       input.code,
-      input.sampleCtx ?? DEFAULT_DYNNODE_SAMPLE_CTX,
+      input.sampleCtx ?? '{\n  \n}\n',
+      input.ctxKey?.trim() || 'api:API01',
       JSON.stringify(input.tags ?? []),
       input.status ?? 'DRAFT',
       now.slice(0, 23).replace('T', ' '),
@@ -114,7 +170,7 @@ export async function createPost(input: {
   return created;
 }
 
-export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'title' | 'summary' | 'code' | 'sampleCtx' | 'tags' | 'status'>>) {
+export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'title' | 'summary' | 'code' | 'sampleCtx' | 'ctxKey' | 'tags' | 'status'>>) {
   const current = await getPost(id);
   if (!current) return null;
 
@@ -124,6 +180,7 @@ export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'ti
     summary: patch.summary === undefined ? current.summary : patch.summary,
     code: patch.code ?? current.code,
     sampleCtx: patch.sampleCtx ?? current.sampleCtx,
+    ctxKey: patch.ctxKey ?? current.ctxKey,
     tags: patch.tags ?? current.tags,
     status: patch.status ?? current.status,
   };
@@ -131,10 +188,10 @@ export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'ti
   await pool.execute(
     `
       UPDATE dynnode_posts
-      SET title = ?, summary = ?, code = ?, sample_ctx = ?, tags = ?, status = ?
+      SET title = ?, summary = ?, code = ?, sample_ctx = ?, ctx_key = ?, tags = ?, status = ?
       WHERE id = ?
     `,
-    [next.title, next.summary, next.code, next.sampleCtx, JSON.stringify(next.tags), next.status, id],
+    [next.title, next.summary, next.code, next.sampleCtx, next.ctxKey.trim() || 'api:API01', JSON.stringify(next.tags), next.status, id],
   );
 
   return getPost(id);

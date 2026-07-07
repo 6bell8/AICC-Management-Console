@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { Pin, X } from 'lucide-react';
 
 import { getNoticeBanner } from '@/app/lib/api/notice';
 import { Badge } from '@/app/components/ui/badge';
@@ -20,116 +20,113 @@ type NoticeItem = {
 const DISMISS_KEY = 'noticeBanner:dismissedDate';
 
 function todayKey() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
+  const date = new Date();
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export default function NoticeBanner({ limit = 5, intervalMs = 5000 }: { limit?: number; intervalMs?: number }) {
-  const [dismissed, setDismissed] = useState(false);
-  const [idx, setIdx] = useState(0);
+function getInitialDismissed() {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(DISMISS_KEY) === todayKey();
+}
 
-  // ✅ mount 후에만 localStorage 읽기 (하이드레이션 안전)
-  useEffect(() => {
-    const v = window.localStorage.getItem(DISMISS_KEY);
-    setDismissed(v === todayKey());
-  }, []);
+export default function NoticeBanner({ limit = 5, intervalMs = 5000 }: { limit?: number; intervalMs?: number }) {
+  const [dismissed, setDismissed] = useState(getInitialDismissed);
+  const [idx, setIdx] = useState(0);
 
   const q = useQuery({
     queryKey: ['notice', 'banner', limit],
     queryFn: () => getNoticeBanner(limit),
     staleTime: 30_000,
-    enabled: !dismissed, // ✅ 오늘 숨김이면 요청도 안 함
+    enabled: !dismissed,
   });
 
   const items: NoticeItem[] = useMemo(() => {
     const raw = (q.data?.items ?? []) as NoticeItem[];
-
-    // ✅ pinned만 배너에 노출하고 싶을 때
-    const pinnedOnly = raw.filter((n) => n.pinned === true);
-
-    // pinnedOnly도 최신순 정렬(원하면)
-    return [...pinnedOnly].sort((a, b) => {
-      const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bt - at;
-    });
+    return raw
+      .filter((notice) => notice.pinned === true)
+      .sort((a, b) => {
+        const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bt - at;
+      });
   }, [q.data]);
 
-  // 데이터가 바뀌면 인덱스 리셋
-  useEffect(() => {
-    setIdx(0);
-  }, [items.length]);
+  const activeIdx = items.length > 0 ? idx % items.length : 0;
+  const mobileItem = items[0] ?? null;
 
-  // ✅ 5초 간격 수직 슬라이드
   useEffect(() => {
-    if (dismissed) return;
-    if (items.length <= 1) return;
+    if (dismissed || items.length <= 1 || typeof window === 'undefined') return undefined;
 
-    const t = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       setIdx((prev) => (prev + 1) % items.length);
     }, intervalMs);
 
-    return () => window.clearInterval(t);
+    return () => window.clearInterval(timer);
   }, [dismissed, items.length, intervalMs]);
 
   const onDismissToday = () => {
-    window.localStorage.setItem(DISMISS_KEY, todayKey()); // ✅ 오늘 날짜로 기록
+    window.localStorage.setItem(DISMISS_KEY, todayKey());
     setDismissed(true);
   };
 
-  // ✅ 오늘은 안 보기
   if (dismissed) return null;
 
   return (
     <div className="rounded-lg bg-slate-100/60 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Badge variant="info" className="rounded-md px-2 py-1 text-[16px] font-semibold tracking-wide">
+      <div className="relative flex items-center justify-center gap-3 sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 pr-10 text-center sm:justify-start sm:gap-3 sm:pr-0 sm:text-left">
+          <Badge variant="info" className="shrink-0 rounded-md px-2 py-1 text-sm font-semibold tracking-wide sm:text-[16px]">
             공지
           </Badge>
 
-          {/* ✅ 헤더 안 “수직 티커” */}
-          <div className="relative h-6 overflow-hidden min-w-0">
+          <div className="min-w-0 flex-1">
             {q.isPending ? (
-              <Skeleton className="h-5 w-[280px]" />
+              <Skeleton className="mx-auto h-5 w-full max-w-[280px] sm:mx-0" />
             ) : items.length === 0 ? (
               <span className="text-sm text-slate-500">표시할 공지가 없습니다.</span>
             ) : (
-              <div
-                className="transition-transform duration-300 will-change-transform"
-                style={{ transform: `translateY(-${idx * 1.5}rem)` }} // h-6 = 1.5rem
-              >
-                {items.map((n) => (
-                  <Link
-                    key={n.id}
-                    href={`/board/notice/${encodeURIComponent(n.id)}`}
-                    className="block h-6 leading-6 text-sm text-slate-800 hover:underline truncate"
-                    title={n.title}
-                  >
-                    <span className="mr-1 text-slate-500">{n.pinned ? '📌' : '•'}</span>
-                    {n.title}
-                  </Link>
-                ))}
-              </div>
+              <>
+                <div className="sm:hidden">
+                  <NoticeLink item={mobileItem} className="line-clamp-2 text-sm leading-5 text-slate-800" />
+                </div>
+
+                <div className="relative hidden h-6 min-w-0 overflow-hidden sm:block">
+                  <div className="transition-transform duration-300 will-change-transform" style={{ transform: `translateY(-${activeIdx * 1.5}rem)` }}>
+                    {items.map((item) => (
+                      <NoticeLink key={item.id} item={item} className="block h-6 truncate text-sm leading-6 text-slate-800 hover:underline" />
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* ✅ “오늘은 숨김” 버튼 */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0"
-          aria-label="오늘은 공지 배너 숨김"
-          title="오늘은 숨김"
+          className="absolute right-0 top-1/2 h-9 w-9 -translate-y-1/2 shrink-0 sm:static sm:translate-y-0"
+          aria-label="오늘 공지 배너 숨기기"
+          title="오늘 숨기기"
           onClick={onDismissToday}
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
     </div>
+  );
+}
+
+function NoticeLink({ className, item }: { className: string; item: NoticeItem | null }) {
+  if (!item) return null;
+
+  return (
+    <Link href={`/board/notice/${encodeURIComponent(item.id)}`} className={className} title={item.title}>
+      <Pin className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-rose-500" />
+      {item.title}
+    </Link>
   );
 }

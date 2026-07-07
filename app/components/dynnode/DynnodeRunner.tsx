@@ -1,14 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Braces, ClipboardCopy, FileCode2, FileJson2, KeyRound, ListChecks, Play, RotateCcw, Square, Terminal, Timer, type LucideIcon } from 'lucide-react';
+
 import { Button } from '@/app/components/ui/button';
-import { DEFAULT_DYNNODE_SAMPLE_CTX } from '@/app/lib/dynnode/defaults';
+import { useToast } from '@/app/components/ui/use-toast';
 
 type RunnerLog = { ts: string; level: 'log' | 'info' | 'warn' | 'error'; text: string };
 
 type WorkerOut =
   | { type: 'LOG'; level: RunnerLog['level']; text: string; ts: string }
-  | { type: 'RESULT'; value: any; ts: string }
+  | { type: 'RESULT'; value: unknown; ts: string }
   | { type: 'ERROR'; message: string; stack?: string; ts: string }
   | { type: 'DONE'; ts: string };
 
@@ -17,23 +19,44 @@ type Props = {
   onChangeCode: (v: string) => void;
   ctxText: string;
   onChangeCtxText: (v: string) => void;
+  ctxKey: string;
+  onChangeCtxKey: (v: string) => void;
+  disabled?: boolean;
 };
 
-const DEFAULT_CONTEXT_KEY = 'api:API01';
+const fieldClass =
+  'h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
+const textareaClass =
+  'min-h-[420px] w-full resize-y rounded-md border border-slate-700 bg-slate-950 py-3 pl-14 pr-3 font-mono text-[13px] leading-6 text-slate-100 shadow-inner outline-none transition caret-sky-300 placeholder:text-slate-500 selection:bg-sky-500/30 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60';
+const sampleCode = `// 'api:API01'은 default response 응답값입니다.
+var res = JSON.parse(userMap.get('api:API01'));
+var body = res.body || {};
 
-function safeStringify(value: any) {
+var summary = body.summary == null ? '(없음)' : body.summary;
+
+userMap.put('summary', summary);
+console.log(userMap.get('summary'));`;
+const sampleJson = `{
+  "body": {
+    "summary": "샘플 응답입니다.",
+    "status": "READY"
+  }
+}`;
+const ctxKeyOptions = ['api:API01', 'summary', 'body', 'result'];
+
+function safeStringify(value: unknown) {
   try {
     const seen = new WeakSet<object>();
     return JSON.stringify(
       value,
-      (_k, v) => {
-        if (typeof v === 'object' && v !== null) {
-          if (seen.has(v)) return '[Circular]';
-          seen.add(v);
+      (_key, item) => {
+        if (typeof item === 'object' && item !== null) {
+          if (seen.has(item)) return '[Circular]';
+          seen.add(item);
         }
-        if (typeof v === 'function') return `[Function ${v.name || 'anonymous'}]`;
-        if (typeof v === 'bigint') return `${v.toString()}n`;
-        return v;
+        if (typeof item === 'function') return `[Function ${item.name || 'anonymous'}]`;
+        if (typeof item === 'bigint') return `${item.toString()}n`;
+        return item;
       },
       2,
     );
@@ -42,60 +65,45 @@ function safeStringify(value: any) {
   }
 }
 
-export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtxText }: Props) {
+export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false, onChangeCode, onChangeCtxKey, onChangeCtxText }: Props) {
   const workerRef = useRef<Worker | null>(null);
+  const { toast } = useToast();
 
   const [timeoutMs, setTimeoutMs] = useState(2000);
-  const [contextKey, setContextKey] = useState(DEFAULT_CONTEXT_KEY);
   const [running, setRunning] = useState(false);
-
   const [logs, setLogs] = useState<RunnerLog[]>([]);
-  const [resultText, setResultText] = useState<string>('');
-  const [errorText, setErrorText] = useState<string>('');
+  const [resultText, setResultText] = useState('');
+  const [errorText, setErrorText] = useState('');
 
-  const logText = useMemo(() => {
-    return logs.map((l) => `${l.ts.slice(11, 19)} [${l.level}] ${l.text}`).join('\n');
-  }, [logs]);
+  const logText = useMemo(() => logs.map((log) => `${log.ts.slice(11, 19)} [${log.level}] ${log.text}`).join('\n'), [logs]);
+  const outputText = useMemo(() => {
+    if (errorText) return `[ERROR]\n${errorText}`;
+    if (resultText) return `[RESULT]\n${resultText}`;
+    return '';
+  }, [errorText, resultText]);
+  const inputDisabled = disabled || running;
 
-  const ensureWorker = useCallback(() => {
-    if (workerRef.current) return workerRef.current;
-
-    const w = new Worker(new URL('./runner.worker.ts', import.meta.url));
-
-    w.onmessage = (e: MessageEvent<WorkerOut>) => {
-      const msg = e.data;
-
-      if (msg.type === 'LOG') {
-        setLogs((prev) => [...prev, { ts: msg.ts, level: msg.level, text: msg.text }].slice(-500));
-        return;
+  const copyText = useCallback(
+    async (label: string, value: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        toast({ title: '복사 완료', description: `${label} 내용을 복사했습니다.` });
+      } catch {
+        toast({ title: '복사 실패', description: '브라우저에서 클립보드 접근을 허용하지 않았습니다.', variant: 'destructive' });
       }
+    },
+    [toast],
+  );
 
-      if (msg.type === 'RESULT') {
-        setResultText(safeStringify(msg.value));
-        return;
-      }
-
-      if (msg.type === 'ERROR') {
-        const stack = msg.stack ? `\n\n${msg.stack}` : '';
-        setErrorText(`${msg.message}${stack}`);
-        return;
-      }
-
-      if (msg.type === 'DONE') {
-        setRunning(false);
-        return;
-      }
-    };
-
-    workerRef.current = w;
-    return w;
-  }, []);
-
-  const resetOutputs = useCallback(() => {
-    setLogs([]);
-    setResultText('');
-    setErrorText('');
-  }, []);
+  const formatJson = useCallback(() => {
+    try {
+      const parsed = JSON.parse(ctxText);
+      onChangeCtxText(JSON.stringify(parsed, null, 2));
+      toast({ title: 'JSON 정리 완료', description: 'JSON DATA를 보기 좋게 정렬했습니다.' });
+    } catch {
+      toast({ title: 'JSON 형식 오류', description: 'JSON DATA를 먼저 올바른 JSON 형식으로 맞춰주세요.', variant: 'destructive' });
+    }
+  }, [ctxText, onChangeCtxText, toast]);
 
   const terminateWorker = useCallback(() => {
     if (!workerRef.current) return;
@@ -103,26 +111,74 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
     workerRef.current = null;
   }, []);
 
-  const onRun = useCallback(() => {
-    if (running) return; // 실행 중이면 무시
-    resetOutputs();
+  const ensureWorker = useCallback(() => {
+    if (workerRef.current) return workerRef.current;
 
-    const normalizedContextKey = contextKey.trim();
-    if (!normalizedContextKey) {
-      setErrorText('JSON DATA의 userMap 키를 입력해 주세요.');
+    const worker = new Worker(new URL('./runner.worker.ts', import.meta.url));
+    worker.onmessage = (event: MessageEvent<WorkerOut>) => {
+      const message = event.data;
+
+      if (message.type === 'LOG') {
+        setLogs((prev) => [...prev, { ts: message.ts, level: message.level, text: message.text }].slice(-500));
+        return;
+      }
+
+      if (message.type === 'RESULT') {
+        setResultText(safeStringify(message.value));
+        return;
+      }
+
+      if (message.type === 'ERROR') {
+        const stack = message.stack ? `\n\n${message.stack}` : '';
+        setErrorText(`${message.message}${stack}`);
+        setRunning(false);
+        toast({ title: '실행 실패', description: message.message || '동적노드 실행 중 오류가 발생했습니다.', variant: 'destructive' });
+        return;
+      }
+
+      if (message.type === 'DONE') {
+        setRunning(false);
+        toast({ title: '실행 완료', description: '동적노드 테스트 실행이 완료되었습니다.' });
+      }
+    };
+
+    workerRef.current = worker;
+    return worker;
+  }, [toast]);
+
+  const resetOutputs = useCallback(() => {
+    setLogs([]);
+    setResultText('');
+    setErrorText('');
+  }, []);
+
+  const onRun = useCallback(() => {
+    if (running) return;
+
+    try {
+      new Function('userMap', code);
+    } catch (error) {
+      toast({ title: '코드 문법 오류', description: error instanceof Error ? error.message : '실행 코드를 확인해 주세요.', variant: 'destructive' });
       return;
     }
 
+    try {
+      JSON.parse(ctxText);
+    } catch (error) {
+      toast({ title: 'JSON 형식 오류', description: error instanceof Error ? error.message : 'JSON DATA를 확인해 주세요.', variant: 'destructive' });
+      return;
+    }
+
+    resetOutputs();
     setRunning(true);
 
-    const w = ensureWorker();
-    w.postMessage({ type: 'RUN', code, ctxText, contextKey: normalizedContextKey, timeoutMs });
-  }, [running, resetOutputs, ensureWorker, code, ctxText, contextKey, timeoutMs]);
+    const worker = ensureWorker();
+    worker.postMessage({ type: 'RUN', code, ctxKey, ctxText, timeoutMs });
+  }, [code, ctxKey, ctxText, ensureWorker, resetOutputs, running, timeoutMs, toast]);
 
   const onStop = useCallback(() => {
-    // stopFlag만 세우고, 무한루프 같은 건 실제로 못 멈출 수 있으니 terminate+재생성
-    const w = workerRef.current;
-    if (w) w.postMessage({ type: 'STOP' });
+    const worker = workerRef.current;
+    if (worker) worker.postMessage({ type: 'STOP' });
 
     terminateWorker();
     setRunning(false);
@@ -134,134 +190,205 @@ export default function DynNodeRunner({ code, onChangeCode, ctxText, onChangeCtx
   }, [terminateWorker]);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+F5의 브라우저 새로고침 동작을 막고 실행기로 전달합니다.
-      if (e.ctrlKey && e.key === 'F5') {
-        e.preventDefault();
-        e.stopPropagation();
-        onRun();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const element = event.target as HTMLElement | null;
+      const tag = element?.tagName?.toLowerCase();
+      const isTyping = tag === 'textarea' || tag === 'input' || tag === 'select' || element?.getAttribute?.('contenteditable') === 'true';
+
+      if (event.ctrlKey && event.key === 'F10') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!isTyping) onRun();
+        return;
+      }
+
+      if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        if (!isTyping) onRun();
       }
     };
 
     window.addEventListener('keydown', onKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
   }, [onRun]);
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="text-base font-semibold tracking-tight">코드 실행기</div>
-          <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">Web Worker</span>
+    <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-sky-100 bg-sky-50 text-sky-700">
+            <Terminal className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-base font-semibold tracking-tight text-slate-950">코드 실행기</div>
+            <div className="text-xs text-slate-500">Web Worker 기반 테스트 실행 환경</div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-600">timeout(ms)</label>
-          <input
-            className="h-9 w-28 rounded-md border px-2 text-sm"
-            type="number"
-            value={timeoutMs}
-            min={300}
-            max={10000}
-            onChange={(e) => setTimeoutMs(Math.min(Math.max(Number(e.target.value || 0), 300), 10000))}
-            disabled={running}
-          />
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto_auto] xl:w-[680px]">
+          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:block sm:space-y-1">
+            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:justify-start sm:text-left">
+              <KeyRound className="h-3.5 w-3.5 text-sky-600" />
+              userMap key
+            </span>
+            <input className={`${fieldClass} text-right font-mono sm:text-left`} value={ctxKey} onChange={(event) => onChangeCtxKey(event.target.value)} placeholder="api:API01" list="dynnode-ctx-key-options" disabled={inputDisabled} />
+            <datalist id="dynnode-ctx-key-options">
+              {ctxKeyOptions.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+          </label>
+          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:block sm:space-y-1">
+            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:justify-start sm:text-left">
+              <Timer className="h-3.5 w-3.5 text-sky-600" />
+              timeout
+            </span>
+            <div className="relative">
+              <input
+                className={`${fieldClass} w-full pr-9 text-right sm:text-left`}
+                type="number"
+                value={timeoutMs}
+                min={300}
+                max={10000}
+                onChange={(event) => setTimeoutMs(Math.min(Math.max(Number(event.target.value || 0), 300), 10000))}
+                disabled={running}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">ms</span>
+            </div>
+          </label>
 
-          <Button variant="outline" onClick={resetOutputs} disabled={running}>
+          <Button variant="outline" onClick={resetOutputs} disabled={running} className="mt-auto h-9 gap-2">
+            <RotateCcw className="h-4 w-4 shrink-0" />
             초기화
           </Button>
 
           {running ? (
-            <Button variant="destructive" onClick={onStop}>
+            <Button variant="destructive" onClick={onStop} className="mt-auto h-9 gap-2">
+              <Square className="h-4 w-4 shrink-0" />
               중지
             </Button>
           ) : (
-            <Button variant="outline" onClick={onRun} className="gap-2">
+            <Button variant="outline" onClick={onRun} className="mt-auto h-9 gap-2 border-sky-100 text-sky-700 hover:border-sky-200 hover:bg-sky-50">
+              <Play className="h-4 w-4 shrink-0" />
               실행
-              <span className="text-[11px] font-medium text-slate-400 font-mono">Ctrl + F5</span>
             </Button>
           )}
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="space-y-2">
-          <div className="flex h-8 items-center justify-between">
-            <div className="text-sm font-semibold">실행 코드</div>
-          </div>
-          <textarea
-            className="min-h-[260px] w-full rounded-md border bg-slate-50 p-3 font-mono text-[13px] leading-6
-             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={code}
-            onChange={(e) => onChangeCode(e.target.value)}
-            spellCheck={false}
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
+        <section className="space-y-2">
+          <PanelHeader
+            icon={<Terminal className="h-4 w-4" />}
+            title="실행 코드"
+            badge="JavaScript"
+            actions={
+              <>
+                <IconAction label="복사" onClick={() => copyText('실행 코드', code)} icon={ClipboardCopy} />
+                <IconAction label="샘플" onClick={() => onChangeCode(sampleCode)} icon={FileCode2} disabled={inputDisabled} />
+                <IconAction label="초기화" onClick={() => onChangeCode('')} icon={RotateCcw} disabled={inputDisabled} />
+              </>
+            }
           />
-        </div>
+          <CodeTextarea value={code} onChange={onChangeCode} ariaLabel="실행 코드" disabled={inputDisabled} />
+        </section>
 
-        <div className="space-y-2">
-          <div className="flex h-8 items-center justify-between gap-2">
-            <div className="text-sm font-semibold">JSON DATA</div>
-            <button
-              type="button"
-              className="ml-auto shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-              onClick={() => onChangeCtxText(DEFAULT_DYNNODE_SAMPLE_CTX)}
-              disabled={running}
-            >
-              기본 예시
-            </button>
-            <label htmlFor="dynnode-context-key" className="ml-auto shrink-0 text-[11px] font-medium text-slate-500">
-              userMap 키
-            </label>
-            <input
-              id="dynnode-context-key"
-              className="h-7 w-36 rounded-md border bg-white px-2 font-mono text-xs sm:w-44"
-              value={contextKey}
-              onChange={(e) => setContextKey(e.target.value)}
-              placeholder={DEFAULT_CONTEXT_KEY}
-              disabled={running}
-              spellCheck={false}
-            />
-          </div>
-          <textarea
-            className="min-h-[260px] w-full rounded-md border bg-slate-50 p-3 font-mono text-[13px] leading-6
-             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={ctxText}
-            onChange={(e) => onChangeCtxText(e.target.value)}
-            spellCheck={false}
+        <section className="space-y-2">
+          <PanelHeader
+            icon={<Braces className="h-4 w-4" />}
+            title="JSON DATA"
+            badge={ctxKey.trim() || 'api:API01'}
+            actions={
+              <>
+                <IconAction label="복사" onClick={() => copyText('JSON DATA', ctxText)} icon={ClipboardCopy} />
+                <IconAction label="정리" onClick={formatJson} icon={ListChecks} disabled={inputDisabled} />
+                <IconAction label="샘플" onClick={() => onChangeCtxText(sampleJson)} icon={FileJson2} disabled={inputDisabled} />
+              </>
+            }
           />
-        </div>
+          <CodeTextarea value={ctxText} onChange={onChangeCtxText} ariaLabel="JSON DATA" disabled={inputDisabled} />
+        </section>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="space-y-2">
-          <div className="text-sm font-semibold">logs</div>
+        <section className="space-y-2">
+          <PanelHeader title="logs" badge="console" />
           <textarea
-            className="min-h-[260px] w-full rounded-md border p-3 font-mono text-[13px] leading-6
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-              bg-emerald-50/40 text-emerald-900 border-emerald-200"
+            className="min-h-[220px] w-full resize-y rounded-md border border-emerald-200 bg-emerald-50/40 p-3 font-mono text-[13px] leading-6 text-emerald-900 shadow-inner outline-none focus:ring-2 focus:ring-emerald-100"
             value={logText}
             readOnly
           />
-        </div>
+        </section>
 
-        <div className="space-y-2">
-          <div className="text-sm font-semibold">result / error</div>
-          <textarea
-            className={`min-h-[260px] w-full rounded-md border p-3 font-mono text-[13px] leading-6
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-              ${errorText ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-50 text-slate-900 border-slate-200'}`}
-            value={errorText ? `[ERROR]\n${errorText}` : resultText ? `[RESULT]\n${resultText}` : ''}
-            readOnly
-          />
-        </div>
+        <section className="space-y-2">
+          <PanelHeader title="result / error" badge={errorText ? 'error' : 'result'} />
+          <pre
+            className={`min-h-[220px] max-h-[520px] overflow-auto whitespace-pre-wrap rounded-md border p-3 font-mono text-[13px] leading-6 shadow-inner ${
+              errorText ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50/80 text-slate-900'
+            }`}
+          >
+            {outputText}
+          </pre>
+        </section>
       </div>
 
-      <div className="text-xs text-slate-500">
-        JSON DATA는 지정한 키에 응답 객체 문자열로 저장됩니다. 코드에서{' '}
-        <span className="font-mono">JSON.parse(userMap.get(&apos;{contextKey.trim() || DEFAULT_CONTEXT_KEY}&apos;))</span>로
-        읽을 수 있으며, <span className="font-mono">console.log()</span> 출력은 logs로 들어옵니다.
+      <div className="hidden rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500 sm:block">
+        코드 안에서 <span className="font-mono text-slate-700">console.log()</span>를 사용하면 logs에 출력됩니다. 입력 중이 아닐 때{' '}
+        <span className="font-mono text-slate-700">Ctrl + F10</span> 또는 <span className="font-mono text-slate-700">Ctrl + Enter</span>로 실행할 수 있습니다.
       </div>
+    </div>
+  );
+}
 
+function CodeTextarea({ ariaLabel, disabled, onChange, value }: { ariaLabel: string; disabled?: boolean; onChange: (value: string) => void; value: string }) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const lines = useMemo(() => Array.from({ length: Math.max(value.split('\n').length, 1) }, (_, index) => index + 1), [value]);
+
+  return (
+    <div className="relative overflow-hidden rounded-md bg-slate-950">
+      <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-11 overflow-hidden border-r border-slate-800 bg-slate-900/90 py-3 text-right font-mono text-[13px] leading-6 text-slate-500">
+        <div style={{ transform: `translateY(-${scrollTop}px)` }}>
+          {lines.map((line) => (
+            <div key={line} className="pr-2">
+              {line}
+            </div>
+          ))}
+        </div>
+      </div>
+      <textarea
+        aria-label={ariaLabel}
+        className={textareaClass}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        spellCheck={false}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+function IconAction({ disabled, icon: Icon, label, onClick }: { disabled?: boolean; icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <Button type="button" variant="outline" className="h-8 w-8 shrink-0 border-slate-200 p-0 text-sky-700 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-800" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
+      <Icon className="h-4 w-4 shrink-0" style={{ width: 16, height: 16, minWidth: 16 }} strokeWidth={2.2} aria-hidden="true" />
+    </Button>
+  );
+}
+
+function PanelHeader({ actions, badge, icon, title }: { actions?: ReactNode; badge?: string; icon?: ReactNode; title: string }) {
+  return (
+    <div className="grid min-h-[74px] gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-900">
+          {icon ? <span className="text-sky-600">{icon}</span> : null}
+          <span className="truncate">{title}</span>
+        </div>
+        {badge ? <span className="max-w-[180px] shrink-0 truncate rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-medium text-slate-600">{badge}</span> : null}
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+        {actions}
+      </div>
     </div>
   );
 }

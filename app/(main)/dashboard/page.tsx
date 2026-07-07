@@ -150,7 +150,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         <Metric label="내 역할" value={ROLE_LABEL[data.user.role] ?? data.user.role} sub={`${data.profile.teamName} · ${POSITION_LABEL[data.profile.position] ?? data.profile.position}`} tone="slate" />
         <Metric label="오늘 처리할 결재" value={`${data.counts.pendingMyApprovals}건`} sub={isManager ? '결재함에서 처리' : '처리 권한 없음'} tone="amber" />
         <Metric label="운영 캠페인" value={`${runningCampaigns.length}건`} sub={`일시중지 ${pausedCampaigns.length}건`} tone="sky" />

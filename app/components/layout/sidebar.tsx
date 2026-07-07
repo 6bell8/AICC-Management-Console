@@ -104,7 +104,6 @@ const NAV: NavNode[] = [
       { label: '저작 가이드', href: '/board/author-guide' },
     ],
   },
-
 ];
 
 const ADMIN_NAV: NavNode[] = [
@@ -179,7 +178,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
 
   const sidebarContent = (
     <>
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 max-[480px]:hidden">
         <div className="flex items-start gap-2">
           <Link
             href="/dashboard"
@@ -187,7 +186,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
             aria-label="대시보드로 이동"
           >
             <div className="truncate text-sm font-semibold tracking-wide">AICC 운영관리 포털</div>
-            <div className="truncate text-xs text-slate-300">Admin UI (Portfolio)</div>
+            <div className="truncate text-xs text-slate-300">Admin Page (Portfolio)</div>
           </Link>
           <Link
             href="/notifications"
@@ -304,8 +303,8 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
           ) : null}
         </Link>
         <Link href="/dashboard" className="min-w-0 px-2 text-center" aria-label="대시보드로 이동">
-          <div className="truncate text-sm font-semibold text-slate-950">AICC 운영관리 포털</div>
-          <div className="truncate text-[11px] text-slate-500">Admin UI</div>
+          <div className="truncate text-sl font-semibold text-slate-950">AICC 운영관리 포털</div>
+          {/*<div className="truncate text-[11px] text-slate-500">Admin UI</div>*/}
         </Link>
         <button
           type="button"

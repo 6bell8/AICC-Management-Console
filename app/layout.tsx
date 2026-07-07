@@ -23,6 +23,7 @@ const inter = Inter({
 
 import Providers from './providers';
 import { Toaster } from './components/ui/toaster';
+import { ScrollToTopButton } from './components/ui/scroll-to-top-button';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             {/* 여기서 각 라우트 그룹 레이아웃이 렌더링됨 */}
             <div className="relative min-h-screen">{children}</div>
+            <ScrollToTopButton />
           </div>
         </Providers>
         <Toaster />

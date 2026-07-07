@@ -35,6 +35,7 @@ export default function NoticeDetailPage() {
   useEffect(() => {
     const notice = q.data?.notice;
     if (!notice) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitle(notice.title ?? '');
     setContent(notice.content ?? '');
     setPinned(!!notice.pinned);
@@ -71,12 +72,12 @@ export default function NoticeDetailPage() {
   });
 
   if (q.isPending) {
-    return <div className="mx-auto w-full max-w-4xl space-y-3 p-6"><Skeleton className="h-8 w-64" /><Skeleton className="h-10 w-full" /><Skeleton className="h-44 w-full" /></div>;
+    return <div className="mx-auto w-full max-w-4xl space-y-3"><Skeleton className="h-8 w-64 max-w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-44 w-full" /></div>;
   }
 
   if (q.isError || !q.data?.notice) {
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-3 p-6">
+      <div className="mx-auto w-full max-w-4xl space-y-3">
         <div className="text-sm text-red-600">불러오기 실패</div>
         <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/notice')} aria-label="공지사항 목록" title="공지사항 목록"><ClipboardList className="h-4 w-4 shrink-0" /></Button>
       </div>
@@ -88,13 +89,13 @@ export default function NoticeDetailPage() {
   const writeDisabled = !canWrite || mSave.isPending || mDel.isPending;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+    <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
           <Megaphone className="h-5 w-5 text-sky-600" />
           공지 상세
         </h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 sm:justify-end">
           <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/notice')} aria-label="공지사항 목록" title="공지사항 목록"><ClipboardList className="h-4 w-4 shrink-0" /></Button>
           <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.back()} aria-label="뒤로가기" title="뒤로가기"><Undo2 className="h-4 w-4 shrink-0" /></Button>
         </div>
@@ -104,7 +105,7 @@ export default function NoticeDetailPage() {
       {!canWrite ? <ReadOnlyNotice /> : null}
 
       <div className="space-y-2"><div className="text-sm text-slate-600">제목</div><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={writeDisabled} className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" /></div>
-      <div className="space-y-2"><div className="text-sm text-slate-600">내용</div><Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[220px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" disabled={writeDisabled} /></div>
+      <div className="space-y-2"><div className="text-sm text-slate-600">내용</div><Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[320px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0 sm:min-h-[360px]" disabled={writeDisabled} /></div>
 
       <AttachmentFields
         attachments={attachments}
@@ -114,12 +115,12 @@ export default function NoticeDetailPage() {
         onChange={(index, patch) => setAttachments((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)))}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} disabled={writeDisabled} />상단 고정</label>
-        <div className="ml-auto flex gap-2"><Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={writeDisabled}>공개</Button><Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={writeDisabled}>임시저장</Button></div>
+        <div className="flex gap-2 sm:ml-auto"><Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={writeDisabled}>공개</Button><Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={writeDisabled}>임시저장</Button></div>
       </div>
 
-      <div className="flex gap-2"><Button variant="oHGhost" disabled={!canSave} onClick={() => mSave.mutate()}>{mSave.isPending ? '저장 중...' : '저장'}</Button><Button variant="dlOutline" disabled={!canWrite || mDel.isPending} onClick={() => setDeleteConfirmOpen(true)}>{mDel.isPending ? '삭제 중...' : '삭제'}</Button></div>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button variant="oHGhost" disabled={!canSave} onClick={() => mSave.mutate()}>{mSave.isPending ? '저장 중...' : '저장'}</Button><Button variant="dlOutline" disabled={!canWrite || mDel.isPending} onClick={() => setDeleteConfirmOpen(true)}>{mDel.isPending ? '삭제 중...' : '삭제'}</Button></div>
 
       <ChangeHistory
         createdAt={notice.createdAt}

@@ -47,9 +47,9 @@ export default function NoticeNewPage() {
   const disabled = !canWrite || m.isPending;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+    <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
           <Megaphone className="h-5 w-5 text-sky-600" />
           새 공지사항 작성
         </h1>
@@ -68,7 +68,7 @@ export default function NoticeNewPage() {
 
       <div className="space-y-2">
         <div className="text-sm text-slate-600">내용</div>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="공지사항 내용을 입력해 주세요" className="min-h-[220px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" disabled={disabled} />
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="공지사항 내용을 입력해 주세요" className="min-h-[320px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0 sm:min-h-[360px]" disabled={disabled} />
       </div>
 
       <AttachmentFields
@@ -79,18 +79,18 @@ export default function NoticeNewPage() {
         onChange={(index, patch) => setAttachments((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)))}
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} disabled={disabled} />
           상단 고정
         </label>
-        <div className="ml-auto flex gap-2">
+        <div className="flex gap-2 sm:ml-auto">
           <Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={disabled}>공개</Button>
           <Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={disabled}>임시저장</Button>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_36px] gap-2 sm:flex sm:flex-wrap">
         <Button variant="oHGhost" disabled={!canSubmit} onClick={() => m.mutate()}>{m.isPending ? '저장 중...' : '저장'}</Button>
         <Button variant="outline" className="h-9 w-9 p-0" disabled={m.isPending} onClick={() => router.push('/board/notice')} aria-label="공지사항 목록" title="공지사항 목록">
           <ClipboardList className="h-4 w-4 shrink-0" />

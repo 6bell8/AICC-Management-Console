@@ -1,10 +1,10 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, FilePlus2, Megaphone, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, FilePlus2, Megaphone, Search, X } from 'lucide-react';
 
 import { getNotices } from '@/app/lib/api/notice';
 import { Badge } from '@/app/components/ui/badge';
@@ -65,6 +65,7 @@ export default function NoticeListClient() {
   const [qInput, setQInput] = useState(qParam);
   const [preview, setPreview] = useState<Notice | null>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setQInput(qParam), [qParam]);
 
   const q = useQuery({
@@ -101,51 +102,53 @@ export default function NoticeListClient() {
   }
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="flex min-w-0 items-center gap-2 text-2xl font-semibold">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
           <Megaphone className="h-5 w-5 text-sky-600" />
           공지사항
         </h1>
         {canWrite ? (
           <Link href="/board/notice/new">
-            <Button variant="outline" className="h-9 w-9 p-0 border-sky-100 text-sky-700 hover:border-sky-200 hover:bg-sky-50" aria-label="새 공지사항" title="새 공지사항">
+            <Button variant="outline" className="h-9 gap-2 border-sky-100 px-3 text-sky-700 hover:border-sky-200 hover:bg-sky-50" aria-label="새 공지사항" title="새 공지사항">
               <FilePlus2 className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-medium">새 공지</span>
             </Button>
           </Link>
         ) : (
-          <Button variant="outline" className="h-9 w-9 p-0 border-sky-100 text-sky-700" disabled aria-label="새 공지사항" title="새 공지사항">
+          <Button variant="outline" className="h-9 gap-2 border-sky-100 px-3 text-sky-700" disabled aria-label="새 공지사항" title="새 공지사항">
             <FilePlus2 className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium">새 공지</span>
           </Button>
         )}
       </div>
 
       {!canWrite ? <ReadOnlyNotice /> : null}
 
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="space-y-2 lg:flex lg:items-center lg:justify-between lg:gap-3 lg:space-y-0">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_36px_36px] items-center gap-2 lg:flex lg:flex-1">
           <Input value={qInput} onChange={(event) => setQInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') pushQuery({ page: 1, q: qInput }); }} placeholder="제목/내용 검색" className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" />
           <Button variant="outline" className="h-9 w-9 p-0" onClick={() => pushQuery({ page: 1, q: qInput })} aria-label="검색" title="검색">
-            <Megaphone className="h-4 w-4 shrink-0" />
+            <Search className="h-4 w-4 shrink-0" />
           </Button>
           <Button variant="outline" className="h-9 w-9 p-0" disabled={!qInput && !qParam} onClick={() => { setQInput(''); pushQuery({ page: 1, q: '' }); }} aria-label="검색 초기화" title="검색 초기화">
             <X className="h-4 w-4 shrink-0" />
           </Button>
         </div>
-        <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {(['ALL', 'PUBLISHED', 'DRAFT'] as const).map((value) => (
-            <Button key={value} variant={status === value ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, status: value })}>
+            <Button key={value} variant={status === value ? 'ghost' : 'outline'} className="shrink-0 px-3" onClick={() => pushQuery({ page: 1, status: value })}>
               {value === 'ALL' ? '전체' : value === 'PUBLISHED' ? '공개' : '임시'}
             </Button>
           ))}
-          <Button variant={pinned ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, pinned: !pinned })}>고정</Button>
+          <Button variant={pinned ? 'ghost' : 'outline'} className="shrink-0 px-3" onClick={() => pushQuery({ page: 1, pinned: !pinned })}>고정</Button>
         </div>
       </div>
 
       <div className="h-4">{q.isFetching ? <Skeleton className="h-4 w-24" /> : null}</div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           {q.isPending ? (
             <ListSkeleton rows={8} />
           ) : items.length === 0 ? (
@@ -153,16 +156,16 @@ export default function NoticeListClient() {
           ) : (
             <div className="divide-y divide-slate-100">
               {items.map((notice) => (
-                <Link key={notice.id} href={`/board/notice/${encodeURIComponent(notice.id)}`} onMouseEnter={() => setPreview(notice)} onFocus={() => setPreview(notice)} className="block p-4 transition-colors hover:bg-slate-50">
+                <Link key={notice.id} href={`/board/notice/${encodeURIComponent(notice.id)}`} onMouseEnter={() => setPreview(notice)} onFocus={() => setPreview(notice)} className="block p-3 transition-colors hover:bg-slate-50 sm:p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0">
-                      <div className="truncate font-medium text-slate-900">{notice.pinned ? '[고정] ' : ''}{notice.title}</div>
-                      <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
+                      <div className="line-clamp-2 font-medium leading-5 text-slate-900 sm:truncate">{notice.pinned ? '[고정] ' : ''}{notice.title}</div>
+                      <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-500">
                         <Badge variant={notice.status === 'PUBLISHED' ? 'published' : 'draft'}>{getStatusLabel(notice.status)}</Badge>
-                        <span className="truncate">{notice.content?.slice(0, 40) || ''}{notice.content && notice.content.length > 40 ? '...' : ''}</span>
+                        <span className="line-clamp-1 min-w-0">{notice.content?.slice(0, 40) || ''}{notice.content && notice.content.length > 40 ? '...' : ''}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 text-xs text-slate-500 sm:text-right">{notice.updatedAt ? new Date(notice.updatedAt).toLocaleString() : '-'}</div>
+                    <div className="shrink-0 text-xs text-slate-400 sm:text-right">{notice.updatedAt ? new Date(notice.updatedAt).toLocaleString() : '-'}</div>
                   </div>
                 </Link>
               ))}
@@ -176,7 +179,7 @@ export default function NoticeListClient() {
         <div className="text-sm text-slate-500">총 {data?.total ?? 0}개 · {data?.page ?? page}/{totalPages} 페이지</div>
         <div className="grid grid-cols-3 gap-2 sm:flex">
           {[10, 20, 30].map((n) => (
-            <Button key={n} variant={n === pageSize ? 'ghost' : 'outline'} onClick={() => pushQuery({ page: 1, pageSize: n })}>{n}개</Button>
+            <Button key={n} variant={n === pageSize ? 'ghost' : 'outline'} className="px-2" onClick={() => pushQuery({ page: 1, pageSize: n })}>{n}개</Button>
           ))}
         </div>
       </div>
@@ -200,10 +203,20 @@ export default function NoticeListClient() {
 
 function PreviewPanel({ item }: { item: Notice | null }) {
   return (
-    <aside className="hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:block">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-        <Megaphone className="h-4 w-4 text-sky-600" />
-        미리보기
+    <aside className="hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:block">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+          <Megaphone className="h-4 w-4 text-sky-600" />
+          미리보기
+        </div>
+        {item ? (
+          <Link href={`/board/notice/${encodeURIComponent(item.id)}`}>
+            <Button type="button" variant="outline" className="h-8 gap-1.5 border-sky-100 px-2 text-xs text-sky-700 hover:border-sky-200 hover:bg-sky-50">
+              <ExternalLink className="h-3.5 w-3.5" />
+              열기
+            </Button>
+          </Link>
+        ) : null}
       </div>
       {item ? (
         <div className="mt-4 space-y-3">

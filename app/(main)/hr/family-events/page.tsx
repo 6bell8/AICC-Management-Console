@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, Gift, MapPin, Search, Send, ShieldCheck } from 'lucide-react';
 
+import { RichSelect } from '@/app/components/ui/select';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import type { FamilyEventRequest, FamilyEventType } from '@/app/lib/types/familyEvent';
 
@@ -136,13 +137,7 @@ export default function FamilyEventsPage() {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-600">경조 유형</span>
-              <select value={eventType} onChange={(event) => setEventType(event.target.value as FamilyEventType)} className="form-input">
-                {EVENT_OPTIONS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+              <RichSelect value={eventType} onChange={(value) => setEventType(value as FamilyEventType)} options={EVENT_OPTIONS.map((item) => ({ value: item.value, label: item.label }))} buttonClassName="form-input" />
             </label>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">

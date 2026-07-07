@@ -110,13 +110,14 @@ async function seedDynnodePosts(connection) {
     const id = uniqueId(raw.id, seen, 'dynnode', index);
     await connection.execute(
       `
-        INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, tags, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           title = VALUES(title),
           summary = VALUES(summary),
           code = VALUES(code),
           sample_ctx = VALUES(sample_ctx),
+          ctx_key = VALUES(ctx_key),
           tags = VALUES(tags),
           status = VALUES(status),
           created_at = VALUES(created_at),
@@ -128,6 +129,7 @@ async function seedDynnodePosts(connection) {
         raw.summary == null ? null : String(raw.summary),
         String(raw.code || ''),
         String(raw.sampleCtx || '{\n  \n}\n'),
+        String(raw.ctxKey || 'api:API01').trim() || 'api:API01',
         JSON.stringify(Array.isArray(raw.tags) ? raw.tags.filter((tag) => typeof tag === 'string') : []),
         raw.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
         toMysqlDateTime(raw.createdAt),

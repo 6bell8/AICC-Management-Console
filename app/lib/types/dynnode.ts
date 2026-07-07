@@ -5,9 +5,10 @@ export type DynNodePost = {
   title: string;
   summary: string | null;
   code: string;
-  sampleCtx: string; // JSON 텍스트 그대로 저장
+  sampleCtx: string;
+  ctxKey: string;
   tags: string[];
   status: DynNodeStatus;
-  createdAt: string; // ISO
-  updatedAt: string; // ISO
+  createdAt: string;
+  updatedAt: string;
 };

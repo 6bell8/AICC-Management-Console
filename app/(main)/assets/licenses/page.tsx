@@ -1,6 +1,7 @@
 import { Archive, ChevronRight, Download, FileCheck2, KeyRound, Search, ShieldCheck, Upload } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
+import { RichSelect } from '@/app/components/ui/select';
 import { getCurrentUser } from '@/app/lib/auth/session';
 import {
   listOperationalAssetAccessLogs,
@@ -186,28 +187,20 @@ export default async function LicenseAssetsPage({
                   className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
                 />
               </label>
-              <select
+              <RichSelect
                 name="type"
-                defaultValue={selectedType}
-                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
-              >
-                {TYPE_OPTIONS.map((type) => (
-                  <option key={type} value={type}>
-                    {type === 'ALL' ? '카테고리 전체' : TYPE_LABEL[type]}
-                  </option>
-                ))}
-              </select>
-              <select
+                value={selectedType}
+                onChange={() => undefined}
+                options={TYPE_OPTIONS.map((type) => ({ value: type, label: type === 'ALL' ? '카테고리 전체' : TYPE_LABEL[type] }))}
+                buttonClassName="min-h-10 rounded-lg border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-200 focus:ring-sky-100"
+              />
+              <RichSelect
                 name="status"
-                defaultValue={selectedStatus}
-                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
-              >
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status === 'ALL' ? '상태 전체' : STATUS_LABEL[status]}
-                  </option>
-                ))}
-              </select>
+                value={selectedStatus}
+                onChange={() => undefined}
+                options={STATUS_OPTIONS.map((status) => ({ value: status, label: status === 'ALL' ? '상태 전체' : STATUS_LABEL[status] }))}
+                buttonClassName="min-h-10 rounded-lg border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-200 focus:ring-sky-100"
+              />
               <button type="submit" className="soft-interactive h-10 rounded-lg border border-sky-100 bg-sky-50 px-4 text-sm font-semibold text-sky-700 hover:bg-sky-100">
                 검색
               </button>

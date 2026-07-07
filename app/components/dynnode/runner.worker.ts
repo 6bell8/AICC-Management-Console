@@ -1,109 +1,116 @@
-// runner.worker.ts
 export {};
 
-type RunMsg = { type: 'RUN'; code: string; ctxText: string; contextKey: string; timeoutMs: number };
+type RunMsg = { type: 'RUN'; code: string; ctxKey: string; ctxText: string; timeoutMs: number };
 type StopMsg = { type: 'STOP' };
 type InMsg = RunMsg | StopMsg;
 type LogLevel = 'log' | 'info' | 'warn' | 'error';
 
 type OutMsg =
-  | { type: 'LOG'; level: 'log' | 'info' | 'warn' | 'error'; text: string; ts: string }
+  | { type: 'LOG'; level: LogLevel; text: string; ts: string }
+  | { type: 'RESULT'; value: unknown; ts: string }
   | { type: 'ERROR'; message: string; stack?: string; ts: string }
   | { type: 'DONE'; ts: string };
 
 const nowIso = () => new Date().toISOString();
 
-function postLog(level: LogLevel, ...args: any[]) {
+function postMessageToClient(message: OutMsg) {
+  (self as { postMessage: (value: OutMsg) => void }).postMessage(message);
+}
+
+function postLog(level: LogLevel, ...args: unknown[]) {
   const text = args
-    .map((a) => {
+    .map((value) => {
       try {
-        return typeof a === 'string' ? a : JSON.stringify(a);
+        return typeof value === 'string' ? value : JSON.stringify(value);
       } catch {
-        return String(a);
+        return String(value);
       }
     })
     .join(' ');
-  (self as any).postMessage({ type: 'LOG', level, text, ts: nowIso() } satisfies OutMsg);
+
+  postMessageToClient({ type: 'LOG', level, text, ts: nowIso() });
 }
 
 function createUserMap() {
-  const m = new Map<string, any>();
+  const map = new Map<string, unknown>();
   return {
-    put(key: string, value: any) {
-      m.set(key, value);
+    put(key: string, value: unknown) {
+      map.set(key, value);
       return value;
     },
     get(key: string) {
-      return m.get(key);
+      return map.get(key);
     },
     has(key: string) {
-      return m.has(key);
+      return map.has(key);
     },
     delete(key: string) {
-      return m.delete(key);
+      return map.delete(key);
     },
     keys() {
-      return Array.from(m.keys());
+      return Array.from(map.keys());
     },
     toJSON() {
-      return Object.fromEntries(m.entries());
+      return Object.fromEntries(map.entries());
     },
   };
 }
 
-function installGlobals(ctx: any, contextKey: string) {
-  const um = createUserMap();
-  (globalThis as any).userMap = um;
+function installGlobals(ctx: unknown, ctxKey: string) {
+  const userMap = createUserMap();
+  (globalThis as { userMap?: ReturnType<typeof createUserMap> }).userMap = userMap;
 
-  // 실행기에서 지정한 userMap 키에 API 응답 형태의 JSON 문자열을 주입합니다.
-  um.put(contextKey, JSON.stringify({ body: ctx }));
+  userMap.put(ctxKey.trim() || 'api:API01', JSON.stringify({ body: ctx }));
 
-  // (선택) response.body 스타일도 병행 제공하고 싶으면
-  // (globalThis as any).response = { body: ctx };
-
-  // ✅ console 가로채기
-  (globalThis as any).console = {
-    log: (...args: any[]) => postLog('log', ...args),
-    info: (...args: any[]) => postLog('info', ...args),
-    warn: (...args: any[]) => postLog('warn', ...args),
-    error: (...args: any[]) => postLog('error', ...args),
+  (globalThis as { console?: Pick<Console, 'log' | 'info' | 'warn' | 'error'> }).console = {
+    log: (...args: unknown[]) => postLog('log', ...args),
+    info: (...args: unknown[]) => postLog('info', ...args),
+    warn: (...args: unknown[]) => postLog('warn', ...args),
+    error: (...args: unknown[]) => postLog('error', ...args),
   };
 }
 
 let stopRequested = false;
 
-self.onmessage = async (ev: MessageEvent<InMsg>) => {
-  const msg = ev.data;
+self.onmessage = (event: MessageEvent<InMsg>) => {
+  const message = event.data;
 
-  if (msg.type === 'STOP') {
+  if (message.type === 'STOP') {
     stopRequested = true;
     postLog('warn', '[STOP] requested');
     return;
   }
 
-  if (msg.type === 'RUN') {
-    stopRequested = false;
+  stopRequested = false;
 
-    let ctx: any = {};
-    try {
-      ctx = msg.ctxText ? JSON.parse(msg.ctxText) : {};
-    } catch (e: any) {
-      (self as any).postMessage({ type: 'ERROR', message: 'ctx JSON 파싱 실패', stack: String(e), ts: nowIso() } satisfies OutMsg);
-      return;
+  let ctx: unknown = {};
+  try {
+    ctx = message.ctxText ? JSON.parse(message.ctxText) : {};
+  } catch (error) {
+    postMessageToClient({ type: 'ERROR', message: 'ctx JSON 파싱 실패', stack: String(error), ts: nowIso() });
+    postMessageToClient({ type: 'DONE', ts: nowIso() });
+    return;
+  }
+
+  installGlobals(ctx, message.ctxKey);
+
+  try {
+    const startedAt = performance.now();
+    const run = new Function('STOP', message.code);
+    const value = run(() => stopRequested);
+    const elapsed = Math.round(performance.now() - startedAt);
+
+    if (elapsed > message.timeoutMs) {
+      postLog('warn', `timeout 기준(${message.timeoutMs}ms)을 초과했습니다. 실제 실행 시간: ${elapsed}ms`);
     }
 
-    installGlobals(ctx, msg.contextKey);
-
-    try {
-      // 사용자 코드 실행
-      // - return 강제 안함
-      // - stopRequested를 사용자 코드에서 확인하게 하고 싶으면 전역으로 노출해도 됨
-      const fn = new Function('STOP', msg.code);
-      fn(() => stopRequested);
-
-      (self as any).postMessage({ type: 'DONE', ts: nowIso() } satisfies OutMsg);
-    } catch (e: any) {
-      (self as any).postMessage({ type: 'ERROR', message: e?.message ?? String(e), stack: e?.stack, ts: nowIso() } satisfies OutMsg);
+    if (value !== undefined) {
+      postMessageToClient({ type: 'RESULT', value, ts: nowIso() });
     }
+    postMessageToClient({ type: 'DONE', ts: nowIso() });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    postMessageToClient({ type: 'ERROR', message: err.message, stack: err.stack, ts: nowIso() });
+    postMessageToClient({ type: 'DONE', ts: nowIso() });
   }
 };

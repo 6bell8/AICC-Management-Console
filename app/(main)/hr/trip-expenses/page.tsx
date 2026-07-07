@@ -8,6 +8,7 @@ import { AlertCircle, FileText, Upload, X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
+import { RichSelect } from '@/app/components/ui/select';
 import { Textarea } from '@/app/components/ui/textarea';
 import type { EligibleBusinessTrip, TransportType, TripExpenseRequest, TripExpenseStatus, TripScope } from '@/app/lib/types/tripExpense';
 
@@ -55,7 +56,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 40] as const;
 const fieldClass =
   'border-slate-100 bg-white/90 text-slate-700 shadow-sm transition hover:border-slate-200 focus-visible:border-sky-200 focus-visible:ring-sky-100';
 const selectClass =
-  'h-10 rounded-md border border-slate-100 bg-white/90 px-3 text-sm text-slate-700 shadow-sm transition hover:border-slate-200 focus-visible:border-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100';
+  'h-10 rounded-md border border-slate-100 bg-white/90 px-3 text-sm text-slate-700 shadow-sm transition hover:border-slate-200 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 max-[480px]:h-11 max-[480px]:text-sm';
 
 function amount(value: string) {
   const parsed = Number(value || 0);
@@ -72,6 +73,11 @@ function StatusBadge({ status }: { status: TripExpenseStatus }) {
       {STATUS_LABEL[status]}
     </span>
   );
+}
+
+function formatTripOption(trip: EligibleBusinessTrip) {
+  const date = trip.startDate === trip.endDate ? trip.startDate : [trip.startDate, trip.endDate].join(' ~ ');
+  return `${date} / ${trip.requesterName}`;
 }
 
 function getCompactPages(page: number, totalPages: number): Array<number | 'dots'> {
@@ -320,14 +326,20 @@ export default function TripExpensesPage() {
           <CardTitle className="text-base">신청 가능한 출장</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <select value={selectedTripId} onChange={(e) => setSelectedTripId(e.target.value)} className={`${selectClass} w-full`}>
-            <option value="">승인 완료된 출장 선택</option>
-            {(query.data?.eligibleTrips ?? []).map((trip) => (
-              <option key={trip.id} value={trip.id}>
-                {[trip.startDate === trip.endDate ? trip.startDate : [trip.startDate, trip.endDate].join(' ~ '), trip.requesterName].join(' / ')}
-              </option>
-            ))}
-          </select>
+          <RichSelect
+            value={selectedTripId}
+            onChange={setSelectedTripId}
+            placeholder="승인 완료된 출장 선택"
+            emptyText="신청 가능한 출장이 없습니다."
+            options={[
+              { value: '', label: '승인 완료된 출장 선택' },
+              ...(query.data?.eligibleTrips ?? []).map((trip) => ({
+                value: trip.id,
+                label: formatTripOption(trip),
+                description: trip.reason ?? '출장 사유 정보 없음',
+              })),
+            ]}
+          />
 
           {selectedTrip ? (
             <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-3 text-sm text-sky-900">
@@ -350,13 +362,15 @@ export default function TripExpensesPage() {
           <div className="grid gap-3 md:grid-cols-3">
             <div className="grid gap-2">
               <label className="text-sm font-medium">출장 구분</label>
-              <select value={tripScope} onChange={(e) => setTripScope(e.target.value as TripScope)} className={selectClass}>
-                {Object.entries(SCOPE_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label} / {won(DAILY_ALLOWANCE[value as TripScope])}
-                  </option>
-                ))}
-              </select>
+              <RichSelect
+                value={tripScope}
+                onChange={(value) => setTripScope(value as TripScope)}
+                options={Object.entries(SCOPE_LABEL).map(([value, label]) => ({
+                  value,
+                  label: `${label} / ${won(DAILY_ALLOWANCE[value as TripScope])}`,
+                }))}
+                buttonClassName={selectClass}
+              />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium">숙박 박수</label>
@@ -372,13 +386,12 @@ export default function TripExpensesPage() {
           <div className="grid gap-3 md:grid-cols-4">
             <div className="grid gap-2">
               <label className="text-sm font-medium">교통수단</label>
-              <select value={transportType} onChange={(e) => setTransportType(e.target.value as TransportType)} className={selectClass}>
-                {Object.entries(TRANSPORT_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <RichSelect
+                value={transportType}
+                onChange={(value) => setTransportType(value as TransportType)}
+                options={Object.entries(TRANSPORT_LABEL).map(([value, label]) => ({ value, label }))}
+                buttonClassName={selectClass}
+              />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium">기차표 금액</label>
@@ -507,7 +520,48 @@ export default function TripExpensesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-auto rounded-lg border border-slate-100">
+          <div className="grid gap-2 sm:hidden">
+            {pagedItems.map((item) => (
+              <div key={item.id} className="rounded-lg border border-slate-100 bg-white px-3 py-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-slate-500">신청자</div>
+                    <div className="mt-1 truncate text-sm font-semibold text-slate-950">{item.requesterName}</div>
+                  </div>
+                  <StatusBadge status={item.status} />
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                  <span
+                    className={[
+                      'rounded-full border px-2.5 py-1 text-xs font-medium',
+                      item.settlementStatus === 'PAID'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-slate-200 bg-slate-50 text-slate-600',
+                    ].join(' ')}
+                  >
+                    {item.settlementStatus === 'PAID' ? '정산 완료' : '정산 대기'}
+                  </span>
+                  {item.status === 'APPROVED' && item.settlementStatus !== 'PAID' ? (
+                    <Button
+                      size="sm"
+                      variant="saveOutlineGreen"
+                      disabled={settleMutation.isPending}
+                      onClick={() => openSettlement(item)}
+                    >
+                      완료
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {items.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-8 text-center text-sm text-slate-500">
+                출장여비 신청 내역이 없습니다.
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden overflow-auto rounded-lg border border-slate-100 sm:block">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>

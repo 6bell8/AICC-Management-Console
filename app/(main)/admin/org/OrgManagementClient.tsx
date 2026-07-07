@@ -380,13 +380,13 @@ function OrgTree({
 
   return (
     <section className="space-y-4">
-      <div className="mt-2 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="mt-2 flex items-end justify-between gap-3 border-t border-slate-100 pt-5">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-950">{rootName}</h2>
           <p className="mt-1 text-sm text-slate-500">{data.teams.length}개 팀 · {memberCount}명 구성원</p>
         </div>
         {canEdit ? (
-          <button type="button" onClick={onEditRoot} className={idleButton}>
+          <button type="button" onClick={onEditRoot} className={`${idleButton} shrink-0`}>
             <Pencil className="h-4 w-4" aria-hidden="true" />
             본부명 수정
           </button>
@@ -500,7 +500,7 @@ function OrgMiniMap({
           <p className="mt-1 text-sm text-slate-500">본부, 단, 팀 흐름을 한눈에 확인합니다.</p>
         </div>
       )}
-      <div className="overflow-x-auto px-4 py-5">
+      <div className="-mx-4 overflow-x-auto px-4 py-5 sm:mx-0">
         <div className="mx-auto min-w-[720px] max-w-6xl">
           <div className="flex justify-center">
             <div className="rounded-md border border-blue-200 bg-blue-50 px-5 py-2 text-sm font-semibold text-blue-800 shadow-sm">{rootName}</div>
@@ -912,8 +912,8 @@ function EditBoard({
         </div>
       </div>
 
-      <div className="xl:col-span-3">
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="min-w-0 xl:col-span-3">
+        <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <button type="button" onClick={() => setMapOpen((prev) => !prev)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50">
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500">
               <ChevronRight className={`h-4 w-4 transition-transform ${mapOpen ? 'rotate-90' : ''}`} aria-hidden="true" />
@@ -924,7 +924,7 @@ function EditBoard({
             </div>
           </button>
           {mapOpen ? (
-            <div className="border-t border-slate-100">
+            <div className="min-w-0 border-t border-slate-100">
               <OrgMiniMap
                 rootName={data.rootName ?? 'AICC 본부'}
                 divisions={divisions}

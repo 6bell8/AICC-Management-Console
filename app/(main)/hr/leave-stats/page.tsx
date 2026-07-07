@@ -46,7 +46,7 @@ export default async function LeaveStatsPage() {
           <p className="mt-3 text-xs text-amber-900/80">팀장/관리자 결재 대기 건을 우선 확인합니다.</p>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-4">
           <CompactMetric label="전체 신청" value={`${stats.summary.totalRequests}건`} helper="올해 누적" />
           <CompactMetric label="승인율" value={`${approvalRate}%`} helper={`${stats.summary.approvedRequests}/${stats.summary.totalRequests}건 승인`} />
           <CompactMetric label="반려" value={`${stats.summary.rejectedRequests}건`} helper="재검토 필요" />
@@ -114,9 +114,9 @@ export default async function LeaveStatsPage() {
 
 function CompactMetric({ label, value, helper }: { label: string; value: string; helper: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="min-w-[132px] flex-1 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:min-w-0 sm:p-4">
       <div className="text-sm font-medium text-slate-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
+      <div className="mt-1.5 text-2xl font-semibold text-slate-950 sm:mt-2">{value}</div>
       <div className="mt-1 text-xs text-slate-500">{helper}</div>
     </div>
   );

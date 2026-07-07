@@ -1,107 +1,68 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Code2, X } from 'lucide-react';
 
+import DynNodeRunner from '@/app/components/dynnode/DynnodeRunner';
 import { Button } from '@/app/components/ui/button';
-import { Skeleton } from '@/app/components/ui/skeleton'; // ✅ 추가
+import { Skeleton } from '@/app/components/ui/skeleton';
+import { useToast } from '@/app/components/ui/use-toast';
 import { createDynNode } from '@/app/lib/api/dynnode';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
-import { DEFAULT_DYNNODE_SAMPLE_CTX } from '@/app/lib/dynnode/defaults';
+
+const fieldClass =
+  'h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function DynNodeNewPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { canWrite } = useCurrentUser();
+  const { toast } = useToast();
 
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [code, setCode] = useState(
-    "// 'api:API01'는 default response 응답값입니다. \nvar res = JSON.parse(userMap.get('api:API01'))\n" +
-      'var data = res.body;\n' +
-      '\n' +
-      'console.log(data);\n',
-  );
-  const [sampleCtx, setSampleCtx] = useState(DEFAULT_DYNNODE_SAMPLE_CTX);
+  const [code, setCode] = useState("// 'api:API01'은 default response 응답값입니다.\nvar res = JSON.parse(userMap.get('api:API01'))\nvar data = res.body;\n\nconsole.log(data);\n");
+  const [sampleCtx, setSampleCtx] = useState('{\n  "name": "봉춘"\n}\n');
+  const [ctxKey, setCtxKey] = useState('api:API01');
 
   const m = useMutation({
-    mutationFn: () =>
-      createDynNode({
-        title: title.trim() || '제목 없음',
-        summary: summary.trim() || null,
-        code,
-        sampleCtx,
-        tags: [],
-        status: 'DRAFT',
-      }),
+    mutationFn: () => createDynNode({ title: title.trim() || '제목 없음', summary: summary.trim() || null, code, sampleCtx, ctxKey: ctxKey.trim() || 'api:API01', tags: [], status: 'DRAFT' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dynnode', 'list'] });
-      router.push(`/board/dynnode`);
+      toast({ title: '저장 완료', description: '동적노드가 등록되었습니다.' });
+      router.push('/board/dynnode');
     },
+    onError: (error: Error) => toast({ title: '저장 실패', description: error.message || '동적노드 등록 중 오류가 발생했습니다.', variant: 'destructive' }),
   });
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">새 글</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push('/board/dynnode')} disabled={m.isPending}>
-            취소
-          </Button>
-          <Button variant="outline" onClick={() => m.mutate()} disabled={!canWrite || m.isPending}>
-            {m.isPending ? '저장 중…' : '저장'}
-          </Button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
+          <Code2 className="h-5 w-5 text-sky-600" />
+          새 동적노드
+        </h1>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/dynnode')} disabled={m.isPending} aria-label="작성 취소" title="작성 취소"><X className="h-4 w-4" /></Button>
+          <Button variant="outline" onClick={() => m.mutate()} disabled={!canWrite || m.isPending}>{m.isPending ? '저장 중...' : '저장'}</Button>
         </div>
       </div>
 
       {!canWrite ? <ReadOnlyNotice /> : null}
 
-      {/* ✅ 폼 영역: pending일 때 오버레이 스켈레톤 */}
       <div className="relative">
-        {m.isPending && (
-          <div className="absolute inset-0 z-10 rounded-lg border bg-white/70 backdrop-blur-[1px] p-4">
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-6 w-52" />
-              <Skeleton className="h-[220px] w-full" />
-              <Skeleton className="h-6 w-44" />
-              <Skeleton className="h-[220px] w-full" />
-            </div>
+        {m.isPending ? (
+          <div className="absolute inset-0 z-10 rounded-lg border border-slate-200 bg-white/70 p-4 backdrop-blur-[1px]">
+            <div className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-6 w-52" /><Skeleton className="h-[220px] w-full" /><Skeleton className="h-6 w-44" /><Skeleton className="h-[220px] w-full" /></div>
           </div>
-        )}
+        ) : null}
 
         <div className={`grid gap-3 ${m.isPending ? 'pointer-events-none opacity-60' : ''}`}>
-          <input className="h-10 rounded-md border px-3" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" disabled={!canWrite || m.isPending} />
-          <input className="h-10 rounded-md border px-3" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="요약(선택)" disabled={!canWrite || m.isPending} />
-
-          <div className="grid gap-2">
-            <div className="text-sm font-semibold">
-              실행 코드 &nbsp; <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">JavaScript Runner</span>
-            </div>
-            <textarea
-              className="min-h-[220px] w-full rounded-md border bg-slate-50 p-3 font-mono text-sm
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={!canWrite || m.isPending}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <div className="text-sm font-semibold">
-              JSON DATA &nbsp;
-              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"> 'api:API01'</span>
-            </div>
-            <textarea
-              className="min-h-[220px] w-full rounded-md border bg-slate-50 p-3 font-mono text-sm
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={sampleCtx}
-              onChange={(e) => setSampleCtx(e.target.value)}
-              disabled={!canWrite || m.isPending}
-            />
-          </div>
+          <input className={fieldClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목" disabled={!canWrite || m.isPending} />
+          <input className={fieldClass} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="요약(선택)" disabled={!canWrite || m.isPending} />
+          <DynNodeRunner code={code} onChangeCode={setCode} ctxKey={ctxKey} onChangeCtxKey={setCtxKey} ctxText={sampleCtx} onChangeCtxText={setSampleCtx} disabled={!canWrite || m.isPending} />
         </div>
       </div>
     </div>

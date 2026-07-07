@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Network, UserPlus } from 'lucide-react';
@@ -64,7 +64,6 @@ export default function UsersAdminClient({ currentUser }: Props) {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [summary, setSummary] = useState({ pending: 0, approved: 0, admin: 0 });
   const [totalUsers, setTotalUsers] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserStatus | 'ALL'>('ALL');
@@ -84,7 +83,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
   const filteredUsers = { length: totalUsers };
   const pagedUsers = users;
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setMessage(null);
     try {
@@ -105,28 +104,27 @@ export default function UsersAdminClient({ currentUser }: Props) {
       const teamsBody = await teamsRes.json().catch(() => ({}));
       const profilesBody = await profilesRes.json().catch(() => ({}));
       if (!usersRes.ok) {
-        setMessage(usersBody.message || '?ъ슜??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??');
+        setMessage(usersBody.message || '사용자 목록을 불러오지 못했습니다.');
         return;
       }
       setUsers(usersBody.users ?? []);
       const nextId = usersBody.nextLoginId ?? '00001';
       setNextLoginId(nextId);
-      setCreateUserDraft((prev) => (prev.loginId && prev.loginId !== nextLoginId ? prev : { ...prev, loginId: nextId }));
+      setCreateUserDraft((prev) => (prev.loginId && prev.loginId !== nextId ? prev : { ...prev, loginId: nextId }));
       setTotalUsers(Number(usersBody.total ?? usersBody.users?.length ?? 0));
-      setSummary(usersBody.summary ?? { pending: 0, approved: 0, admin: 0 });
       if (usersBody.page && usersBody.page !== page) setPage(usersBody.page);
       setTeams(teamsRes.ok ? teamsBody.teams ?? [] : []);
       setProfiles(profilesRes.ok ? profilesBody.profiles ?? [] : []);
       if (!teamsRes.ok || !profilesRes.ok) {
-        setMessage('?ъ슜??紐⑸줉? 遺덈윭?붿?留?? ?먮뒗 HR ?꾨줈???쇰?瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??');
+        setMessage('사용자 목록은 불러왔지만 팀 또는 HR 프로필을 불러오지 못했습니다.');
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : '怨꾩젙 ?뱀씤 愿由??곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??';
+      const message = error instanceof Error ? error.message : '계정 승인 관리 데이터를 불러오지 못했습니다.';
       setMessage(message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, pageSize, roleFilter, search, statusFilter, teamFilter]);
 
   useEffect(() => {
     setPage(1);
@@ -138,7 +136,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
 
   useEffect(() => {
     void loadUsers();
-  }, [page, pageSize, roleFilter, search, statusFilter, teamFilter]);
+  }, [loadUsers]);
 
   async function updateUser(id: string, input: { status?: UserStatus; role?: UserRole }) {
     setPendingId(id);
@@ -152,7 +150,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '?ъ슜??沅뚰븳 蹂寃쎌뿉 ?ㅽ뙣?덉뒿?덈떎.');
+      setMessage(body.message || '사용자 권한 변경에 실패했습니다.');
       return;
     }
 
@@ -161,7 +159,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
 
   async function createUser() {
     if (!createUserDraft.loginId.trim() || !createUserDraft.name.trim()) {
-      setMessage('濡쒓렇??ID? ?대쫫???낅젰??二쇱꽭??');
+      setMessage('로그인 ID와 이름을 입력해 주세요.');
       return;
     }
     setPendingId('create-user');
@@ -175,7 +173,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '怨꾩젙???앹꽦?섏? 紐삵뻽?듬땲??');
+      setMessage(body.message || '계정을 생성하지 못했습니다.');
       return;
     }
 
@@ -183,12 +181,12 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setNextLoginId(nextId);
     setCreateUserDraft({ loginId: nextId, name: '', role: 'OPERATOR' });
     setCreateUserModalOpen(false);
-    setMessage(`${body.user?.name ?? '怨꾩젙'} 怨꾩젙???앹꽦?덉뒿?덈떎. 珥덇린 鍮꾨?踰덊샇??new123!@ ?낅땲??`);
+    setMessage(`${body.user?.name ?? '계정'} 계정을 생성했습니다. 초기 비밀번호는 new123!@ 입니다.`);
     await loadUsers();
   }
 
   async function deleteUser(id: string) {
-    if (!confirm('??怨꾩젙????젣?섏떆寃좎뒿?덇퉴?')) return;
+    if (!confirm('이 계정을 삭제하시겠습니까?')) return;
     setPendingId(id);
     setMessage(null);
     const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -196,7 +194,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '?ъ슜????젣???ㅽ뙣?덉뒿?덈떎.');
+      setMessage(body.message || '사용자 삭제에 실패했습니다.');
       return;
     }
 
@@ -204,7 +202,7 @@ export default function UsersAdminClient({ currentUser }: Props) {
   }
 
   async function resetPassword(id: string, name: string) {
-    if (!confirm(`${name}?섏쓽 鍮꾨?踰덊샇瑜?new123!@濡?珥덇린?뷀븯?쒓쿋?듬땲源?`)) return;
+    if (!confirm(`${name}님의 비밀번호를 new123!@로 초기화하시겠습니까?`)) return;
     setPendingId(`password:${id}`);
     setMessage(null);
     const res = await fetch('/api/admin/users', {
@@ -216,12 +214,12 @@ export default function UsersAdminClient({ currentUser }: Props) {
     setPendingId(null);
 
     if (!res.ok) {
-      setMessage(body.message || '鍮꾨?踰덊샇 珥덇린?붿뿉 ?ㅽ뙣?덉뒿?덈떎.');
+      setMessage(body.message || '비밀번호 초기화에 실패했습니다.');
       return;
     }
 
     await loadUsers();
-    setMessage(`${name}?섏쓽 鍮꾨?踰덊샇瑜?new123!@濡?珥덇린?뷀뻽?듬땲??`);
+    setMessage(`${name}님의 비밀번호를 new123!@로 초기화했습니다.`);
   }
 
   function getProfile(userId: string): EmployeeProfile {
