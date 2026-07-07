@@ -26,24 +26,28 @@ import { Toaster } from './components/ui/toaster';
 import { ScrollToTopButton } from './components/ui/scroll-to-top-button';
 import type { Metadata } from 'next';
 
+const sharedTitle = 'AICC Managed Console';
+const sharedDescription = 'AICC 운영, ERP 업무, 승인과 현황을 한곳에서 관리하는 업무 콘솔입니다.';
+const sharedImage = '/aicc-share-image.png';
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://aicc-management-console.vercel.app'),
   title: {
-    default: 'AICC Managed Console',
+    default: sharedTitle,
     template: '%s | AICC Managed Console',
   },
-  description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Console입니다.',
+  description: sharedDescription,
   openGraph: {
-    title: 'AICC Managed Console',
-    description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Console입니다.',
+    title: sharedTitle,
+    description: sharedDescription,
     url: '/',
-    siteName: 'AICC Managed Console',
+    siteName: sharedTitle,
     images: [
       {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'AICC Managed Console',
+        url: sharedImage,
+        width: 1260,
+        height: 1260,
+        alt: 'AICC works',
       },
     ],
     locale: 'ko_KR',
@@ -51,9 +55,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AICC Managed Console',
-    description: 'ERP와 AICC 운영 업무를 통합 관리하는 AICC Managed Console입니다.',
-    images: ['/og-image.png'],
+    title: sharedTitle,
+    description: sharedDescription,
+    images: [sharedImage],
   },
 };
 

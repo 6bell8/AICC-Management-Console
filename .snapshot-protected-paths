@@ -9,3 +9,8 @@ app/lib/api/dynnode.ts
 app/lib/dynnode/
 app/lib/types/dynnode.ts
 data/dynnode.json
+
+# Share preview metadata and image.
+# Do not overwrite these paths during snapshot integration unless the user approves it.
+app/layout.tsx
+public/aicc-share-image.png
