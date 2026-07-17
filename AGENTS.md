@@ -37,12 +37,10 @@ DB 스키마 충돌이 있으면 먼저 해결한 후 병합한다.
 - 통합 전에는 `backup/master-before-<작업명>-YYYYMMDD` 형태의 태그를 남긴다.
 - 검증 우선순위는 `git diff --check`, 비밀정보/산출물 제외 확인, `npm run build`, 필요 시 `npm run lint` 순서로 둔다.
 - Vercel 배포 기준은 `master`이며, build script와 환경변수 요구사항을 README와 실제 Vercel 설정에 맞춘다.
-## Protected Integration Area
+## Dynamic Node Snapshot Updates
 
-동적노드 가이드는 이전 master 버전에서 복원해 보존한다.
+동적노드 구간은 더 이상 기본 보호 대상으로 두지 않는다.
 
-- `.snapshot-protected-paths`에 등록된 동적노드 전용 경로는 사용자의 명시적 요청 없이 변경하지 않는다.
-- 외부 스냅샷 이식 전 보호 경로를 백업하고, 이식 후 현재 `master` 버전으로 복원한다.
-- 통합 브랜치에서 `git diff master -- <protected-path>` 결과가 없어야 한다.
-- `scripts/db/seed-board.cjs`, `docs/db/mysql-schema.sql`, `README.md`처럼 여러 도메인이 섞인 파일은 전체 파일을 보호하지 않는다. 대신 동적노드 관련 시드·테이블·문서 블록은 현재 구현을 유지하며 외부 스냅샷의 나머지 변경만 선별 반영한다.
-- 동적노드 가이드 자체를 최신화하는 작업이라면 보호를 해제하기 전에 변경 목적과 영향을 확인한다.
+- 외부 스냅샷 통합 시 동적노드 전용 경로도 최신 스냅샷 기준으로 반영할 수 있다.
+- `.snapshot-protected-paths`에는 명시적으로 계속 보존할 공유 메타데이터와 이미지 등만 둔다.
+- 동적노드 관련 API, 컴포넌트, 타입, 데이터, DB 문서가 함께 바뀌면 한 번에 검증한다.

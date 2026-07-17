@@ -1,7 +1,6 @@
-import { Archive, ChevronRight, Download, FileCheck2, KeyRound, Search, ShieldCheck, Upload } from 'lucide-react';
+import { Archive, ChevronRight, Download, FileCheck2, KeyRound, RotateCcw, Search, ShieldCheck, Upload } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
-import { RichSelect } from '@/app/components/ui/select';
 import { getCurrentUser } from '@/app/lib/auth/session';
 import {
   listOperationalAssetAccessLogs,
@@ -37,11 +36,7 @@ const STATUS_OPTIONS: Array<'ALL' | OperationalAssetStatus> = ['ALL', 'ACTIVE', 
 
 export const dynamic = 'force-dynamic';
 
-export default async function LicenseAssetsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function LicenseAssetsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/assets/licenses');
 
@@ -133,7 +128,9 @@ export default async function LicenseAssetsPage({
                 accessLogs.map((log) => (
                   <div key={log.id} className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{ACTION_LABEL[log.action] ?? log.action}</span>
+                      <span className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
+                        {ACTION_LABEL[log.action] ?? log.action}
+                      </span>
                       <span className="text-[11px] text-slate-400">{formatDate(log.createdAt)}</span>
                     </div>
                     <div className="mt-2 truncate font-semibold text-slate-800">{log.fileName}</div>
@@ -143,7 +140,9 @@ export default async function LicenseAssetsPage({
                   </div>
                 ))
               ) : (
-                <div className="rounded-lg border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500">아직 파일 접근 이력이 없습니다.</div>
+                <div className="rounded-lg border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
+                  아직 파일 접근 이력이 없습니다.
+                </div>
               )}
             </div>
           </div>
@@ -154,7 +153,11 @@ export default async function LicenseAssetsPage({
               <h2 className="text-sm font-semibold text-slate-950">관리 기준</h2>
             </div>
             <div className="mt-3 space-y-2">
-              {['파일 원본은 스토리지, 메타데이터는 MySQL 관리', '다운로드는 API를 거쳐 권한 확인 후 기록', '중요 이벤트는 시스템 관리 감사 로그에도 기록'].map((text) => (
+              {[
+                '파일 원본은 스토리지, 메타데이터는 MySQL 관리',
+                '다운로드는 API를 거쳐 권한 확인 후 기록',
+                '중요 이벤트는 시스템 관리 감사 로그에도 기록',
+              ].map((text) => (
                 <div key={text} className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-sm text-slate-600">
                   {text}
                 </div>
@@ -167,18 +170,39 @@ export default async function LicenseAssetsPage({
       <section>
         <div className="soft-panel p-3">
           <div className="mb-3 flex flex-col gap-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className=" flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mb-3">
                 <h2 className="text-sm font-semibold text-slate-950">운영 자산 목록</h2>
                 <p className="mt-1 text-xs text-slate-500">자산명, 공급사, 담당자, 파일명 기준으로 검색하고 분류별로 확인합니다.</p>
               </div>
-              <span className="w-fit rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+              <span className="hidden w-fit rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 lg:inline-flex">
                 {filteredAssets.length} / {assets.length}건
               </span>
             </div>
 
-            <form className="grid gap-2 lg:grid-cols-[minmax(260px,1fr)_160px_150px_auto_auto]">
-              <label className="relative">
+            <form className="grid grid-cols-2 gap-2 lg:grid-cols-[minmax(260px,1fr)_160px_150px_auto_auto]">
+              <div className="col-span-2 flex items-center justify-between lg:hidden">
+                <span className="w-fit rounded-full border border-sky-100 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                  {filteredAssets.length} / {assets.length}건
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    aria-label="검색"
+                    className="soft-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-sky-100 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                  <a
+                    href="/assets/licenses"
+                    aria-label="초기화"
+                    className="soft-interactive inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+              <label className="relative col-span-2 lg:col-span-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   name="q"
@@ -187,26 +211,46 @@ export default async function LicenseAssetsPage({
                   className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
                 />
               </label>
-              <RichSelect
+              <select
                 name="type"
-                value={selectedType}
-                onChange={() => undefined}
-                options={TYPE_OPTIONS.map((type) => ({ value: type, label: type === 'ALL' ? '카테고리 전체' : TYPE_LABEL[type] }))}
-                buttonClassName="min-h-10 rounded-lg border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-200 focus:ring-sky-100"
-              />
-              <RichSelect
+                defaultValue={selectedType}
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-sky-100 hover:bg-sky-50/30 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
+              >
+                {TYPE_OPTIONS.map((type) => (
+                  <option key={type} value={type}>
+                    {type === 'ALL' ? '카테고리 전체' : TYPE_LABEL[type]}
+                  </option>
+                ))}
+              </select>
+              <select
                 name="status"
-                value={selectedStatus}
-                onChange={() => undefined}
-                options={STATUS_OPTIONS.map((status) => ({ value: status, label: status === 'ALL' ? '상태 전체' : STATUS_LABEL[status] }))}
-                buttonClassName="min-h-10 rounded-lg border-slate-200 px-3 text-sm font-medium text-slate-700 shadow-sm focus:border-sky-200 focus:ring-sky-100"
-              />
-              <button type="submit" className="soft-interactive h-10 rounded-lg border border-sky-100 bg-sky-50 px-4 text-sm font-semibold text-sky-700 hover:bg-sky-100">
-                검색
-              </button>
-              <a href="/assets/licenses" className="soft-interactive inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-500 hover:bg-slate-50">
-                초기화
-              </a>
+                defaultValue={selectedStatus}
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-sky-100 hover:bg-sky-50/30 focus:border-sky-200 focus:ring-2 focus:ring-sky-100"
+              >
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {status === 'ALL' ? '상태 전체' : STATUS_LABEL[status]}
+                  </option>
+                ))}
+              </select>
+              <div className="hidden lg:contents">
+                <button
+                  type="submit"
+                  aria-label="검색"
+                  className="soft-interactive inline-flex h-10 w-10 items-center justify-center rounded-lg border border-sky-100 bg-sky-50 text-sm font-semibold text-sky-700 hover:bg-sky-100 lg:w-auto lg:gap-2 lg:px-4"
+                >
+                  <Search className="h-4 w-4" />
+                  <span className="hidden lg:inline">검색</span>
+                </button>
+                <a
+                  href="/assets/licenses"
+                  aria-label="초기화"
+                  className="soft-interactive inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-500 hover:bg-slate-50 lg:w-auto lg:gap-2 lg:px-4"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span className="hidden lg:inline">초기화</span>
+                </a>
+              </div>
             </form>
           </div>
 
@@ -237,7 +281,9 @@ export default async function LicenseAssetsPage({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="truncate font-semibold text-slate-950">{asset.name}</div>
-                            <span className="rounded-full border border-slate-100 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">{TYPE_LABEL[asset.type]}</span>
+                            <span className="rounded-full border border-slate-100 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                              {TYPE_LABEL[asset.type]}
+                            </span>
                             <span className={['rounded-full border px-2 py-0.5 text-[11px] font-semibold', statusTone(asset.status)].join(' ')}>
                               {STATUS_LABEL[asset.status]}
                             </span>
@@ -262,7 +308,10 @@ export default async function LicenseAssetsPage({
                       <div className="space-y-2">
                         {asset.files.length > 0 ? (
                           asset.files.map((file) => (
-                            <div key={file.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm shadow-slate-100/60">
+                            <div
+                              key={file.id}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2 shadow-sm shadow-slate-100/60"
+                            >
                               <div className="min-w-0">
                                 <div className="truncate text-xs font-semibold text-slate-800">{file.originalName}</div>
                                 <div className="mt-0.5 text-[11px] text-slate-400">
@@ -279,12 +328,16 @@ export default async function LicenseAssetsPage({
                                   <Download className="h-4 w-4" />
                                 </a>
                               ) : (
-                                <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400">제한</span>
+                                <span className="rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400">
+                                  제한
+                                </span>
                               )}
                             </div>
                           ))
                         ) : (
-                          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-center text-xs text-slate-500">등록된 파일이 없습니다.</div>
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-center text-xs text-slate-500">
+                            등록된 파일이 없습니다.
+                          </div>
                         )}
                       </div>
                     </td>

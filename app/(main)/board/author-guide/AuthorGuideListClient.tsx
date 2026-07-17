@@ -10,6 +10,7 @@ import { getAuthorGuides, type AuthorGuideListResponse } from '@/app/lib/api/aut
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
+import { LastEditorBadge } from '@/app/components/ui/last-editor-badge';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 import type { AuthorGuide } from '@/app/lib/types/authorGuide';
@@ -52,7 +53,10 @@ function PreviewPanel({ item }: { item: AuthorGuide | null }) {
       {item ? (
         <div className="mt-4 space-y-3">
           <div>
-            <div className="line-clamp-2 text-sm font-semibold text-slate-950">{item.title}</div>
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+              <span className="line-clamp-2 min-w-0 text-sm font-semibold text-slate-950">{item.title}</span>
+              <LastEditorBadge name={item.lastEditorName} />
+            </div>
             <div className="mt-2">
               <Badge variant={item.status === 'PUBLISHED' ? 'published' : 'draft'}>{item.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
             </div>
@@ -198,10 +202,11 @@ export default function AuthorGuideListClient() {
                 <Link key={guide.id} href={`/board/author-guide/${encodeURIComponent(guide.id)}`} onMouseEnter={() => setPreview(guide)} onFocus={() => setPreview(guide)} className="block p-3 transition-colors hover:bg-slate-50 sm:p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0">
-                      <div className="line-clamp-2 font-medium leading-5 text-slate-900 sm:truncate">{guide.title}</div>
+                      <div className="line-clamp-2 min-w-0 font-medium leading-5 text-slate-900 sm:truncate">{guide.title}</div>
                       <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-500">
                         <Badge variant={guide.status === 'PUBLISHED' ? 'published' : 'draft'}>{guide.status === 'PUBLISHED' ? '공개' : '임시'}</Badge>
-                        <span className="line-clamp-1 min-w-0">{(guide.content ?? '').slice(0, 40)}{(guide.content ?? '').length > 40 ? '...' : ''}</span>
+                        <span className="line-clamp-1 min-w-0 flex-1">{(guide.content ?? '').slice(0, 40)}{(guide.content ?? '').length > 40 ? '...' : ''}</span>
+                        <LastEditorBadge name={guide.lastEditorName} />
                       </div>
                     </div>
                     <div className="shrink-0 text-xs text-slate-400 sm:text-right">{guide.updatedAt ? new Date(guide.updatedAt).toLocaleString() : '-'}</div>

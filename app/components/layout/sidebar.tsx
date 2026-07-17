@@ -160,6 +160,25 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
   };
 
   useEffect(() => {
+    if (!mobileOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMobileMenu();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOpen]);
+
+  useEffect(() => {
     if (mobileOpen) closeMobileMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
@@ -178,7 +197,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
 
   const sidebarContent = (
     <>
-      <div className="px-4 py-4 max-[480px]:hidden">
+      <div className="px-4 py-4 max-lg:hidden">
         <div className="flex items-start gap-2">
           <Link
             href="/dashboard"
@@ -220,7 +239,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
                   ].join(' ')}
                 >
                   {node.icon ? <span className="opacity-90">{node.icon}</span> : null}
-                  <span>{node.label}</span>
+                  <span className="min-w-0 truncate">{node.label}</span>
                   {node.badgeKey && counts[node.badgeKey] > 0 ? (
                     <span className="ml-auto rounded-full bg-sky-500 px-2 py-0.5 text-[11px] font-semibold text-white">{counts[node.badgeKey]}</span>
                   ) : null}
@@ -238,9 +257,9 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
                     'text-slate-200 hover:bg-slate-800/70 hover:text-white',
                   ].join(' ')}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     {node.icon ? <span className="opacity-90">{node.icon}</span> : null}
-                    <span>{node.label}</span>
+                    <span className="min-w-0 truncate">{node.label}</span>
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
@@ -290,7 +309,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-50 hidden h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur print:hidden max-[480px]:flex">
+      <div className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-3 shadow-sm backdrop-blur print:hidden lg:hidden">
         <Link
           href="/notifications"
           className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-100 hover:bg-sky-50 hover:text-sky-700"
@@ -303,7 +322,7 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
           ) : null}
         </Link>
         <Link href="/dashboard" className="min-w-0 px-2 text-center" aria-label="대시보드로 이동">
-          <div className="truncate text-sl font-semibold text-slate-950">AICC 운영관리 포털</div>
+          <div className="truncate text-sm font-semibold text-slate-950 sm:text-base">AICC 운영관리 포털</div>
           {/*<div className="truncate text-[11px] text-slate-500">Admin UI</div>*/}
         </Link>
         <button
@@ -317,29 +336,31 @@ export function Sidebar({ initialUser }: { initialUser: AuthUser }) {
         </button>
       </div>
 
-      <aside className="fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100 print:hidden max-[480px]:hidden">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden h-[100dvh] w-64 flex-col border-r bg-slate-900 text-slate-100 print:hidden lg:flex">
         {sidebarContent}
       </aside>
 
       {mobileOpen ? (
         <div
           className={[
-            'fixed inset-0 z-[80] hidden bg-slate-950/45 print:hidden max-[480px]:block',
+            'fixed inset-0 z-[80] bg-slate-950/55 print:hidden lg:hidden',
             mobileClosing
               ? 'animate-[mobileMenuFadeOut_420ms_cubic-bezier(0.16,1,0.3,1)_both]'
               : 'animate-[mobileMenuFade_420ms_cubic-bezier(0.16,1,0.3,1)_both]',
           ].join(' ')}
           role="dialog"
           aria-modal="true"
+          onClick={closeMobileMenu}
           aria-label="모바일 메뉴"
         >
           <aside
             className={[
-              'flex h-[100dvh] w-full flex-col bg-slate-900 text-slate-100 shadow-2xl',
+              'flex h-[100dvh] w-[min(20rem,calc(100vw-1.5rem))] flex-col bg-slate-900 text-slate-100 shadow-2xl',
               mobileClosing
                 ? 'animate-[mobileMenuSlideOut_460ms_cubic-bezier(0.16,1,0.3,1)_both]'
                 : 'animate-[mobileMenuSlide_560ms_cubic-bezier(0.16,1,0.3,1)_both]',
             ].join(' ')}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
               <div className="min-w-0">

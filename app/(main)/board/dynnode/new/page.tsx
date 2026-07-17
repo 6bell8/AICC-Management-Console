@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Code2, X } from 'lucide-react';
+import { ClipboardList, Code2 } from 'lucide-react';
 
 import DynNodeRunner from '@/app/components/dynnode/DynnodeRunner';
 import { Button } from '@/app/components/ui/button';
@@ -45,7 +45,7 @@ export default function DynNodeNewPage() {
           새 동적노드
         </h1>
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/dynnode')} disabled={m.isPending} aria-label="작성 취소" title="작성 취소"><X className="h-4 w-4" /></Button>
+          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/dynnode')} disabled={m.isPending} aria-label="동적노드 목록" title="동적노드 목록"><ClipboardList className="h-4 w-4 shrink-0" /></Button>
           <Button variant="outline" onClick={() => m.mutate()} disabled={!canWrite || m.isPending}>{m.isPending ? '저장 중...' : '저장'}</Button>
         </div>
       </div>

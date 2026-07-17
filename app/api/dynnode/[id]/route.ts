@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deletePost, getPost, patchPost } from '@/app/lib/dynnode/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 type Ctx = { params: Promise<{ id: string }> };
 type DynNodePatchBody = {
@@ -28,6 +29,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as DynNodePatchBody;
 
+  const user = await getCurrentUser();
   const next = await patchPost(id, {
     title: typeof body.title === 'string' ? body.title : undefined,
     summary: typeof body.summary === 'string' ? body.summary : body.summary === null ? null : undefined,
@@ -36,6 +38,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     ctxKey: typeof body.ctxKey === 'string' ? body.ctxKey : undefined,
     tags: Array.isArray(body.tags) ? body.tags.filter((x): x is string => typeof x === 'string') : undefined,
     status: body.status === 'PUBLISHED' || body.status === 'DRAFT' ? body.status : undefined,
+    editorName: user?.name ?? null,
   });
 
   if (!next) return NextResponse.json({ message: 'not found' }, { status: 404 });

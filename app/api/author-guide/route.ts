@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { createAuthorGuide, listAuthorGuides } from '@/app/lib/db/authorGuides';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +24,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'title/content is required' }, { status: 400 });
   }
 
-  const authorGuide = await createAuthorGuide({ title, content, status });
+  const user = await getCurrentUser();
+  const authorGuide = await createAuthorGuide({ title, content, status, editorName: user?.name ?? null });
   return NextResponse.json({ authorGuide }, { status: 201 });
 }
 

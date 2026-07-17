@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -225,9 +225,9 @@ export default function CalendarPage() {
     },
   });
 
-  const leaveItems = leaveQuery.data?.items ?? [];
-  const reservationItems = reservationQuery.data?.reservations ?? [];
-  const memos = memoQuery.data?.items ?? [];
+  const leaveItems = useMemo(() => leaveQuery.data?.items ?? [], [leaveQuery.data?.items]);
+  const reservationItems = useMemo(() => reservationQuery.data?.reservations ?? [], [reservationQuery.data?.reservations]);
+  const memos = useMemo(() => memoQuery.data?.items ?? [], [memoQuery.data?.items]);
   const calendar = useMemo(() => buildCalendar(month), [month]);
 
   const events = useMemo(() => {
@@ -283,7 +283,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="space-y-3">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
             <CalendarRange className="h-3.5 w-3.5" />
@@ -292,8 +292,8 @@ export default function CalendarPage() {
           <h1 className="mt-3 text-xl font-semibold text-slate-950">캘린더</h1>
           <p className="mt-1 text-sm text-slate-500">개인 근태와 팀 운영 일정을 분리해서 확인합니다.</p>
         </div>
-        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-          <label className="group relative inline-flex h-10 w-full items-center rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100 sm:w-[132px]">
+        <div className="flex items-center justify-between gap-2">
+          <label className="group relative inline-flex h-10 w-[156px] items-center rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40 focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100 min-[390px]:w-[176px] sm:w-[176px]">
             <span className="pointer-events-none absolute left-3 text-slate-400 transition group-hover:text-sky-500">
               <CalendarDays className="h-4 w-4" />
             </span>
@@ -302,10 +302,10 @@ export default function CalendarPage() {
               value={month}
               onChange={(event) => setMonth(event.target.value || getMonthValue())}
               aria-label="조회 월"
-              className="h-full w-full border-0 bg-transparent pl-9 pr-1 text-sm font-semibold text-slate-700 shadow-none outline-none focus-visible:ring-0 max-[480px]:px-10 max-[480px]:text-center [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-0.5 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
+              className="h-full w-full border-0 bg-transparent pl-9 pr-1 text-right text-sm font-semibold text-slate-700 shadow-none outline-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:mr-0 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-md [&::-webkit-calendar-picker-indicator]:p-0.5 [&::-webkit-calendar-picker-indicator]:opacity-45 [&::-webkit-calendar-picker-indicator]:transition [&::-webkit-calendar-picker-indicator]:hover:bg-sky-100 [&::-webkit-calendar-picker-indicator]:hover:opacity-70"
             />
           </label>
-          <div className="inline-grid grid-cols-2 rounded-lg border border-slate-200 bg-white p-1 sm:inline-flex">
+          <div className="inline-grid shrink-0 grid-cols-2 rounded-lg border border-slate-200 bg-white p-1 sm:inline-flex">
             {[
               { key: 'personal' as const, label: '내 캘린더' },
               { key: 'team' as const, label: '팀 캘린더' },
@@ -314,7 +314,7 @@ export default function CalendarPage() {
                 key={item.key}
                 type="button"
                 onClick={() => setMode(item.key)}
-                className={['rounded-md px-3 py-1.5 text-sm font-semibold transition', mode === item.key ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'].join(' ')}
+                className={['rounded-md px-2.5 py-1.5 text-sm font-semibold transition sm:px-3', mode === item.key ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'].join(' ')}
               >
                 {item.label}
               </button>
@@ -360,7 +360,7 @@ export default function CalendarPage() {
                       </div>
                       <div className="mt-2 min-w-0 space-y-1">
                         {dayEvents.slice(0, 3).map((event) => (
-                          <div key={`${event.id}-${event.type}`} className={['truncate rounded-md border px-2 py-1 text-[11px] font-semibold', eventToneClass(event)].join(' ')} title={`${event.title} · ${event.owner}`}>
+                          <div key={`${event.id}-${event.type}`} className={["truncate rounded-md border px-2 py-1 text-[11px] font-semibold", eventToneClass(event)].join(" ")} title={`${event.title} · ${event.owner}`}>
                             {event.title} · {event.owner}
                           </div>
                         ))}
@@ -378,8 +378,8 @@ export default function CalendarPage() {
           <div className="soft-panel p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-slate-950">{selectedDate ?? '날짜를 선택하세요'}</h2>
-                <p className="mt-1 text-xs text-slate-500">{mode === 'personal' ? '개인 일정과 메모' : '팀 공유 일정과 메모'}</p>
+                <h2 className="text-sm font-semibold text-slate-950">{selectedDate ?? "날짜를 선택하세요"}</h2>
+                <p className="mt-1 text-xs text-slate-500">{mode === "personal" ? "개인 일정과 메모" : "팀 공유 일정과 메모"}</p>
               </div>
               <span className="rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-500">{selectedEvents.length}건</span>
             </div>
@@ -408,9 +408,9 @@ export default function CalendarPage() {
               <StickyNote className="h-4 w-4 text-amber-600" />
               <h2 className="text-sm font-semibold text-slate-950">캘린더 메모</h2>
             </div>
-            <p className="mt-1 text-xs text-slate-500">선택한 날짜에 {mode === 'personal' ? '개인' : '팀'} 메모를 남깁니다.</p>
+            <p className="mt-1 text-xs text-slate-500">선택한 날짜에 {mode === "personal" ? "개인" : "팀"} 메모를 남깁니다.</p>
             <div className="mt-3 space-y-2">
-              <Textarea value={memoText} onChange={(event) => setMemoText(event.target.value)} placeholder={canWrite ? '운영 참고사항을 입력하세요.' : '조회 권한 계정은 메모를 등록할 수 없습니다.'} className="min-h-[92px] resize-none border-slate-200 bg-white" disabled={!selectedDate || !canWrite} />
+              <Textarea value={memoText} onChange={(event) => setMemoText(event.target.value)} placeholder={canWrite ? "운영 참고사항을 입력하세요" : "조회 권한 계정은 메모를 등록할 수 없습니다."} className="min-h-[92px] resize-none border-slate-200 bg-white" disabled={!selectedDate || !canWrite} />
               {memoMutation.isError ? <div className="text-sm text-rose-600">{(memoMutation.error as Error).message}</div> : null}
               <Button type="button" onClick={() => memoMutation.mutate()} disabled={!selectedDate || !memoText.trim() || memoMutation.isPending || !canWrite} className="w-full">
                 {memoMutation.isPending ? '저장 중...' : '메모 추가'}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { deleteAuthorGuide, getAuthorGuide, updateAuthorGuide } from '@/app/lib/db/authorGuides';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 export const runtime = 'nodejs';
 
@@ -28,7 +29,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (title !== undefined && title.length === 0) return NextResponse.json({ message: 'title is required' }, { status: 400 });
   if (content !== undefined && content.length === 0) return NextResponse.json({ message: 'content is required' }, { status: 400 });
 
-  const authorGuide = await updateAuthorGuide(id, { title, content, status });
+  const user = await getCurrentUser();
+  const authorGuide = await updateAuthorGuide(id, { title, content, status, editorName: user?.name ?? null });
   if (!authorGuide) return NextResponse.json({ message: 'not found' }, { status: 404 });
 
   return NextResponse.json({ authorGuide });

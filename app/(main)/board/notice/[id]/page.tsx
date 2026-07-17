@@ -3,12 +3,16 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, History, Link2, Megaphone, Plus, Trash2, Undo2 } from 'lucide-react';
+import { ClipboardList, Eye, FileClock, Link2, Megaphone, Plus, Save, Trash2, Undo2 } from 'lucide-react';
 import { useToast } from '@/app/components/ui/use-toast';
 
 import { deleteNotice, getNotice, patchNotice } from '@/app/lib/api/notice';
 import { Button } from '@/app/components/ui/button';
+import { CommentPanel } from '@/app/components/comments/CommentPanel';
+import { DetailTimestampBadge } from '@/app/components/ui/detail-timestamp-badge';
 import { Input } from '@/app/components/ui/input';
+import { LastEditorBadge } from '@/app/components/ui/last-editor-badge';
+import { PinnedToggle } from '@/app/components/ui/pinned-toggle';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
 import { Separator } from '@/app/components/ui/separator';
 import { Skeleton } from '@/app/components/ui/skeleton';
@@ -72,14 +76,28 @@ export default function NoticeDetailPage() {
   });
 
   if (q.isPending) {
-    return <div className="mx-auto w-full max-w-4xl space-y-3"><Skeleton className="h-8 w-64 max-w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-44 w-full" /></div>;
+    return (
+      <div className="mx-auto w-full max-w-4xl space-y-3">
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-44 w-full" />
+      </div>
+    );
   }
 
   if (q.isError || !q.data?.notice) {
     return (
       <div className="mx-auto w-full max-w-4xl space-y-3">
         <div className="text-sm text-red-600">불러오기 실패</div>
-        <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/notice')} aria-label="공지사항 목록" title="공지사항 목록"><ClipboardList className="h-4 w-4 shrink-0" /></Button>
+        <Button
+          variant="outline"
+          className="h-9 w-9 p-0"
+          onClick={() => router.push('/board/notice')}
+          aria-label="공지사항 목록"
+          title="공지사항 목록"
+        >
+          <ClipboardList className="h-4 w-4 shrink-0" />
+        </Button>
       </div>
     );
   }
@@ -94,18 +112,48 @@ export default function NoticeDetailPage() {
         <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold sm:text-2xl">
           <Megaphone className="h-5 w-5 text-sky-600" />
           공지 상세
+          <DetailTimestampBadge createdAt={notice.createdAt} updatedAt={notice.updatedAt} />
         </h1>
         <div className="flex gap-2 sm:justify-end">
-          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/notice')} aria-label="공지사항 목록" title="공지사항 목록"><ClipboardList className="h-4 w-4 shrink-0" /></Button>
-          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.back()} aria-label="뒤로가기" title="뒤로가기"><Undo2 className="h-4 w-4 shrink-0" /></Button>
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0"
+            onClick={() => router.push('/board/notice')}
+            aria-label="공지사항 목록"
+            title="공지사항 목록"
+          >
+            <ClipboardList className="h-4 w-4 shrink-0" />
+          </Button>
+          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.back()} aria-label="뒤로가기" title="뒤로가기">
+            <Undo2 className="h-4 w-4 shrink-0" />
+          </Button>
         </div>
       </div>
 
       <Separator className="bg-slate-200" />
       {!canWrite ? <ReadOnlyNotice /> : null}
 
-      <div className="space-y-2"><div className="text-sm text-slate-600">제목</div><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={writeDisabled} className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0" /></div>
-      <div className="space-y-2"><div className="text-sm text-slate-600">내용</div><Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[320px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0 sm:min-h-[360px]" disabled={writeDisabled} /></div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          제목
+          <LastEditorBadge name={notice.lastEditorName} />
+        </div>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          disabled={writeDisabled}
+          className="border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+        />
+      </div>
+      <div className="space-y-2">
+        <div className="text-sm text-slate-600">내용</div>
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[320px] border-slate-200 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0 sm:min-h-[360px]"
+          disabled={writeDisabled}
+        />
+      </div>
 
       <AttachmentFields
         attachments={attachments}
@@ -115,21 +163,38 @@ export default function NoticeDetailPage() {
         onChange={(index, patch) => setAttachments((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)))}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} disabled={writeDisabled} />상단 고정</label>
-        <div className="flex gap-2 sm:ml-auto"><Button variant={status === 'PUBLISHED' ? 'secondary' : 'outline'} onClick={() => setStatus('PUBLISHED')} type="button" disabled={writeDisabled}>공개</Button><Button variant={status === 'DRAFT' ? 'draft' : 'outline'} onClick={() => setStatus('DRAFT')} type="button" disabled={writeDisabled}>임시저장</Button></div>
+      <div className="flex justify-end">
+        <div className="flex flex-wrap items-center gap-2">
+          <PinnedToggle checked={pinned} onCheckedChange={setPinned} disabled={writeDisabled} />
+          <NoticeStatusToggle value={status} onChange={setStatus} disabled={writeDisabled} />
+
+          <Button variant="dlOutline" className="h-9 gap-1.5 px-3" disabled={!canWrite || mDel.isPending} onClick={() => setDeleteConfirmOpen(true)}>
+            <Trash2 className="h-4 w-4" />
+            <span>{mDel.isPending ? '삭제 중...' : '삭제'}</span>
+          </Button>
+          <Button variant="oHGhost" className="h-9 gap-1.5 px-3" disabled={!canSave} onClick={() => mSave.mutate()}>
+            <Save className="h-4 w-4" />
+            <span>{mSave.isPending ? '저장 중...' : '저장'}</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button variant="oHGhost" disabled={!canSave} onClick={() => mSave.mutate()}>{mSave.isPending ? '저장 중...' : '저장'}</Button><Button variant="dlOutline" disabled={!canWrite || mDel.isPending} onClick={() => setDeleteConfirmOpen(true)}>{mDel.isPending ? '삭제 중...' : '삭제'}</Button></div>
+      <div className="pt-3">
+        <CommentPanel targetType="NOTICE" targetId={notice.id} />
+      </div>
 
-      <ChangeHistory
-        createdAt={notice.createdAt}
-        lastEditorName={notice.lastEditorName}
-        revisionCount={notice.revisionCount}
-        updatedAt={notice.updatedAt}
-      />
-
-      {deleteConfirmOpen ? <ConfirmDeleteModal title="공지사항을 삭제할까요?" description="삭제한 공지사항은 목록에서 제거되며 되돌릴 수 없습니다." pending={mDel.isPending} onClose={() => setDeleteConfirmOpen(false)} onConfirm={() => { setDeleteConfirmOpen(false); mDel.mutate(); }} /> : null}
+      {deleteConfirmOpen ? (
+        <ConfirmDeleteModal
+          title="공지사항을 삭제할까요?"
+          description="삭제한 공지사항은 목록에서 제거되며 되돌릴 수 없습니다."
+          pending={mDel.isPending}
+          onClose={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => {
+            setDeleteConfirmOpen(false);
+            mDel.mutate();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -157,21 +222,50 @@ function AttachmentFields({
           </div>
           <p className="mt-1 text-xs text-slate-500">파일 저장소나 문서 링크를 연결해 공지에서 바로 열람할 수 있습니다.</p>
         </div>
-        <Button type="button" variant="outline" className="h-9 w-9 p-0" disabled={disabled} onClick={onAdd} aria-label="첨부 추가" title="첨부 추가">
-          <Plus className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0 border-sky-100 bg-sky-50 px-3 text-sky-700 hover:border-sky-200 hover:bg-sky-100 hover:text-sky-800"
+          disabled={disabled}
+          onClick={onAdd}
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          링크 추가
         </Button>
       </div>
 
       <div className="mt-3 space-y-2">
         {attachments.length === 0 ? (
-          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-sm text-slate-500">연결된 첨부 문서가 없습니다.</div>
+          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-sm text-slate-500">
+            연결된 첨부 문서가 없습니다.
+          </div>
         ) : (
           attachments.map((item, index) => (
-            <div key={`attachment-${index}`} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_36px]">
-              <Input value={item.name} onChange={(event) => onChange(index, { name: event.target.value })} placeholder="문서명" disabled={disabled} className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0" />
-              <Input value={item.url} onChange={(event) => onChange(index, { url: event.target.value })} placeholder="https://..." disabled={disabled} className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0" />
-              <Button type="button" variant="outline" className="h-10 w-10 border-rose-100 bg-rose-50 p-0 text-rose-600 hover:bg-rose-100" disabled={disabled} onClick={() => onRemove(index)} aria-label="첨부 삭제" title="첨부 삭제">
-                <Trash2 className="h-4 w-4" />
+            <div key={`attachment-${index}`} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_44px]">
+              <Input
+                value={item.name}
+                onChange={(event) => onChange(index, { name: event.target.value })}
+                placeholder="문서명"
+                disabled={disabled}
+                className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+              />
+              <Input
+                value={item.url}
+                onChange={(event) => onChange(index, { url: event.target.value })}
+                placeholder="문서 링크 URL"
+                disabled={disabled}
+                className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-10 min-w-10 border-rose-100 bg-rose-50 !p-0 text-rose-700 hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800"
+                disabled={disabled}
+                onClick={() => onRemove(index)}
+                aria-label="첨부 삭제"
+                title="첨부 삭제"
+              >
+                <Trash2 size={12} strokeWidth={1.5} className="shrink-0" />
               </Button>
             </div>
           ))
@@ -181,45 +275,85 @@ function AttachmentFields({
   );
 }
 
-function ChangeHistory({
-  createdAt,
-  lastEditorName,
-  revisionCount,
-  updatedAt,
+function NoticeStatusToggle({
+  disabled,
+  onChange,
+  value,
 }: {
-  createdAt?: string;
-  lastEditorName?: string | null;
-  revisionCount?: number;
-  updatedAt?: string;
+  disabled: boolean;
+  onChange: (value: 'PUBLISHED' | 'DRAFT') => void;
+  value: 'PUBLISHED' | 'DRAFT';
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-        <History className="h-4 w-4 text-slate-500" />
-        변경 이력
-      </div>
-      <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
-        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-          <div className="font-medium text-slate-700">생성</div>
-          <div className="mt-1">{createdAt ? new Date(createdAt).toLocaleString() : '-'}</div>
-        </div>
-        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-          <div className="font-medium text-slate-700">최근 수정</div>
-          <div className="mt-1">{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}</div>
-        </div>
-        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-          <div className="font-medium text-slate-700">수정 횟수</div>
-          <div className="mt-1">{revisionCount ?? 0}회</div>
-        </div>
-        <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-          <div className="font-medium text-slate-700">최근 수정자</div>
-          <div className="mt-1">{lastEditorName || '-'}</div>
-        </div>
-      </div>
+    <div className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm" aria-label="공개 상태">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange('PUBLISHED')}
+        className={[
+          'inline-flex h-7 w-8 items-center justify-center rounded-md transition disabled:pointer-events-none disabled:opacity-45',
+          value === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+        ].join(' ')}
+        aria-label="공개"
+        title="공개"
+      >
+        <Eye className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange('DRAFT')}
+        className={[
+          'inline-flex h-7 w-8 items-center justify-center rounded-md transition disabled:pointer-events-none disabled:opacity-45',
+          value === 'DRAFT' ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+        ].join(' ')}
+        aria-label="임시저장"
+        title="임시저장"
+      >
+        <FileClock className="h-4 w-4" />
+      </button>
     </div>
   );
 }
 
-function ConfirmDeleteModal({ description, onClose, onConfirm, pending, title }: { description: string; onClose: () => void; onConfirm: () => void; pending: boolean; title: string }) {
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"><button type="button" className="absolute inset-0 bg-slate-950/35" aria-label="삭제 확인 닫기" onClick={onClose} /><div className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl"><div className="text-base font-semibold text-slate-950">{title}</div><p className="mt-2 text-sm leading-6 text-slate-500">{description}</p><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} disabled={pending} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-45">닫기</button><button type="button" onClick={onConfirm} disabled={pending} className="rounded-md border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:pointer-events-none disabled:opacity-45">{pending ? '삭제 중...' : '삭제'}</button></div></div></div>;
+function ConfirmDeleteModal({
+  description,
+  onClose,
+  onConfirm,
+  pending,
+  title,
+}: {
+  description: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  title: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <button type="button" className="absolute inset-0 bg-slate-950/35" aria-label="삭제 확인 닫기" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
+        <div className="text-base font-semibold text-slate-950">{title}</div>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={pending}
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-45"
+          >
+            닫기
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="rounded-md border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:pointer-events-none disabled:opacity-45"
+          >
+            {pending ? '삭제 중...' : '삭제'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

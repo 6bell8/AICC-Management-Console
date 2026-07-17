@@ -47,7 +47,7 @@ export function SimpleSelect({ className, tone, ...props }: SimpleSelectProps) {
   return (
     <select
       className={cn(
-        'h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-[240px]',
+        'h-10 w-full rounded-md border border-input bg-background px-3 text-sm max-sm:h-11 max-sm:text-base sm:w-[240px]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         tone ? statusTextClass[tone] : '',
         className,
@@ -63,7 +63,7 @@ export function MobileSelect({ className, ...props }: MobileSelectProps) {
       className={cn(
         'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm outline-none transition',
         'hover:border-sky-100 hover:bg-sky-50/40 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400',
-        'max-[480px]:h-12 max-[480px]:text-base',
+        'max-sm:h-12 max-sm:text-base',
         className,
       )}
       {...props}
@@ -112,7 +112,7 @@ export function RichSelect({
         className={cn(
           'flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white/95 px-3.5 text-left text-sm text-slate-700 shadow-sm transition',
           'hover:border-sky-100 hover:bg-sky-50/30 focus:border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400',
-          'max-[480px]:min-h-12',
+          'max-sm:min-h-12',
           buttonClassName,
         )}
       >

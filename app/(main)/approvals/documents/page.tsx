@@ -86,7 +86,7 @@ export default async function ApprovalDocumentsPage({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <Metric label="전체 문서" value={documents.length} />
         <Metric label="결재 대기" value={documents.filter((doc) => doc.status === 'PENDING').length} />
         <Metric label="승인" value={documents.filter((doc) => doc.status === 'APPROVED').length} />
@@ -162,9 +162,9 @@ export default async function ApprovalDocumentsPage({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-3 sm:p-4">
+      <div className="text-xs font-medium text-slate-500 sm:text-sm">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-slate-900 sm:mt-2">{value}</div>
     </div>
   );
 }

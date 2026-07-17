@@ -1,7 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Braces, ClipboardCopy, FileCode2, FileJson2, KeyRound, ListChecks, Play, RotateCcw, Square, Terminal, Timer, type LucideIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import {
+  Braces,
+  ClipboardCopy,
+  FileCode2,
+  FileJson2,
+  KeyRound,
+  ListChecks,
+  Play,
+  RotateCcw,
+  Square,
+  Terminal,
+  Timer,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { Button } from '@/app/components/ui/button';
 import { useToast } from '@/app/components/ui/use-toast';
@@ -25,7 +38,7 @@ type Props = {
 };
 
 const fieldClass =
-  'h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
+  'h-10 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm leading-none text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
 const textareaClass =
   'min-h-[420px] w-full resize-y rounded-md border border-slate-700 bg-slate-950 py-3 pl-14 pr-3 font-mono text-[13px] leading-6 text-slate-100 shadow-inner outline-none transition caret-sky-300 placeholder:text-slate-500 selection:bg-sky-500/30 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60';
 const sampleCode = `// 'api:API01'은 default response 응답값입니다.
@@ -74,6 +87,9 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
   const [logs, setLogs] = useState<RunnerLog[]>([]);
   const [resultText, setResultText] = useState('');
   const [errorText, setErrorText] = useState('');
+  const [splitPercent, setSplitPercent] = useState(58);
+  const [resizing, setResizing] = useState(false);
+  const editorSplitRef = useRef<HTMLDivElement | null>(null);
 
   const logText = useMemo(() => logs.map((log) => `${log.ts.slice(11, 19)} [${log.level}] ${log.text}`).join('\n'), [logs]);
   const outputText = useMemo(() => {
@@ -82,6 +98,44 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
     return '';
   }, [errorText, resultText]);
   const inputDisabled = disabled || running;
+  const editorSplitStyle = { '--code-pane': `${splitPercent}fr`, '--json-pane': `${100 - splitPercent}fr` } as CSSProperties;
+
+  const updateSplitFromClientX = useCallback((clientX: number) => {
+    const rect = editorSplitRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    const next = ((clientX - rect.left) / rect.width) * 100;
+    setSplitPercent(Math.min(74, Math.max(36, next)));
+  }, []);
+
+  useEffect(() => {
+    if (!resizing) return;
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    const onPointerMove = (event: globalThis.PointerEvent) => updateSplitFromClientX(event.clientX);
+    const onPointerUp = () => setResizing(false);
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp, { once: true });
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [resizing, updateSplitFromClientX]);
+
+  const onSplitterPointerDown = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      updateSplitFromClientX(event.clientX);
+      setResizing(true);
+    },
+    [updateSplitFromClientX],
+  );
 
   const copyText = useCallback(
     async (label: string, value: string) => {
@@ -215,8 +269,8 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
   return (
     <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-sky-100 bg-sky-50 text-sky-700">
+        <div className="flex min-w-0 items-center gap-3 rounded-md border border-slate-100 bg-slate-50/60 px-3 py-2 xl:border-transparent xl:bg-transparent xl:px-0 xl:py-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-sky-100 bg-sky-50 text-sky-700">
             <Terminal className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -225,27 +279,34 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto_auto] xl:w-[680px]">
-          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:block sm:space-y-1">
-            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:justify-start sm:text-left">
+        <div className="grid gap-2 p-2 sm:ml-auto sm:grid-cols-[235px_172px_auto_auto] sm:items-center sm:gap-x-4 xl:w-auto">
+          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:relative sm:block">
+            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:absolute sm:-top-5 sm:right-0 sm:justify-end">
               <KeyRound className="h-3.5 w-3.5 text-sky-600" />
               userMap key
             </span>
-            <input className={`${fieldClass} text-right font-mono sm:text-left`} value={ctxKey} onChange={(event) => onChangeCtxKey(event.target.value)} placeholder="api:API01" list="dynnode-ctx-key-options" disabled={inputDisabled} />
+            <input
+              className={`${fieldClass} w-full text-right font-mono`}
+              value={ctxKey}
+              onChange={(event) => onChangeCtxKey(event.target.value)}
+              placeholder="api:API01"
+              list="dynnode-ctx-key-options"
+              disabled={inputDisabled}
+            />
             <datalist id="dynnode-ctx-key-options">
               {ctxKeyOptions.map((option) => (
                 <option key={option} value={option} />
               ))}
             </datalist>
           </label>
-          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:block sm:space-y-1">
-            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:justify-start sm:text-left">
+          <label className="grid min-w-0 grid-cols-[86px_minmax(0,1fr)] items-center gap-2 sm:relative sm:block">
+            <span className="flex items-center justify-end gap-1.5 text-right text-[11px] font-medium text-slate-500 sm:absolute sm:-top-5 sm:right-0 sm:justify-end">
               <Timer className="h-3.5 w-3.5 text-sky-600" />
               timeout
             </span>
             <div className="relative">
               <input
-                className={`${fieldClass} w-full pr-9 text-right sm:text-left`}
+                className={`${fieldClass} w-full pr-9 text-right`}
                 type="number"
                 value={timeoutMs}
                 min={300}
@@ -257,18 +318,18 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
             </div>
           </label>
 
-          <Button variant="outline" onClick={resetOutputs} disabled={running} className="mt-auto h-9 gap-2">
+          <Button variant="outline" onClick={resetOutputs} disabled={running} className="h-10 gap-2 sm:mb-0">
             <RotateCcw className="h-4 w-4 shrink-0" />
             초기화
           </Button>
 
           {running ? (
-            <Button variant="destructive" onClick={onStop} className="mt-auto h-9 gap-2">
+            <Button variant="destructive" onClick={onStop} className="h-10 gap-2">
               <Square className="h-4 w-4 shrink-0" />
               중지
             </Button>
           ) : (
-            <Button variant="outline" onClick={onRun} className="mt-auto h-9 gap-2 border-sky-100 text-sky-700 hover:border-sky-200 hover:bg-sky-50">
+            <Button variant="outline" onClick={onRun} className="h-10 gap-2 border-sky-100 text-sky-700 hover:border-sky-200 hover:bg-sky-50">
               <Play className="h-4 w-4 shrink-0" />
               실행
             </Button>
@@ -276,12 +337,17 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
         </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
+      <div
+        ref={editorSplitRef}
+        className="grid gap-3 xl:grid-cols-[minmax(360px,var(--code-pane))_10px_minmax(320px,var(--json-pane))] xl:gap-0"
+        style={editorSplitStyle}
+      >
         <section className="space-y-2">
           <PanelHeader
             icon={<Terminal className="h-4 w-4" />}
             title="실행 코드"
             badge="JavaScript"
+            align="split"
             actions={
               <>
                 <IconAction label="복사" onClick={() => copyText('실행 코드', code)} icon={ClipboardCopy} />
@@ -293,11 +359,62 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
           <CodeTextarea value={code} onChange={onChangeCode} ariaLabel="실행 코드" disabled={inputDisabled} />
         </section>
 
+        <button
+          type="button"
+          className={[
+            'group relative z-20 hidden cursor-col-resize items-stretch justify-center px-0 outline-none xl:flex',
+            resizing ? 'text-sky-500' : 'text-slate-300 hover:text-sky-500 focus-visible:text-sky-600',
+          ].join(' ')}
+          onPointerDown={onSplitterPointerDown}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              setSplitPercent((current) => Math.max(36, current - 3));
+            }
+            if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              setSplitPercent((current) => Math.min(74, current + 3));
+            }
+          }}
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuemin={36}
+          aria-valuemax={74}
+          aria-valuenow={Math.round(splitPercent)}
+          aria-label="에디터 너비 조절"
+          title="드래그해서 에디터 너비 조절"
+        >
+          <span className="relative mt-[52px] flex min-h-[420px] w-2 items-center justify-center">
+            <span
+              aria-hidden="true"
+              className={[
+                'absolute inset-y-1 left-1/2 w-px -translate-x-1/2 rounded-full transition-all duration-200',
+                resizing ? 'bg-sky-300 shadow-[0_0_0_1px_rgba(186,230,253,0.75)]' : 'bg-slate-200 group-hover:bg-sky-200 group-focus-visible:bg-sky-300',
+              ].join(' ')}
+            />
+            <span
+              aria-hidden="true"
+              className={[
+                'absolute left-1/2 top-1/2 grid h-8 w-4 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 opacity-0 shadow-sm ring-1 ring-slate-200/80 backdrop-blur transition',
+                'group-hover:opacity-100 group-focus-visible:opacity-100',
+                resizing ? 'opacity-100 ring-sky-200' : '',
+              ].join(' ')}
+            >
+              <span className="flex flex-col gap-0.5">
+                <span className="h-0.5 w-0.5 rounded-full bg-current" />
+                <span className="h-0.5 w-0.5 rounded-full bg-current" />
+                <span className="h-0.5 w-0.5 rounded-full bg-current" />
+              </span>
+            </span>
+          </span>
+        </button>
+
         <section className="space-y-2">
           <PanelHeader
             icon={<Braces className="h-4 w-4" />}
             title="JSON DATA"
             badge={ctxKey.trim() || 'api:API01'}
+            align="between"
             actions={
               <>
                 <IconAction label="복사" onClick={() => copyText('JSON DATA', ctxText)} icon={ClipboardCopy} />
@@ -334,13 +451,24 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
 
       <div className="hidden rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500 sm:block">
         코드 안에서 <span className="font-mono text-slate-700">console.log()</span>를 사용하면 logs에 출력됩니다. 입력 중이 아닐 때{' '}
-        <span className="font-mono text-slate-700">Ctrl + F10</span> 또는 <span className="font-mono text-slate-700">Ctrl + Enter</span>로 실행할 수 있습니다.
+        <span className="font-mono text-slate-700">Ctrl + F10</span> 또는 <span className="font-mono text-slate-700">Ctrl + Enter</span>로 실행할 수
+        있습니다.
       </div>
     </div>
   );
 }
 
-function CodeTextarea({ ariaLabel, disabled, onChange, value }: { ariaLabel: string; disabled?: boolean; onChange: (value: string) => void; value: string }) {
+function CodeTextarea({
+  ariaLabel,
+  disabled,
+  onChange,
+  value,
+}: {
+  ariaLabel: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+  value: string;
+}) {
   const [scrollTop, setScrollTop] = useState(0);
   const lines = useMemo(() => Array.from({ length: Math.max(value.split('\n').length, 1) }, (_, index) => index + 1), [value]);
 
@@ -370,25 +498,54 @@ function CodeTextarea({ ariaLabel, disabled, onChange, value }: { ariaLabel: str
 
 function IconAction({ disabled, icon: Icon, label, onClick }: { disabled?: boolean; icon: LucideIcon; label: string; onClick: () => void }) {
   return (
-    <Button type="button" variant="outline" className="h-8 w-8 shrink-0 border-slate-200 p-0 text-sky-700 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-800" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
+    <Button
+      type="button"
+      variant="outline"
+      className="h-8 w-8 shrink-0 border-slate-200 p-0 text-sky-700 hover:border-sky-100 hover:bg-sky-50 hover:text-sky-800"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+    >
       <Icon className="h-4 w-4 shrink-0" style={{ width: 16, height: 16, minWidth: 16 }} strokeWidth={2.2} aria-hidden="true" />
     </Button>
   );
 }
 
-function PanelHeader({ actions, badge, icon, title }: { actions?: ReactNode; badge?: string; icon?: ReactNode; title: string }) {
+function PanelHeader({
+  actions,
+  align = 'split',
+  badge,
+  icon,
+  title,
+}: {
+  actions?: ReactNode;
+  align?: 'split' | 'between';
+  badge?: string;
+  icon?: ReactNode;
+  title: string;
+}) {
+  const betweenAligned = align === 'between';
+
   return (
-    <div className="grid min-h-[74px] gap-2">
-      <div className="flex min-w-0 items-center justify-between gap-2">
+    <div
+      className={[
+        'grid min-h-[74px] gap-2 sm:min-h-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center',
+        betweenAligned ? 'sm:grid-cols-[minmax(0,1fr)_auto]' : '',
+      ].join(' ')}
+    >
+      <div className={['flex min-w-0 items-center justify-between gap-2', betweenAligned ? 'sm:justify-start' : 'sm:justify-start'].join(' ')}>
         <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-900">
           {icon ? <span className="text-sky-600">{icon}</span> : null}
           <span className="truncate">{title}</span>
         </div>
-        {badge ? <span className="max-w-[180px] shrink-0 truncate rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-medium text-slate-600">{badge}</span> : null}
+        {badge ? (
+          <span className="max-w-[180px] shrink-0 truncate rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] font-medium text-slate-600">
+            {badge}
+          </span>
+        ) : null}
       </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
-        {actions}
-      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
     </div>
   );
 }

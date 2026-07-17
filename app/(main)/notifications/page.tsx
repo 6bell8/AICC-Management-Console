@@ -49,7 +49,7 @@ export default function NotificationsPage() {
     },
   });
 
-  const items = query.data?.items ?? [];
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const unreadCount = items.filter((item) => !item.readAt).length;
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -115,15 +115,15 @@ export default function NotificationsPage() {
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-12 text-center">
               <Inbox className="mx-auto h-8 w-8 text-slate-300" />
               <div className="mt-3 text-sm font-semibold text-slate-700">표시할 알림이 없습니다.</div>
-              <div className="mt-1 text-xs text-slate-500">새 결재나 처리 결과가 생기면 이곳에 표시됩니다.</div>
+              <div className="mt-1 text-xs text-slate-500">새 결재나 처리 결과가 생기면 여기에 표시됩니다.</div>
             </div>
           ) : null}
         </div>
 
         {items.length > PAGE_SIZE ? (
-          <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-500">{safePage} / {totalPages} 페이지</div>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-col items-center justify-center gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 sm:flex-row">
+            <div className="text-center text-sm text-slate-500">{safePage} / {totalPages} 페이지</div>
+            <div className="flex flex-wrap justify-center gap-1.5">
               <PageButton disabled={safePage <= 1} onClick={() => setPage(1)}>First</PageButton>
               <PageButton disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>이전</PageButton>
               <PageButton active onClick={() => setPage(safePage)}>{safePage}</PageButton>

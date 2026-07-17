@@ -703,6 +703,28 @@ CREATE TABLE IF NOT EXISTS family_event_requests (
     ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS post_comments (
+  id CHAR(36) NOT NULL,
+  target_type ENUM('NOTICE', 'FAMILY_EVENT') NOT NULL,
+  target_id VARCHAR(80) NOT NULL,
+  parent_id CHAR(36) NULL,
+  author_id CHAR(36) NULL,
+  author_name VARCHAR(100) NOT NULL,
+  content TEXT NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (id),
+  INDEX idx_post_comments_target_created (target_type, target_id, created_at),
+  INDEX idx_post_comments_parent_created (parent_id, created_at),
+  INDEX idx_post_comments_author_created (author_id, created_at),
+  CONSTRAINT fk_post_comments_parent
+    FOREIGN KEY (parent_id) REFERENCES post_comments (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_post_comments_author
+    FOREIGN KEY (author_id) REFERENCES users (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS permission_delegations (
   id CHAR(36) NOT NULL,
   delegator_user_id CHAR(36) NOT NULL,

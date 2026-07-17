@@ -11,6 +11,7 @@ type AuthorGuideRow = RowDataPacket & {
   title: string;
   content: string;
   status: AuthorGuideStatus;
+  last_editor_name: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -33,9 +34,36 @@ function mapAuthorGuide(row: AuthorGuideRow): AuthorGuide {
     title: row.title,
     content: row.content,
     status: row.status,
+    lastEditorName: row.last_editor_name,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
   };
+}
+
+let ensureAuthorGuideColumnsPromise: Promise<void> | null = null;
+
+async function ensureAuthorGuideColumns() {
+  if (!ensureAuthorGuideColumnsPromise) {
+    ensureAuthorGuideColumnsPromise = (async () => {
+      const pool = getMysqlPool();
+      const [columns] = await pool.query<RowDataPacket[]>(
+        `
+          SELECT COLUMN_NAME
+          FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'author_guides'
+            AND COLUMN_NAME = 'last_editor_name'
+          LIMIT 1
+        `,
+      );
+      if (columns.length > 0) return;
+      await pool.query('ALTER TABLE author_guides ADD COLUMN last_editor_name VARCHAR(100) NULL AFTER status');
+    })().catch((error) => {
+      ensureAuthorGuideColumnsPromise = null;
+      throw error;
+    });
+  }
+  return ensureAuthorGuideColumnsPromise;
 }
 
 function clampPage(value: number | undefined) {
@@ -48,6 +76,7 @@ function clampPageSize(value: number | undefined) {
 }
 
 export async function listAuthorGuides(params: AuthorGuideListParams) {
+  await ensureAuthorGuideColumns();
   const pool = getMysqlPool();
   const q = (params.q ?? '').trim();
   const page = clampPage(params.page);
@@ -74,7 +103,7 @@ export async function listAuthorGuides(params: AuthorGuideListParams) {
 
   const [rows] = await pool.query<AuthorGuideRow[]>(
     `
-      SELECT id, title, content, status, created_at, updated_at
+      SELECT id, title, content, status, last_editor_name, created_at, updated_at
       FROM author_guides
       ${whereSql}
       ORDER BY updated_at DESC
@@ -87,10 +116,11 @@ export async function listAuthorGuides(params: AuthorGuideListParams) {
 }
 
 export async function getAuthorGuide(id: string) {
+  await ensureAuthorGuideColumns();
   const pool = getMysqlPool();
   const [rows] = await pool.query<AuthorGuideRow[]>(
     `
-      SELECT id, title, content, status, created_at, updated_at
+      SELECT id, title, content, status, last_editor_name, created_at, updated_at
       FROM author_guides
       WHERE id = ?
       LIMIT 1
@@ -100,17 +130,18 @@ export async function getAuthorGuide(id: string) {
   return rows[0] ? mapAuthorGuide(rows[0]) : null;
 }
 
-export async function createAuthorGuide(input: Pick<AuthorGuide, 'title' | 'content' | 'status'>) {
+export async function createAuthorGuide(input: Pick<AuthorGuide, 'title' | 'content' | 'status'> & { editorName?: string | null }) {
+  await ensureAuthorGuideColumns();
   const pool = getMysqlPool();
   const id = randomUUID();
   const status = input.status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED';
 
   await pool.execute(
     `
-      INSERT INTO author_guides (id, title, content, status)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO author_guides (id, title, content, status, last_editor_name)
+      VALUES (?, ?, ?, ?, ?)
     `,
-    [id, input.title, input.content ?? '', status],
+    [id, input.title, input.content ?? '', status, input.editorName ?? null],
   );
 
   const created = await getAuthorGuide(id);
@@ -118,7 +149,7 @@ export async function createAuthorGuide(input: Pick<AuthorGuide, 'title' | 'cont
   return created;
 }
 
-export async function updateAuthorGuide(id: string, input: Partial<Pick<AuthorGuide, 'title' | 'content' | 'status'>>) {
+export async function updateAuthorGuide(id: string, input: Partial<Pick<AuthorGuide, 'title' | 'content' | 'status'>> & { editorName?: string | null }) {
   const current = await getAuthorGuide(id);
   if (!current) return null;
 
@@ -131,10 +162,10 @@ export async function updateAuthorGuide(id: string, input: Partial<Pick<AuthorGu
   await pool.execute(
     `
       UPDATE author_guides
-      SET title = ?, content = ?, status = ?
+      SET title = ?, content = ?, status = ?, last_editor_name = ?
       WHERE id = ?
     `,
-    [nextTitle, nextContent, nextStatus, id],
+    [nextTitle, nextContent, nextStatus, input.editorName ?? null, id],
   );
 
   return getAuthorGuide(id);

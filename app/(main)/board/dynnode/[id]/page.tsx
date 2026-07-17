@@ -7,7 +7,9 @@ import { ClipboardList, Code2, Pencil, Save, Trash2, X } from 'lucide-react';
 
 import DynNodeRunner from '../../../../components/dynnode/DynnodeRunner';
 import { Button } from '@/app/components/ui/button';
+import { DetailTimestampBadge } from '@/app/components/ui/detail-timestamp-badge';
 import { Input } from '@/app/components/ui/input';
+import { LastEditorBadge } from '@/app/components/ui/last-editor-badge';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { useToast } from '@/app/components/ui/use-toast';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
@@ -116,10 +118,11 @@ export default function DynNodeDetailPage() {
           ) : (
             <h1 className="flex min-w-0 items-center gap-2 truncate text-xl font-semibold sm:text-2xl">
               <Code2 className="h-5 w-5 shrink-0 text-sky-600" />
-              {post.title}
+              <span className="min-w-0 truncate">{post.title}</span>
+              <LastEditorBadge name={post.lastEditorName} />
+              <DetailTimestampBadge createdAt={post.createdAt} updatedAt={post.updatedAt} />
             </h1>
           )}
-          <div className="text-xs text-slate-500">updated: {new Date(post.updatedAt).toLocaleString()}</div>
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 sm:shrink-0">

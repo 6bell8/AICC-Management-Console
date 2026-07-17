@@ -9,6 +9,7 @@ export type DynNodePost = {
   ctxKey: string;
   tags: string[];
   status: DynNodeStatus;
+  lastEditorName?: string | null;
   createdAt: string;
   updatedAt: string;
 };

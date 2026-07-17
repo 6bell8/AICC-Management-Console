@@ -6,6 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Gift, MapPin, Search, Send, Sh
 
 import { RichSelect } from '@/app/components/ui/select';
 import { Skeleton } from '@/app/components/ui/skeleton';
+import { CommentPanel } from '@/app/components/comments/CommentPanel';
 import type { FamilyEventRequest, FamilyEventType } from '@/app/lib/types/familyEvent';
 
 type FamilyEventResponse = {
@@ -228,6 +229,7 @@ export default function FamilyEventsPage() {
                       </span>
                     </div>
                     {item.note ? <p className="mt-2 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">{item.note}</p> : null}
+                    <CommentPanel compact targetType="FAMILY_EVENT" targetId={item.id} />
                   </div>
                 </div>
               ))

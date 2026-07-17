@@ -12,11 +12,12 @@ type DynNodeRow = RowDataPacket & {
   ctx_key: string | null;
   tags: string | string[];
   status: DynNodeStatus;
+  last_editor_name: string | null;
   created_at: Date | string;
   updated_at: Date | string;
 };
 
-let ensureDynnodeCtxKeyColumnPromise: Promise<void> | null = null;
+let ensureDynnodeColumnsPromise: Promise<void> | null = null;
 
 function nowIso() {
   return new Date().toISOString();
@@ -51,9 +52,9 @@ function stringifySampleCtx(value: unknown) {
   }
 }
 
-async function ensureDynnodeCtxKeyColumn() {
-  if (!ensureDynnodeCtxKeyColumnPromise) {
-    ensureDynnodeCtxKeyColumnPromise = (async () => {
+async function ensureDynnodeColumns() {
+  if (!ensureDynnodeColumnsPromise) {
+    ensureDynnodeColumnsPromise = (async () => {
       const pool = getMysqlPool();
       const [columns] = await pool.query<RowDataPacket[]>(
         `
@@ -61,18 +62,22 @@ async function ensureDynnodeCtxKeyColumn() {
           FROM INFORMATION_SCHEMA.COLUMNS
           WHERE TABLE_SCHEMA = DATABASE()
             AND TABLE_NAME = 'dynnode_posts'
-            AND COLUMN_NAME = 'ctx_key'
-          LIMIT 1
+            AND COLUMN_NAME IN ('ctx_key', 'last_editor_name')
         `,
       );
-      if (columns.length > 0) return;
-      await pool.query("ALTER TABLE dynnode_posts ADD COLUMN ctx_key VARCHAR(120) NOT NULL DEFAULT 'api:API01' AFTER sample_ctx");
+      const existing = new Set(columns.map((row) => String(row.COLUMN_NAME)));
+      if (!existing.has('ctx_key')) {
+        await pool.query("ALTER TABLE dynnode_posts ADD COLUMN ctx_key VARCHAR(120) NOT NULL DEFAULT 'api:API01' AFTER sample_ctx");
+      }
+      if (!existing.has('last_editor_name')) {
+        await pool.query('ALTER TABLE dynnode_posts ADD COLUMN last_editor_name VARCHAR(100) NULL AFTER status');
+      }
     })().catch((error) => {
-      ensureDynnodeCtxKeyColumnPromise = null;
+      ensureDynnodeColumnsPromise = null;
       throw error;
     });
   }
-  return ensureDynnodeCtxKeyColumnPromise;
+  return ensureDynnodeColumnsPromise;
 }
 
 function mapPost(row: DynNodeRow): DynNodePost {
@@ -85,13 +90,14 @@ function mapPost(row: DynNodeRow): DynNodePost {
     ctxKey: row.ctx_key?.trim() || 'api:API01',
     tags: parseTags(row.tags),
     status: row.status,
+    lastEditorName: row.last_editor_name,
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
   };
 }
 
 export async function listPosts(params?: { q?: string; status?: DynNodeStatus | 'ALL' }) {
-  await ensureDynnodeCtxKeyColumn();
+  await ensureDynnodeColumns();
   const pool = getMysqlPool();
   const filters: string[] = [];
   const values: string[] = [];
@@ -107,7 +113,7 @@ export async function listPosts(params?: { q?: string; status?: DynNodeStatus | 
   const whereSql = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const [rows] = await pool.query<DynNodeRow[]>(
     `
-      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at
+      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, last_editor_name, created_at, updated_at
       FROM dynnode_posts
       ${whereSql}
       ORDER BY updated_at DESC
@@ -118,11 +124,11 @@ export async function listPosts(params?: { q?: string; status?: DynNodeStatus | 
 }
 
 export async function getPost(id: string) {
-  await ensureDynnodeCtxKeyColumn();
+  await ensureDynnodeColumns();
   const pool = getMysqlPool();
   const [rows] = await pool.query<DynNodeRow[]>(
     `
-      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at
+      SELECT id, title, summary, code, sample_ctx, ctx_key, tags, status, last_editor_name, created_at, updated_at
       FROM dynnode_posts
       WHERE id = ?
       LIMIT 1
@@ -140,16 +146,17 @@ export async function createPost(input: {
   ctxKey?: string;
   tags?: string[];
   status?: DynNodeStatus;
+  editorName?: string | null;
 }) {
   const pool = getMysqlPool();
-  await ensureDynnodeCtxKeyColumn();
+  await ensureDynnodeColumns();
   const id = makeId();
   const now = nowIso();
 
   await pool.execute(
     `
-      INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, ctx_key, tags, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dynnode_posts (id, title, summary, code, sample_ctx, ctx_key, tags, status, last_editor_name, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
@@ -160,6 +167,7 @@ export async function createPost(input: {
       input.ctxKey?.trim() || 'api:API01',
       JSON.stringify(input.tags ?? []),
       input.status ?? 'DRAFT',
+      input.editorName ?? null,
       now.slice(0, 23).replace('T', ' '),
       now.slice(0, 23).replace('T', ' '),
     ],
@@ -170,7 +178,7 @@ export async function createPost(input: {
   return created;
 }
 
-export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'title' | 'summary' | 'code' | 'sampleCtx' | 'ctxKey' | 'tags' | 'status'>>) {
+export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'title' | 'summary' | 'code' | 'sampleCtx' | 'ctxKey' | 'tags' | 'status'>> & { editorName?: string | null }) {
   const current = await getPost(id);
   if (!current) return null;
 
@@ -188,10 +196,10 @@ export async function patchPost(id: string, patch: Partial<Pick<DynNodePost, 'ti
   await pool.execute(
     `
       UPDATE dynnode_posts
-      SET title = ?, summary = ?, code = ?, sample_ctx = ?, ctx_key = ?, tags = ?, status = ?
+      SET title = ?, summary = ?, code = ?, sample_ctx = ?, ctx_key = ?, tags = ?, status = ?, last_editor_name = ?
       WHERE id = ?
     `,
-    [next.title, next.summary, next.code, next.sampleCtx, next.ctxKey.trim() || 'api:API01', JSON.stringify(next.tags), next.status, id],
+    [next.title, next.summary, next.code, next.sampleCtx, next.ctxKey.trim() || 'api:API01', JSON.stringify(next.tags), next.status, patch.editorName ?? null, id],
   );
 
   return getPost(id);

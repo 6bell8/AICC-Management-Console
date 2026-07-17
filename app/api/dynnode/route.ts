@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createPost, listPosts } from '@/app/lib/dynnode/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
+import { getCurrentUser } from '@/app/lib/auth/session';
 
 type DynNodeBody = {
   title?: unknown;
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'code is required' }, { status: 400 });
   }
 
+  const user = await getCurrentUser();
   const post = await createPost({
     title: body.title,
     summary: typeof body.summary === 'string' ? body.summary : null,
@@ -52,6 +54,7 @@ export async function POST(req: Request) {
     ctxKey: typeof body.ctxKey === 'string' ? body.ctxKey : 'api:API01',
     tags: Array.isArray(body.tags) ? body.tags.filter((x): x is string => typeof x === 'string') : [],
     status: body.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+    editorName: user?.name ?? null,
   });
 
   return NextResponse.json({ post }, { status: 201 });
