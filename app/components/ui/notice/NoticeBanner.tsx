@@ -27,13 +27,8 @@ function todayKey() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function getInitialDismissed() {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(DISMISS_KEY) === todayKey();
-}
-
 export default function NoticeBanner({ limit = 5, intervalMs = 5000 }: { limit?: number; intervalMs?: number }) {
-  const [dismissed, setDismissed] = useState(getInitialDismissed);
+  const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
 
   const q = useQuery({
@@ -56,6 +51,13 @@ export default function NoticeBanner({ limit = 5, intervalMs = 5000 }: { limit?:
 
   const activeIdx = items.length > 0 ? idx % items.length : 0;
   const mobileItem = items[0] ?? null;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setDismissed(window.localStorage.getItem(DISMISS_KEY) === todayKey());
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (dismissed || items.length <= 1 || typeof window === 'undefined') return undefined;

@@ -93,7 +93,6 @@ export default function NoticeNewPage() {
           disabled={disabled}
         />
       </div>
-
       <AttachmentFields
         attachments={attachments}
         disabled={disabled}
@@ -101,11 +100,10 @@ export default function NoticeNewPage() {
         onRemove={(index) => setAttachments((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
         onChange={(index, patch) => setAttachments((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)))}
       />
-
       <div className="flex justify-end">
         <div className="flex flex-wrap items-center gap-2">
           <PinnedToggle checked={pinned} onCheckedChange={setPinned} disabled={disabled} />
-          <NoticeStatusToggle value={status} onChange={setStatus} disabled={disabled} />
+          {/*<NoticeStatusToggle value={status} onChange={setStatus} disabled={disabled} />*/}
           <Button variant="oHGhost" className="h-9 gap-1.5 px-3" disabled={!canSubmit} onClick={() => m.mutate()}>
             <Save className="h-4 w-4" />
             <span>{m.isPending ? '저장 중...' : '저장'}</span>
@@ -171,63 +169,63 @@ function AttachmentFields({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Link2 className="h-4 w-4 text-sky-600" />
-            첨부 문서
-          </div>
-          <p className="mt-1 text-xs text-slate-500">파일 저장소나 문서 링크를 연결해 공지에서 바로 열람할 수 있습니다.</p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-9 shrink-0 border-sky-100 bg-sky-50 px-3 text-sky-700 hover:border-sky-200 hover:bg-sky-100 hover:text-sky-800"
-          disabled={disabled}
-          onClick={onAdd}
-        >
-          <Plus className="h-4 w-4 shrink-0" />
-          링크 추가
-        </Button>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {attachments.length === 0 ? (
-          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-sm text-slate-500">
-            첨부할 문서가 있으면 우측 버튼으로 추가해 주세요.
-          </div>
-        ) : (
-          attachments.map((item, index) => (
-            <div key={`attachment-${index}`} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_44px]">
-              <Input
-                value={item.name}
-                onChange={(event) => onChange(index, { name: event.target.value })}
-                placeholder="문서명"
-                disabled={disabled}
-                className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0"
-              />
-              <Input
-                value={item.url}
-                onChange={(event) => onChange(index, { url: event.target.value })}
-                placeholder="문서 링크 URL"
-                disabled={disabled}
-                className="border-slate-200 bg-white shadow-sm focus-visible:ring-slate-100 focus-visible:ring-offset-0"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-10 min-w-10 border-rose-100 bg-rose-50 !p-0 text-rose-700 hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800"
-                disabled={disabled}
-                onClick={() => onRemove(index)}
-                aria-label="첨부 삭제"
-                title="첨부 삭제"
-              >
-                <Trash2 size={12} strokeWidth={1.5} className="shrink-0" />
-              </Button>
+    <div className="flex justify-end">
+      <div className="w-full rounded-lg bg-slate-50 p-3 sm:w-auto sm:min-w-[360px]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Link2 className="h-4 w-4 text-sky-600" />
+              첨부 문서
             </div>
-          ))
-        )}
+            <p className="mt-1 text-xs text-slate-500">파일 저장소나 문서 링크를 연결해 공지에서 바로 열람할 수 있습니다.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 shrink-0 border-transparent bg-white px-3 text-sky-700 shadow-none hover:border-transparent hover:bg-sky-50 hover:text-sky-800"
+            disabled={disabled}
+            onClick={onAdd}
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            링크 추가
+          </Button>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {attachments.length === 0 ? (
+            <div className="rounded-md bg-white/70 px-3 py-3 text-sm text-slate-500">첨부할 문서가 있으면 우측 버튼으로 추가해 주세요.</div>
+          ) : (
+            attachments.map((item, index) => (
+              <div key={`attachment-${index}`} className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_44px]">
+                <Input
+                  value={item.name}
+                  onChange={(event) => onChange(index, { name: event.target.value })}
+                  placeholder="문서명"
+                  disabled={disabled}
+                  className="border-transparent bg-white shadow-none focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+                />
+                <Input
+                  value={item.url}
+                  onChange={(event) => onChange(index, { url: event.target.value })}
+                  placeholder="문서 링크 URL"
+                  disabled={disabled}
+                  className="border-transparent bg-white shadow-none focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-10 min-w-10 border-transparent bg-white !p-0 text-rose-600 shadow-none hover:border-transparent hover:bg-rose-50 hover:text-rose-700"
+                  disabled={disabled}
+                  onClick={() => onRemove(index)}
+                  aria-label="첨부 삭제"
+                  title="첨부 삭제"
+                >
+                  <Trash2 size={12} strokeWidth={1.5} className="shrink-0" />
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

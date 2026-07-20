@@ -3,9 +3,19 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, Code2, Pencil, Save, Trash2, X } from 'lucide-react';
+import { Archive, ClipboardList, Code2, Save, Trash2, Upload } from 'lucide-react';
 
 import DynNodeRunner from '../../../../components/dynnode/DynnodeRunner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/app/components/ui/alert-dialog';
 import { Button } from '@/app/components/ui/button';
 import { DetailTimestampBadge } from '@/app/components/ui/detail-timestamp-badge';
 import { Input } from '@/app/components/ui/input';
@@ -13,7 +23,8 @@ import { LastEditorBadge } from '@/app/components/ui/last-editor-badge';
 import { Skeleton } from '@/app/components/ui/skeleton';
 import { useToast } from '@/app/components/ui/use-toast';
 import { ReadOnlyNotice, useCurrentUser } from '@/app/lib/auth/useCurrentUser';
-import { deleteDynnode, getDynNode, patchDynNode } from '@/app/lib/api/dynnode';
+import { deleteDynnode, deleteDynNodeTemplate, getDynNode, patchDynNode, uploadDynNodeTemplate } from '@/app/lib/api/dynnode';
+import type { DynNodeTemplateFile } from '@/app/lib/types/dynnode';
 
 type DynNodeDraft = {
   title: string;
@@ -34,9 +45,10 @@ export default function DynNodeDetailPage() {
   const q = useQuery({ queryKey: ['dynnode', id], queryFn: () => getDynNode(id) });
   const post = q.data?.post;
 
-  const [isEdit, setIsEdit] = useState(false);
   const [draft, setDraft] = useState<DynNodeDraft | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [templateDeleteConfirmOpen, setTemplateDeleteConfirmOpen] = useState(false);
+  const [templateInputKey, setTemplateInputKey] = useState(0);
 
   const values = draft ?? {
     title: post?.title ?? '',
@@ -74,9 +86,7 @@ export default function DynNodeDetailPage() {
       await qc.invalidateQueries({ queryKey: ['dynnode', id] });
       await qc.invalidateQueries({ queryKey: ['dynnode', 'list'] });
       setDraft(null);
-      setIsEdit(false);
       toast({ title: '저장 완료', description: '변경사항이 저장되었습니다.' });
-      router.push('/board/dynnode');
     },
     onError: (error: Error) => toast({ title: '저장 실패', description: error.message || '저장 중 오류가 발생했습니다.', variant: 'destructive' }),
   });
@@ -92,12 +102,30 @@ export default function DynNodeDetailPage() {
     onError: (error: Error) => toast({ title: '삭제 실패', description: error.message || '삭제 중 오류가 발생했습니다.', variant: 'destructive' }),
   });
 
-  const onCancel = () => {
-    setDraft(null);
-    setIsEdit(false);
-  };
+  const uploadTemplateM = useMutation({
+    mutationFn: (file: File) => uploadDynNodeTemplate(id, file),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['dynnode', id] });
+      await qc.invalidateQueries({ queryKey: ['dynnode', 'list'] });
+      setTemplateInputKey((value) => value + 1);
+      toast({ title: '업로드 완료', description: '소스/예시 파일 ZIP이 첨부되었습니다.' });
+    },
+    onError: (error: Error) =>
+      toast({ title: '업로드 실패', description: error.message || '소스/예시 파일 업로드 중 오류가 발생했습니다.', variant: 'destructive' }),
+  });
 
-  const busy = saveM.isPending || delM.isPending;
+  const deleteTemplateM = useMutation({
+    mutationFn: () => deleteDynNodeTemplate(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['dynnode', id] });
+      await qc.invalidateQueries({ queryKey: ['dynnode', 'list'] });
+      toast({ title: '삭제 완료', description: '첨부된 소스/예시 파일을 삭제했습니다.' });
+    },
+    onError: (error: Error) =>
+      toast({ title: '삭제 실패', description: error.message || '소스/예시 파일 삭제 중 오류가 발생했습니다.', variant: 'destructive' }),
+  });
+
+  const busy = saveM.isPending || delM.isPending || uploadTemplateM.isPending || deleteTemplateM.isPending;
   const writeDisabled = !canWrite || busy;
 
   if (q.isLoading) return <DetailSkeleton />;
@@ -105,57 +133,70 @@ export default function DynNodeDetailPage() {
 
   return (
     <div className={['space-y-4', busy ? 'pointer-events-none opacity-60' : ''].join(' ')}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          {isEdit ? (
+      <div className="my-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Code2 className="h-5 w-5 shrink-0 text-sky-600" />
+          {canWrite ? (
             <Input
               value={values.title}
               onChange={(event) => updateDraft({ title: event.target.value })}
               placeholder="제목을 입력해 주세요"
-              className="h-12 border-slate-200 bg-white text-xl font-semibold shadow-sm placeholder:text-slate-400 focus-visible:ring-slate-100 focus-visible:ring-offset-0"
+              className="board-detail-title-input flex-1 px-3 mr-6 placeholder:text-slate-400"
               disabled={writeDisabled}
             />
           ) : (
-            <h1 className="flex min-w-0 items-center gap-2 truncate text-xl font-semibold sm:text-2xl">
-              <Code2 className="h-5 w-5 shrink-0 text-sky-600" />
+            <h1 className="flex min-w-0 items-center truncate text-xl font-semibold sm:text-2xl">
               <span className="min-w-0 truncate">{post.title}</span>
-              <LastEditorBadge name={post.lastEditorName} />
-              <DetailTimestampBadge createdAt={post.createdAt} updatedAt={post.updatedAt} />
             </h1>
           )}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 sm:shrink-0">
-          <Button variant="outline" className="h-9 w-9 p-0" onClick={() => router.push('/board/dynnode')} disabled={busy} aria-label="동적노드 목록" title="동적노드 목록">
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0"
+            onClick={() => router.push('/board/dynnode')}
+            disabled={busy}
+            aria-label="동적노드 목록"
+            title="동적노드 목록"
+          >
             <ClipboardList className="h-4 w-4 shrink-0" />
           </Button>
-          {!isEdit ? (
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(true)} disabled={writeDisabled} className="h-9 w-9 gap-2 border-rose-100 bg-rose-50 p-0 text-rose-700 hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800 sm:w-auto sm:px-3">
-              <Trash2 className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">삭제</span>
+          <Button
+            variant="outline"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={writeDisabled}
+            className="h-9 w-9 gap-2 border-rose-100 bg-rose-50 p-0 text-rose-700 hover:border-rose-200 hover:bg-rose-100 hover:text-rose-800 sm:w-auto sm:px-3"
+          >
+            <Trash2 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">삭제</span>
+          </Button>
+          {canWrite ? (
+            <Button
+              variant="outline"
+              onClick={() => saveM.mutate()}
+              disabled={writeDisabled || !dirty}
+              className="h-9 w-9 gap-2 border-sky-100 p-0 text-sky-700 hover:border-sky-200 hover:bg-sky-50 sm:w-auto sm:px-3"
+            >
+              <Save className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">저장</span>
             </Button>
           ) : null}
-          {isEdit ? (
-            <>
-              <Button variant="outline" onClick={onCancel} disabled={busy} className="h-9 w-9 gap-2 p-0 sm:w-auto sm:px-3">
-                <X className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">취소</span>
-              </Button>
-              <Button variant="outline" onClick={() => saveM.mutate()} disabled={writeDisabled || !dirty} className="h-9 w-9 gap-2 border-sky-100 p-0 text-sky-700 hover:border-sky-200 hover:bg-sky-50 sm:w-auto sm:px-3">
-                <Save className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">저장</span>
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" onClick={() => { setDraft(values); setIsEdit(true); }} disabled={writeDisabled} className="h-9 w-9 gap-2 p-0 sm:w-auto sm:px-3">
-              <Pencil className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">수정</span>
-            </Button>
-          )}
         </div>
       </div>
 
       {!canWrite ? <ReadOnlyNotice /> : null}
+
+      <TemplatePanel
+        canWrite={canWrite}
+        disabled={busy}
+        inputKey={templateInputKey}
+        postId={id}
+        templateFile={post.templateFile ?? null}
+        onDelete={() => setTemplateDeleteConfirmOpen(true)}
+        onUpload={(file) => uploadTemplateM.mutate(file)}
+      />
+
       <DynNodeRunner
         code={values.code}
         onChangeCode={canWrite ? (code) => updateDraft({ code }) : () => undefined}
@@ -165,19 +206,149 @@ export default function DynNodeDetailPage() {
         onChangeCtxText={canWrite ? (sampleCtx) => updateDraft({ sampleCtx }) : () => undefined}
         disabled={!canWrite || busy}
       />
-      {deleteConfirmOpen ? (
-        <ConfirmDeleteModal
-          title="동적노드를 삭제할까요?"
-          description="삭제하면 되돌릴 수 없습니다."
-          pending={delM.isPending}
-          onClose={() => setDeleteConfirmOpen(false)}
-          onConfirm={() => {
-            setDeleteConfirmOpen(false);
-            delM.mutate();
-          }}
-        />
-      ) : null}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={(open) => !open && setDeleteConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>동적노드를 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>삭제하면 되돌릴 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={delM.isPending}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={delM.isPending}
+              onClick={() => {
+                setDeleteConfirmOpen(false);
+                delM.mutate();
+              }}
+            >
+              {delM.isPending ? '삭제 중...' : '삭제'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={templateDeleteConfirmOpen} onOpenChange={(open) => !open && setTemplateDeleteConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>소스/예시 파일을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>삭제하면 첨부된 ZIP 파일을 다시 다운로드할 수 없습니다.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTemplateM.isPending}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteTemplateM.isPending}
+              onClick={() => {
+                setTemplateDeleteConfirmOpen(false);
+                deleteTemplateM.mutate();
+              }}
+            >
+              {deleteTemplateM.isPending ? '삭제 중...' : '삭제'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let next = value;
+  let unitIndex = 0;
+  while (next >= 1024 && unitIndex < units.length - 1) {
+    next /= 1024;
+    unitIndex += 1;
+  }
+  return `${next >= 10 || unitIndex === 0 ? Math.round(next) : next.toFixed(1)}${units[unitIndex]}`;
+}
+
+function TemplatePanel({
+  canWrite,
+  disabled,
+  inputKey,
+  onDelete,
+  onUpload,
+  postId,
+  templateFile,
+}: {
+  canWrite: boolean;
+  disabled: boolean;
+  inputKey: number;
+  onDelete: () => void;
+  onUpload: (file: File) => void;
+  postId: string;
+  templateFile: DynNodeTemplateFile | null;
+}) {
+  return (
+    <section className="flex justify-end">
+      <div className="flex w-full items-center justify-end gap-2 rounded-lg bg-slate-50 px-3 py-2 sm:w-auto sm:max-w-full">
+        <div className="min-w-0 text-right">
+          <div className="flex min-w-0 items-center justify-end gap-2 text-sm font-semibold text-slate-950 [&>span:last-child]:hidden">
+            <Archive className="h-4 w-4 shrink-0 text-sky-600" />
+            <span>소스/예시 파일 ZIP</span>
+            <span>소스/예시 파일 ZIP</span>
+          </div>
+          {templateFile ? (
+            <div className="mt-1 truncate text-xs text-slate-500">
+              <a
+                href={`/api/dynnode/${encodeURIComponent(postId)}/template/download`}
+                className="font-medium text-sky-700 hover:underline"
+                title={`${templateFile.originalName} 다운로드`}
+              >
+                {templateFile.originalName}
+              </a>
+              <span className="mx-1 text-slate-300">·</span>
+              <span>{templateFile.fileCount} files</span>
+              <span className="mx-1 text-slate-300">·</span>
+              <span>{formatBytes(templateFile.fileSize)}</span>
+            </div>
+          ) : (
+            <div className="mt-1 text-xs text-slate-500">프로젝트 단위 소스/예시 파일 ZIP을 첨부할 수 있습니다.</div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-1">
+          {canWrite ? (
+            <>
+              <label
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-sky-700 aria-disabled:pointer-events-none aria-disabled:opacity-45"
+                aria-disabled={disabled}
+                title={templateFile ? '소스/예시 파일 교체' : '소스/예시 파일 업로드'}
+              >
+                <input
+                  key={inputKey}
+                  type="file"
+                  accept=".zip,application/zip,application/x-zip-compressed"
+                  className="sr-only"
+                  disabled={disabled}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) onUpload(file);
+                  }}
+                />
+                <Upload className="h-4 w-4 shrink-0" />
+              </label>
+              {templateFile ? (
+                <Button
+                  type="button"
+                  variant="hoverGhost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                  disabled={disabled}
+                  onClick={onDelete}
+                  aria-label="소스/예시 파일 삭제"
+                  title="소스/예시 파일 삭제"
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -205,26 +376,6 @@ function DetailSkeleton() {
           <Skeleton className="h-[260px] w-full" />
           <Skeleton className="h-[260px] w-full" />
           <Skeleton className="h-[260px] w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmDeleteModal({ description, onClose, onConfirm, pending, title }: { description: string; onClose: () => void; onConfirm: () => void; pending: boolean; title: string }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-slate-950/35" aria-label="삭제 확인 닫기" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl">
-        <div className="text-base font-semibold text-slate-950">{title}</div>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} disabled={pending} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-45">
-            닫기
-          </button>
-          <button type="button" onClick={onConfirm} disabled={pending} className="rounded-md border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:pointer-events-none disabled:opacity-45">
-            {pending ? '삭제 중...' : '삭제'}
-          </button>
         </div>
       </div>
     </div>

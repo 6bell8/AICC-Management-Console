@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { deletePost, getPost, patchPost } from '@/app/lib/dynnode/store';
+import { deletePost, getPost, getTemplateByPostId, patchPost } from '@/app/lib/dynnode/store';
 import { requireWriteAccess } from '@/app/lib/auth/permissions';
 import { getCurrentUser } from '@/app/lib/auth/session';
+import { deleteBucketObject } from '@/app/lib/storage/railwayBucket';
 
 type Ctx = { params: Promise<{ id: string }> };
 type DynNodePatchBody = {
@@ -50,10 +51,15 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   if (denied) return denied;
 
   const { id } = await params;
+  const template = await getTemplateByPostId(id);
 
   const removed = await deletePost(id);
   if (removed <= 0) {
     return NextResponse.json({ ok: false, message: 'not found' }, { status: 404 });
+  }
+
+  if (template?.storageKey) {
+    await deleteBucketObject(template.storageKey).catch(() => undefined);
   }
 
   return NextResponse.json({ ok: true, removed });

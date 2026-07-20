@@ -7,8 +7,8 @@ export const revalidate = 0;
 
 function BoardListFallback() {
   return (
-    <div className="space-y-4 p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="board-list-page">
+      <div className="my-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-8 w-36 max-w-full" />
         <Skeleton className="h-10 w-24 max-w-full" />
       </div>

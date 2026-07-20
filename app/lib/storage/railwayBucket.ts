@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 function requiredEnv(name: string) {
   const value = process.env[name];
@@ -53,6 +53,34 @@ export async function uploadTripExpenseAttachment(input: {
   };
 }
 
+export async function uploadDynnodeTemplate(input: {
+  postId: string;
+  file: File;
+  keyPrefix?: string;
+}) {
+  const bucket = requiredEnv('RAILWAY_BUCKET_NAME');
+  const safeName = sanitizeFilename(input.file.name || 'template.zip');
+  const key = `${input.keyPrefix ?? 'dynnode-templates'}/${input.postId}/${crypto.randomUUID()}-${safeName}`;
+  const body = Buffer.from(await input.file.arrayBuffer());
+
+  await getBucketClient().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: input.file.type || 'application/zip',
+    }),
+  );
+
+  return {
+    storageProvider: 'RAILWAY_BUCKET' as const,
+    storageKey: key,
+    originalFilename: input.file.name || safeName,
+    mimeType: input.file.type || 'application/zip',
+    fileSize: input.file.size,
+  };
+}
+
 export async function getTripExpenseAttachmentObject(storageKey: string) {
   const bucket = requiredEnv('RAILWAY_BUCKET_NAME');
   const response = await getBucketClient().send(
@@ -68,4 +96,31 @@ export async function getTripExpenseAttachmentObject(storageKey: string) {
     bytes,
     contentType: response.ContentType || 'application/octet-stream',
   };
+}
+
+export async function getDynnodeTemplateObject(storageKey: string) {
+  const bucket = requiredEnv('RAILWAY_BUCKET_NAME');
+  const response = await getBucketClient().send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: storageKey,
+    }),
+  );
+
+  if (!response.Body) throw new Error('template file body is empty');
+  const bytes = await response.Body.transformToByteArray();
+  return {
+    bytes,
+    contentType: response.ContentType || 'application/zip',
+  };
+}
+
+export async function deleteBucketObject(storageKey: string) {
+  const bucket = requiredEnv('RAILWAY_BUCKET_NAME');
+  await getBucketClient().send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: storageKey,
+    }),
+  );
 }

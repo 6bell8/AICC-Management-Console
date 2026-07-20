@@ -16,20 +16,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/app/components/ui/alert-dialog';
+import { formatKstDateTime } from '@/app/lib/format/kst';
 
 type CommentsResponse = {
   items: PostComment[];
 };
 
-export function CommentPanel({
-  compact = false,
-  targetId,
-  targetType,
-}: {
-  compact?: boolean;
-  targetId: string;
-  targetType: CommentTargetType;
-}) {
+export function CommentPanel({ compact = false, targetId, targetType }: { compact?: boolean; targetId: string; targetType: CommentTargetType }) {
   const qc = useQueryClient();
   const { canWrite, user } = useCurrentUser();
   const [content, setContent] = useState('');
@@ -124,7 +117,9 @@ export function CommentPanel({
             </article>
           ))
         ) : (
-          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-sm text-slate-500">아직 댓글이 없습니다.</div>
+          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 py-4 text-sm text-slate-500">
+            아직 댓글이 없습니다.
+          </div>
         )}
       </div>
 
@@ -156,7 +151,9 @@ export function CommentPanel({
           {createMutation.error ? <p className="text-sm text-rose-600 sm:col-span-2">{createMutation.error.message}</p> : null}
         </form>
       ) : (
-        <p className="mt-3 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">댓글 작성은 승인된 작성 권한 계정에서 가능합니다.</p>
+        <p className="mt-3 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          댓글 작성은 승인된 작성 권한 계정에서 가능합니다.
+        </p>
       )}
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -182,7 +179,5 @@ export function CommentPanel({
 }
 
 function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return formatKstDateTime(value);
 }

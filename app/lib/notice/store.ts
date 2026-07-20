@@ -111,7 +111,7 @@ export async function listNotices(params?: { q?: string; status?: NoticeStatus |
       SELECT id, title, content, pinned, status, attachments_json, revision_count, last_editor_name, created_at, updated_at
       FROM notices
       ${whereSql}
-      ORDER BY updated_at DESC
+      ORDER BY pinned DESC, created_at DESC, id DESC
     `,
     values,
   );

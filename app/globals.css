@@ -448,6 +448,59 @@
   line-height: 1.6;
 }
 
+/* Layout policy: summary pages keep max-w-6xl; board pages opt into a wider workspace. */
+:root {
+  --board-wide-max-width: 90rem;
+  --board-page-gap: 1.5rem;
+}
+
+.main-content-shell:has(> [data-main-width='board-wide']) {
+  max-width: none;
+}
+
+.board-wide-shell {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+  .board-wide-shell {
+    max-width: var(--board-wide-max-width);
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.board-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--board-page-gap);
+}
+
+/* Board detail policy: editable titles should read like headings, not long form fields. */
+.board-detail-title-input {
+  height: 2.5rem;
+  min-width: 0;
+  border: 0;
+  background: rgb(248 250 252);
+  box-shadow: none;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(15 23 42);
+}
+
+.board-detail-title-input:focus-visible {
+  background: rgb(255 255 255);
+  box-shadow: 0 0 0 2px rgb(224 242 254);
+  --tw-ring-offset-width: 0px;
+}
+
+@media (min-width: 640px) {
+  .board-detail-title-input {
+    font-size: 1.5rem;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;

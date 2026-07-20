@@ -1,4 +1,4 @@
-import type { DynNodePost } from '../types/dynnode';
+import type { DynNodePost, DynNodeTemplateFile } from '../types/dynnode';
 
 export type DynNodeListResponse = {
   items: DynNodePost[];
@@ -66,4 +66,24 @@ export async function deleteDynnode(id: string) {
 
   if (!res.ok) throw new Error(getErrorMessage(data, `DELETE failed (${res.status})`));
   return data as { ok: true; removed: number };
+}
+
+export async function uploadDynNodeTemplate(id: string, file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`/api/dynnode/${encodeURIComponent(id)}/template`, {
+    method: 'POST',
+    body: formData,
+  });
+  const data = (await res.json().catch(() => ({}))) as unknown;
+  if (!res.ok) throw new Error(getErrorMessage(data, `template upload failed (${res.status})`));
+  return data as { templateFile: DynNodeTemplateFile };
+}
+
+export async function deleteDynNodeTemplate(id: string) {
+  const res = await fetch(`/api/dynnode/${encodeURIComponent(id)}/template`, { method: 'DELETE' });
+  const data = (await res.json().catch(() => ({}))) as unknown;
+  if (!res.ok) throw new Error(getErrorMessage(data, `template delete failed (${res.status})`));
+  return data as { ok: true; templateFile: DynNodeTemplateFile };
 }

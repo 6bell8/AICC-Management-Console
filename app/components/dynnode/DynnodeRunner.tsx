@@ -38,7 +38,7 @@ type Props = {
 };
 
 const fieldClass =
-  'h-10 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm leading-none text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-200 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
+  'h-10 min-w-0 rounded-md border border-transparent bg-slate-50 px-3 text-sm leading-none text-slate-800 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60';
 const textareaClass =
   'min-h-[420px] w-full resize-y rounded-md border border-slate-700 bg-slate-950 py-3 pl-14 pr-3 font-mono text-[13px] leading-6 text-slate-100 shadow-inner outline-none transition caret-sky-300 placeholder:text-slate-500 selection:bg-sky-500/30 focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60';
 const sampleCode = `// 'api:API01'은 default response 응답값입니다.
@@ -318,7 +318,7 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
             </div>
           </label>
 
-          <Button variant="outline" onClick={resetOutputs} disabled={running} className="h-10 gap-2 sm:mb-0">
+          <Button variant="outline" onClick={resetOutputs} disabled={running} className="h-10 gap-2 border-transparent bg-slate-50 text-slate-700 shadow-none hover:border-transparent hover:bg-slate-100 sm:mb-0">
             <RotateCcw className="h-4 w-4 shrink-0" />
             초기화
           </Button>
@@ -329,7 +329,7 @@ export default function DynNodeRunner({ code, ctxKey, ctxText, disabled = false,
               중지
             </Button>
           ) : (
-            <Button variant="outline" onClick={onRun} className="h-10 gap-2 border-sky-100 text-sky-700 hover:border-sky-200 hover:bg-sky-50">
+            <Button variant="outline" onClick={onRun} className="h-10 gap-2 border-transparent bg-slate-50 text-sky-700 shadow-none hover:border-transparent hover:bg-sky-50">
               <Play className="h-4 w-4 shrink-0" />
               실행
             </Button>
